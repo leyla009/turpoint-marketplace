@@ -1,5 +1,3 @@
-// Task 2: server skeleton. Task 6+ mount additional routers below as
-// each one is built — don't mount a router before its task is done.
 
 import express from 'express';
 import cors from 'cors';
