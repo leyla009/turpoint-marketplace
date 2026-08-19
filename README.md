@@ -90,8 +90,8 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-org/turpoint.git
-   cd turpoint
+   git clone https://github.com/leyla009/turpoint-marketplace.git
+   cd turpoint-marketplace
    ```
 
 2. **Install dependencies for backend & frontend:**
@@ -106,7 +106,7 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
 3. **Configure Environment Variables:**
    Create a `.env` file in the root directory:
    ```env
-   PORT=5000
+   PORT=4000
    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
    JWT_SECRET=your_jwt_secret_key
    ```
