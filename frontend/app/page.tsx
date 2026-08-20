@@ -6,13 +6,18 @@ export default function Home() {
   const [healthStatus, setHealthStatus] = useState<string>('checking...');
 
   useEffect(() => {
-    fetch('/api/health')
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    
+    fetch(`${baseUrl}/api/health`)
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error('Network response was not ok');
       })
       .then((data) => setHealthStatus(data.status || 'ok'))
-      .catch(() => setHealthStatus('error connecting to backend'));
+      .catch((err) => {
+        console.error('Fetch error:', err);
+        setHealthStatus('error connecting to backend');
+      });
   }, []);
 
   return (
