@@ -13,3 +13,13 @@
 8.  **Add tour** — "New tour form: title, description, category dropdown, location, route/itinerary textarea, price, date picker, duration in days, min/max participants sliders, Publish button."
 9.  **Operator dashboard** — "Dashboard home with summary cards (total tours, upcoming bookings, average rating, this month's revenue), and below, a table of the operator's tours with status badges and quick actions (edit, view bookings, mark as last-minute deal)."
 10.  **Bookings management** — "Bookings view for one tour: list of participants with name, seats, payment status, and — for group-formation tours — a progress bar showing 'X of Y minimum joined' plus a status badge (waiting/forming/confirmed)."
+
+
+## Task 5 Implementation Note
+
+The wireframes for Task 5 were constructed as a fully interactive, AI-generated React/TypeScript prototype rather than static Figma canvas frames. 
+
+To preserve live routing path integrity for upcoming milestones, the standalone reference prototype has been relocated to:
+- `docs/figma-prototype/App.tsx`
+
+This prototype houses the baseline internal state-switching logic and hardcoded UI structures, which will be refactored into modular Next.js routes (`app/tours/page.tsx`, `app/tours/[id]/page.tsx`, `app/compare/page.tsx`, `app/planner/page.tsx`, `app/dashboard/page.tsx`) during Tasks 18–21.
