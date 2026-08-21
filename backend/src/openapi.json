@@ -1,0 +1,510 @@
+
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TurPoint API",
+    "version": "0.1.0",
+    "description": "Tour marketplace API - operators, tours, group formation pricing, bookings, reviews, deals, and the smart trip planner."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "summary": "Create a new account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Aysel Mammadova",
+                "email": "aysel@example.com",
+                "password": "secret123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created, returns user + JWT"
+          },
+          "409": {
+            "description": "Email already registered"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Log in",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "aysel@example.com",
+                "password": "secret123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns user + JWT"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get the logged-in user from a Bearer token",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Bearer <token>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          }
+        }
+      }
+    },
+    "/operators": {
+      "post": {
+        "summary": "Create an operator profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Qafqaz Tours",
+                "description": "Dag turlari",
+                "languages": "az,en"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "summary": "List operators",
+        "responses": {
+          "200": {
+            "description": "Array of operators"
+          }
+        }
+      }
+    },
+    "/operators/{id}": {
+      "get": {
+        "summary": "Get one operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update an operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated operator"
+          }
+        }
+      }
+    },
+    "/tours": {
+      "post": {
+        "summary": "Create a tour",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "operator_id": 1,
+                "title": "Quba Tebiet Turu",
+                "price": 50,
+                "date": "2026-09-10"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "summary": "Search/list tours",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of tours"
+          }
+        }
+      }
+    },
+    "/tours/compare": {
+      "get": {
+        "summary": "Compare 2-3 tours side by side",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "1,2,3"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of tours"
+          },
+          "400": {
+            "description": "Must be 2-3 ids"
+          }
+        }
+      }
+    },
+    "/tours/{id}": {
+      "get": {
+        "summary": "Get one tour (includes discounted_price if an active deal exists)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tour"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/group-formations": {
+      "post": {
+        "summary": "Start (or fetch existing) group formation for a tour",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing waiting/forming group"
+          },
+          "201": {
+            "description": "New group created"
+          }
+        }
+      }
+    },
+    "/group-formations/{id}": {
+      "get": {
+        "summary": "Get one group formation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group formation with live price_per_person"
+          }
+        }
+      }
+    },
+    "/group-formations/{id}/join": {
+      "post": {
+        "summary": "Join a group - recalculates price_per_person live, auto-confirms at min_participants",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated group"
+          },
+          "409": {
+            "description": "Already confirmed, cancelled, or full"
+          }
+        }
+      }
+    },
+    "/group-formations/expire-past-due": {
+      "post": {
+        "summary": "Cancel any waiting/forming groups whose tour date has passed",
+        "responses": {
+          "200": {
+            "description": "List of cancelled group ids"
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "summary": "Book a tour (simulated payment)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 5,
+                "seats": 2,
+                "group_formation_id": null,
+                "user": {
+                  "name": "Nigar Aliyeva",
+                  "email": "nigar@example.com"
+                },
+                "payment": {
+                  "card_number": "4242424242424242"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking + ticket_code"
+          },
+          "400": {
+            "description": "Missing payment or user info"
+          }
+        }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "summary": "Get a booking (e-ticket)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking with nested tour info"
+          }
+        }
+      }
+    },
+    "/reviews": {
+      "post": {
+        "summary": "Post a review - updates the operator's rolled-up rating",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 5,
+                "rating": 5,
+                "comment": "Great trip!",
+                "user": {
+                  "name": "Aysel Mammadova",
+                  "email": "aysel@example.com"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review + operator_new_rating"
+          }
+        }
+      },
+      "get": {
+        "summary": "List reviews for a tour",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of reviews"
+          }
+        }
+      }
+    },
+    "/deals": {
+      "post": {
+        "summary": "Create a last-minute deal on a tour",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 1,
+                "discount_percent": 20,
+                "expires_at": "2027-01-01"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created deal"
+          }
+        }
+      },
+      "get": {
+        "summary": "List currently-active deals",
+        "responses": {
+          "200": {
+            "description": "Array of deals"
+          }
+        }
+      }
+    },
+    "/planner": {
+      "post": {
+        "summary": "Smart Planner - greedy budget/day-constrained tour selection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "budget": 300,
+                "days": 3,
+                "interests": [
+                  "nature",
+                  "history"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Selected tours with reasons, total_price, remaining_budget"
+          }
+        }
+      }
+    }
+  }
+}
