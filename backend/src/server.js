@@ -9,6 +9,7 @@ import operatorsRouter from './routes/operators.js';
 import toursRouter from './routes/tours.js';
 import groupFormationsRouter from './routes/groupFormations.js';
 import bookingsRouter from './routes/bookings.js';
+import reviewsRouter from './routes/reviews.js';
  
 const app = express();
 app.use(cors());
@@ -22,8 +23,9 @@ app.use('/api/operators', operatorsRouter);
 app.use('/api/tours', toursRouter);
 app.use('/api/group-formations', groupFormationsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/reviews', reviewsRouter);
  
-// Task 13+: mount reviews, deals, planner routers here as built.
+// Task 14+: mount deals, planner routers here as built.
  
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
