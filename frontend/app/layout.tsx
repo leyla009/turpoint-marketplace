@@ -1,15 +1,22 @@
 import './globals.css';
-import { ReactNode } from 'react';
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import Nav from './components/Nav';
 
-export const metadata = {
-  title: 'App',
-  description: 'Task 4 Application Base',
+export const metadata: Metadata = {
+  title: 'TurPoint',
+  description: 'Azərbaycanda tur operatorları və bələdçilər üçün marketplace',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="az">
+      <body className="bg-background text-foreground">
+        <div className="flex min-h-screen">
+          <Nav />
+          <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
+        </div>
+      </body>
     </html>
   );
 }
