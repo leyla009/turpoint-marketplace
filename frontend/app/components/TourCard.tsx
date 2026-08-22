@@ -2,7 +2,7 @@
 
 import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap } from 'lucide-react';
 
-const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; label: string }> = {
+export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; label: string }> = {
   nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, label: 'Nature' },
   history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, label: 'History' },
   entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: Music, label: 'Entertainment' },
