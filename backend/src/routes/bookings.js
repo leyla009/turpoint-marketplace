@@ -1,4 +1,4 @@
-// Task 12: Booking flow + simulated payment.
+ // Task 12: Booking flow + simulated payment.
 // No real auth system exists yet (out of MVP scope per the brief), so this
 // route accepts either an existing user_id, or a {name, email} object and
 // creates the user on the fly - similar to a guest-checkout flow.
@@ -18,7 +18,6 @@ function resolveUser({ user_id, user }) {
   if (user_id) {
     const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
     if (!existing) throw new Error('user_id not found');
-
     return existing;
   }
   if (user && user.email) {
@@ -35,7 +34,7 @@ function resolveUser({ user_id, user }) {
 }
  
 router.post('/', (req, res) => {
-  const { tour_id, seats, group_formation_id, user_id, user, payment } = req.body;
+  const { tour_id, seats, user_id, user, payment } = req.body;
  
   if (!tour_id || !seats) {
     return res.status(400).json({ error: 'tour_id and seats are required' });
@@ -44,17 +43,8 @@ router.post('/', (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  
-  // If booking through a confirmed group, use the group's live price-per-person
-  // instead of the tour's solo price - this is what connects Task 10's pricing
-  // to an actual booking record.
-  let pricePerSeat = tour.price;
-  if (group_formation_id) {
-    const group = db.prepare('SELECT * FROM group_formations WHERE id = ?').get(group_formation_id);
-    if (!group) return res.status(404).json({ error: 'group formation not found' });
-    if (group.status !== 'confirmed') {
-      return res.status(409).json({ error: 'group formation is not confirmed yet' });
-    }
-    pricePerSeat = group.price_per_person;
+  if (seats > tour.max_participants) {
+    return res.status(400).json({ error: `cannot book more than ${tour.max_participants} seats on this tour` });
   }
  
   let resolvedUser;
@@ -64,22 +54,109 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: err.message });
   }
  
-  // Simulated payment step - MVP has no real payment provider (per project brief).
   if (!payment || !payment.card_number) {
     return res.status(400).json({ error: 'simulated payment details required (payment.card_number)' });
   }
  
-  const totalPrice = pricePerSeat * seats;
   const ticketCode = generateTicketCode();
  
-  const result = db
-    .prepare(
-      `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
-       VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
-    )
-    .run(tour_id, resolvedUser.id, group_formation_id ?? null, seats, totalPrice, ticketCode);
+  // Everything below runs atomically: a group settling and every pending
+  // booking on it flipping to confirmed must not partially apply.
+  const runBooking = db.transaction(() => {
+    const openGroup = db
+      .prepare("SELECT * FROM group_formations WHERE tour_id = ? AND status IN ('waiting','forming')")
+      .get(tour_id);
  
-  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+    if (openGroup) {
+      const newCount = openGroup.current_participants + seats;
+      if (newCount > tour.max_participants) {
+        throw new Error(`only ${tour.max_participants - openGroup.current_participants} spot(s) left in this group`);
+      }
+      const finalPricePerPerson = Math.round((openGroup.total_cost / newCount) * 100) / 100;
+      const nowConfirmed = newCount >= openGroup.min_participants;
+ 
+      db.prepare('UPDATE group_formations SET current_participants = ?, price_per_person = ?, status = ? WHERE id = ?')
+        .run(newCount, finalPricePerPerson, nowConfirmed ? 'confirmed' : 'forming', openGroup.id);
+ 
+      if (nowConfirmed) {
+        // This booking tipped the group over - settle every earlier pending
+        // booking on it at the SAME final price, so nobody pays more just
+        // for having booked first.
+        const pendingBookings = db
+          .prepare("SELECT * FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
+          .all(openGroup.id);
+        const settlePending = db.prepare('UPDATE bookings SET total_price = ?, status = ? WHERE id = ?');
+        pendingBookings.forEach((b) => {
+          settlePending.run(Math.round(finalPricePerPerson * b.seats * 100) / 100, 'confirmed', b.id);
+        });
+ 
+        const totalPrice = Math.round(finalPricePerPerson * seats * 100) / 100;
+        const result = db
+          .prepare(
+            `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
+             VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
+          )
+          .run(tour_id, resolvedUser.id, openGroup.id, seats, totalPrice, ticketCode);
+        return { bookingId: result.lastInsertRowid };
+      }
+ 
+      // Still short of the minimum - held as pending until the group settles.
+      const estimatedTotal = Math.round(finalPricePerPerson * seats * 100) / 100;
+      const result = db
+        .prepare(
+          `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?)`
+        )
+        .run(tour_id, resolvedUser.id, openGroup.id, seats, estimatedTotal, ticketCode);
+      return { bookingId: result.lastInsertRowid };
+    }
+ 
+    const confirmedGroup = db
+      .prepare("SELECT * FROM group_formations WHERE tour_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1")
+      .get(tour_id);
+ 
+    if (confirmedGroup) {
+      const totalPrice = Math.round(confirmedGroup.price_per_person * seats * 100) / 100;
+      const result = db
+        .prepare(
+          `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
+           VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
+        )
+        .run(tour_id, resolvedUser.id, confirmedGroup.id, seats, totalPrice, ticketCode);
+      return { bookingId: result.lastInsertRowid };
+    }
+ 
+    // No group exists for this tour yet - this booking starts one.
+    const totalCost = tour.price * tour.min_participants;
+    const finalPricePerPerson = Math.round((totalCost / seats) * 100) / 100;
+    const nowConfirmed = seats >= tour.min_participants;
+    const newStatus = nowConfirmed ? 'confirmed' : 'forming';
+ 
+    const groupResult = db
+      .prepare(
+        `INSERT INTO group_formations (tour_id, total_cost, min_participants, current_participants, price_per_person, status)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(tour_id, totalCost, tour.min_participants, seats, finalPricePerPerson, newStatus);
+ 
+    const totalPrice = Math.round(finalPricePerPerson * seats * 100) / 100;
+    const bookingResult = db
+      .prepare(
+        `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(tour_id, resolvedUser.id, groupResult.lastInsertRowid, seats, totalPrice, nowConfirmed ? 'confirmed' : 'pending', ticketCode);
+    return { bookingId: bookingResult.lastInsertRowid };
+  });
+ 
+  let outcome;
+  try {
+    outcome = runBooking();
+  } catch (err) {
+    return res.status(409).json({ error: err.message });
+  }
+ 
+  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(outcome.bookingId);
   res.status(201).json({ ...booking, tour_title: tour.title, user_email: resolvedUser.email });
 });
  
