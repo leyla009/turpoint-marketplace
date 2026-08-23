@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Filter, Leaf, Landmark, Music, Utensils } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Search, X, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
 import TourCard, { ApiTour } from './components/TourCard';
+
+// Leaflet touches `window` at import time, so it can only run in the
+// browser — ssr: false keeps Next from trying to render it server-side.
+const DestinationMap = dynamic(() => import('./components/DestinationMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 sm:h-80 rounded-xl border border-border bg-card animate-pulse" />
+  ),
+});
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -25,6 +35,9 @@ export default function Home() {
   const [error, setError] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -43,7 +56,15 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  const locations = useMemo(
+    () => Array.from(new Set(tours.map((t) => t.location).filter(Boolean))) as string[],
+    [tours]
+  );
+
   const filtered = useMemo(() => {
+    const min = minPrice === '' ? null : Number(minPrice);
+    const max = maxPrice === '' ? null : Number(maxPrice);
+
     return tours.filter((t) => {
       const matchCat = activeCategory === 'all' || t.category === activeCategory;
       const q = searchQuery.toLowerCase();
@@ -51,9 +72,13 @@ export default function Home() {
         q === '' ||
         t.title.toLowerCase().includes(q) ||
         (t.location ?? '').toLowerCase().includes(q);
-      return matchCat && matchQ;
+      const matchLocation = locationFilter === 'all' || t.location === locationFilter;
+      const effectivePrice = t.discounted_price ?? t.price;
+      const matchMin = min === null || effectivePrice >= min;
+      const matchMax = max === null || effectivePrice <= max;
+      return matchCat && matchQ && matchLocation && matchMin && matchMax;
     });
-  }, [tours, activeCategory, searchQuery]);
+  }, [tours, activeCategory, searchQuery, locationFilter, minPrice, maxPrice]);
 
   return (
     <div className="min-h-full">
@@ -87,6 +112,60 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="px-4 sm:px-6 pt-6 max-w-5xl mx-auto">
+        {/* Destination map */}
+        {!loading && tours.length > 0 && (
+          <div className="mb-6">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-3">
+              <MapPinned size={15} /> Explore destinations
+            </h2>
+            <DestinationMap tours={tours} />
+          </div>
+        )}
+
+        {/* Filters: location + price range */}
+        <div className="flex flex-wrap items-center gap-2 pb-3">
+          <select
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+            className="text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground outline-none"
+          >
+            <option value="all">All locations</option>
+            {locations.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            placeholder="Min AZN"
+            className="w-24 text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
+          />
+          <input
+            type="number"
+            inputMode="numeric"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            placeholder="Max AZN"
+            className="w-24 text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
+          />
+          {(locationFilter !== 'all' || minPrice !== '' || maxPrice !== '') && (
+            <button
+              onClick={() => {
+                setLocationFilter('all');
+                setMinPrice('');
+                setMaxPrice('');
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
         {/* Category chips */}
         <div className="flex flex-wrap gap-2 pb-2">
           {CATEGORIES.map((cat) => {
