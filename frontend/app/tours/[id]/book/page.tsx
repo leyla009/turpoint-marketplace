@@ -3,19 +3,20 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock } from 'lucide-react';
+import { useAuth, useRequireAuth } from '../../../context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function BookTour() {
   const { id } = useParams();
   const router = useRouter();
+  const { loading: authLoading } = useRequireAuth(); // redirects to /login if not signed in
+  const { user, token } = useAuth();
 
   const [tour, setTour] = useState<any>(null);
   const [group, setGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [seats, setSeats] = useState(1);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -59,19 +60,18 @@ export default function BookTour() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!name || !email || !cardNumber) {
-      setError('Please fill in all fields.');
+    if (!cardNumber) {
+      setError('Please enter payment details.');
       return;
     }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/api/bookings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           tour_id: Number(id),
           seats,
-          user: { name, email },
           payment: { card_number: cardNumber },
         }),
       });
@@ -88,7 +88,7 @@ export default function BookTour() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
   }
   if (!tour?.id) {
@@ -198,22 +198,11 @@ export default function BookTour() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <p className="text-sm font-medium text-foreground">Your details</p>
-          <input
-            type="text"
-            placeholder="Full name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
-          />
+        <div className="bg-card border border-border rounded-xl p-4">
+          <p className="text-sm font-medium text-foreground">Booking as</p>
+          <p className="text-sm text-muted-foreground">
+            {user?.name} · {user?.email}
+          </p>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
