@@ -1,20 +1,29 @@
 // Task 7: Tour create/list.
 // Task 8: search & filters via query params.
 // Task 14: /compare endpoint.
+// Operator/traveler dual-mode account model: creating a tour now requires
+// being logged in with an operator profile. operator_id is derived from
+// that profile server-side — never trusted from the request body.
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { requireAuth } from '../middleware/auth.js';
  
 const router = Router();
  
-router.post('/', (req, res) => {
+router.post('/', requireAuth, (req, res) => {
   const {
-    operator_id, title, description, location, category, route,
+    title, description, location, category, route,
     price, date, duration_days, min_participants, max_participants, interest_score,
   } = req.body;
  
-  if (!operator_id || !title || !price || !date) {
-    return res.status(400).json({ error: 'operator_id, title, price, date are required' });
+  if (!title || !price || !date) {
+    return res.status(400).json({ error: 'title, price, date are required' });
+  }
+ 
+  const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) {
+    return res.status(403).json({ error: 'you need an operator profile before creating tours' });
   }
  
   const result = db
@@ -25,7 +34,7 @@ router.post('/', (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
-      operator_id, title, description ?? null, location ?? null, category ?? null,
+      operator.id, title, description ?? null, location ?? null, category ?? null,
       route ?? null, price, date, duration_days ?? 1, min_participants ?? 1,
       max_participants ?? 10, interest_score ? JSON.stringify(interest_score) : null
     );

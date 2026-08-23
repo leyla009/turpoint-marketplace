@@ -1,8 +1,9 @@
 -- TurPoint database schema
 -- Task 1: run via `node src/db/index.js` to create all tables.
-
+ 
 CREATE TABLE IF NOT EXISTS operators (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),   -- owning account; null for demo/seed operators
   name TEXT NOT NULL,
   description TEXT,
   languages TEXT,             -- comma-separated, e.g. "az,en,ru"
@@ -12,7 +13,7 @@ CREATE TABLE IF NOT EXISTS operators (
   completed_tours_count INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -20,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS tours (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   operator_id INTEGER NOT NULL REFERENCES operators(id),
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS tours (
   interest_score TEXT,        -- JSON: {"nature":0.8,"history":0.2}
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS group_formations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS group_formations (
   status TEXT DEFAULT 'waiting',   -- waiting | forming | confirmed | cancelled
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS bookings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),
@@ -60,7 +61,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   ticket_code TEXT UNIQUE,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS reviews (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),
@@ -69,7 +70,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   comment TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS last_minute_deals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),
@@ -77,3 +78,4 @@ CREATE TABLE IF NOT EXISTS last_minute_deals (
   expires_at TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+ 
