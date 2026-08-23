@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuth, useRequireAuth } from '../../../context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -116,6 +117,11 @@ export default function BookTour() {
           </p>
 
           <div className="bg-background border border-dashed border-border rounded-lg p-4 text-left space-y-2">
+            <div className="flex justify-center pb-2">
+              <div className="bg-white p-2 rounded-lg border border-border">
+                <QRCodeSVG value={ticket.ticket_code} size={100} />
+              </div>
+            </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Ticket code</span>
               <span className="font-mono font-semibold text-primary">{ticket.ticket_code}</span>

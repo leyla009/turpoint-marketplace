@@ -177,10 +177,25 @@ router.get('/my-trips', requireAuth, (req, res) => {
   res.json(bookings);
 });
  
-router.get('/:id', (req, res) => {
+// Single booking detail, for the traveler's own e-ticket view. Auth +
+// ownership required — this used to be public, which meant anyone could
+// view anyone else's ticket by guessing an id.
+router.get('/:id', requireAuth, (req, res) => {
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
   if (!booking) return res.status(404).json({ error: 'booking not found' });
-  const tour = db.prepare('SELECT title, date, location FROM tours WHERE id = ?').get(booking.tour_id);
+  if (booking.user_id !== req.user.userId) {
+    return res.status(403).json({ error: 'you can only view your own bookings' });
+  }
+ 
+  const tour = db
+    .prepare(
+      `SELECT t.title, t.date, t.location, t.route, o.name as operator_name
+       FROM tours t
+       JOIN operators o ON o.id = t.operator_id
+       WHERE t.id = ?`
+    )
+    .get(booking.tour_id);
+ 
   res.json({ ...booking, tour });
 });
  

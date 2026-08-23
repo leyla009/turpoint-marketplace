@@ -1,0 +1,161 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
+import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-react';
+import { useAuth, useRequireAuth } from '../../context/AuthContext';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// Route is stored as freeform "TIME - stop" lines (Task 18 uses the same
+// parsing). The first line is usually the pickup — e.g. "07:00 - Baku pickup".
+function parseFirstStop(route: string | null): { time: string | null; text: string } | null {
+  if (!route) return null;
+  const firstLine = route
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)[0];
+  if (!firstLine) return null;
+  const match = firstLine.match(/^(\d{1,2}:\d{2})\s*[-–—]\s*(.+)$/);
+  return match ? { time: match[1], text: match[2] } : { time: null, text: firstLine };
+}
+
+function downloadICS(booking: any, pickup: { time: string | null; text: string } | null) {
+  const timeStr = pickup?.time ?? '09:00';
+  const [hh, mm] = timeStr.split(':');
+  const dateStr = (booking.tour.date as string).replace(/-/g, '');
+  const dtStart = `${dateStr}T${hh.padStart(2, '0')}${mm.padStart(2, '0')}00`;
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    `SUMMARY:${booking.tour.title}`,
+    `DTSTART:${dtStart}`,
+    `LOCATION:${pickup?.text ?? booking.tour.location ?? ''}`,
+    `DESCRIPTION:TurPoint ticket ${booking.ticket_code}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${booking.ticket_code}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export default function ETicketPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const { loading: authLoading } = useRequireAuth();
+  const { token } = useAuth();
+
+  const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/api/bookings/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status === 403 ? 'This ticket isn\'t yours.' : 'Ticket not found.');
+        return r.json();
+      })
+      .then(setBooking)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id, token]);
+
+  if (authLoading || loading) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+  }
+  if (error || !booking) {
+    return <div className="p-6 text-sm text-muted-foreground">{error || 'Ticket not found.'}</div>;
+  }
+
+  const pickup = parseFirstStop(booking.tour.route);
+  const isPending = booking.status === 'pending';
+
+  return (
+    <div className="min-h-full p-4 sm:p-6 max-w-md mx-auto pb-20 md:pb-6">
+      <button
+        onClick={() => router.push('/bookings')}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ChevronLeft size={16} /> My Bookings
+      </button>
+
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-primary text-primary-foreground px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] tracking-wide opacity-75">TURPOINT · E-TICKET</p>
+            <p className="font-display font-bold">{booking.tour.title}</p>
+          </div>
+          <Ticket size={20} className="opacity-75" />
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">OPERATOR</p>
+              <p className="text-sm text-foreground">{booking.tour.operator_name}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">DATE &amp; TIME</p>
+              <p className="text-sm text-foreground">
+                {booking.tour.date}
+                {pickup?.time ? ` · ${pickup.time}` : ''}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">PICKUP</p>
+              <p className="text-sm text-foreground">{pickup?.text ?? booking.tour.location}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">SEATS</p>
+              <p className="text-sm text-foreground">
+                {booking.seats} {booking.seats === 1 ? 'person' : 'people'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">
+                {isPending ? 'ESTIMATED TOTAL' : 'TOTAL PAID'}
+              </p>
+              <p className="text-lg font-bold text-foreground">AZN{booking.total_price}</p>
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 ${
+                  isPending ? 'text-primary' : 'text-accent'
+                }`}
+              >
+                {isPending ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+                {isPending ? 'Pending' : 'Confirmed'}
+              </span>
+            </div>
+            <div className="bg-white p-2 rounded-lg border border-border">
+              <QRCodeSVG value={booking.ticket_code} size={88} />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-dashed border-border px-5 py-3 flex items-center justify-between bg-background">
+          <span className="text-xs text-muted-foreground">Ticket code</span>
+          <span className="font-mono text-xs font-semibold text-foreground">{booking.ticket_code}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={() => downloadICS(booking, pickup)}
+        className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold rounded-xl py-2.5 mt-3 hover:bg-muted transition-colors"
+      >
+        <CalendarPlus size={15} /> Add to Calendar
+      </button>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, CheckCircle2, XCircle, MapPin, Calendar } from 'lucide-react';
@@ -51,7 +52,11 @@ export default function MyBookingsPage() {
             const style = STATUS_STYLE[b.status] ?? STATUS_STYLE.confirmed;
             const StatusIcon = style.Icon;
             return (
-              <div key={b.id} className="bg-card border border-border rounded-xl p-3">
+              <Link
+                key={b.id}
+                href={`/bookings/${b.id}`}
+                className="block bg-card border border-border rounded-xl p-3 hover:border-primary/40 transition-colors"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{b.tour_title}</p>
@@ -74,7 +79,7 @@ export default function MyBookingsPage() {
                     <span className="font-semibold text-foreground">AZN{b.total_price}</span>
                   </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
