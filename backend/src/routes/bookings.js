@@ -161,6 +161,22 @@ router.get('/mine', requireAuth, (req, res) => {
   res.json(bookings);
 });
  
+// A traveler's own bookings across every tour they've booked. Distinct
+// from GET /mine (which is operator-scoped, bookings ON their tours) —
+// this is bookings THEY made. Also must come before GET /:id.
+router.get('/my-trips', requireAuth, (req, res) => {
+  const bookings = db
+    .prepare(
+      `SELECT b.*, t.title as tour_title, t.date as tour_date, t.location as tour_location
+       FROM bookings b
+       JOIN tours t ON t.id = b.tour_id
+       WHERE b.user_id = ?
+       ORDER BY b.created_at DESC`
+    )
+    .all(req.user.userId);
+  res.json(bookings);
+});
+ 
 router.get('/:id', (req, res) => {
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
   if (!booking) return res.status(404).json({ error: 'booking not found' });
