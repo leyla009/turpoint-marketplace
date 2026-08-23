@@ -1,164 +1,164 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  Home, TrendingDown, Calendar, Ticket, User, LogOut,
-  LayoutDashboard, PlusCircle, ClipboardList, Settings,
-} from 'lucide-react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const TRAVELER_ITEMS = [
-  { href: '/', label: 'Home', Icon: Home },
-  { href: '/compare', label: 'Compare', Icon: TrendingDown },
-  { href: '/planner', label: 'Planner', Icon: Calendar },
-  { href: '/bookings', label: 'Bookings', Icon: Ticket },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Task 20 territory — these routes don't exist yet, so they'll 404 until
-// the operator dashboard is built. Paths are settled now so Task 20 can
-// build straight into them.
-const OPERATOR_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-  { href: '/dashboard/new-tour', label: 'Add Tour', Icon: PlusCircle },
-  { href: '/dashboard/bookings', label: 'Bookings', Icon: ClipboardList },
-  { href: '/dashboard/profile', label: 'Profile', Icon: Settings },
-];
-
-export default function Nav() {
-  const pathname = usePathname();
+export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, logout, operatorProfile, mode, setMode } = useAuth();
+  const { user, loading, login, logout, operatorProfile, mode: accountMode, setMode: setAccountMode } = useAuth();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const navItems = mode === 'operator' ? OPERATOR_ITEMS : TRAVELER_ITEMS;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
 
-  return (
-    <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card h-screen sticky top-0">
-        <div className="px-4 py-5 border-b border-border">
-          <h2
-            className="text-xl font-bold text-primary"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            TurPoint
-          </h2>
-          <p className="text-[10px] text-muted-foreground tracking-wide mt-0.5">
-            Azərbaycan Tur Marketplace
-          </p>
-        </div>
+    const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
+    const body = mode === 'login' ? { email, password } : { name, email, password };
 
-        {!loading && operatorProfile && (
-          <div className="px-3 pt-3">
-            <div className="flex bg-muted rounded-full p-1">
+    try {
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Something went wrong');
+        return;
+      }
+      login(data.token, data.user);
+      router.push('/');
+    } catch {
+      setError("Couldn't reach the backend. Is it running?");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!loading && user) {
+    return (
+      <div className="min-h-full flex items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full text-center">
+          <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-3">
+            {user.name?.[0]?.toUpperCase() ?? '?'}
+          </div>
+          <h1 className="font-display text-lg font-bold text-foreground mb-1">{user.name}</h1>
+          <p className="text-sm text-muted-foreground mb-5">{user.email}</p>
+
+          {operatorProfile && (
+            <div className="flex bg-muted rounded-full p-1 mb-5">
               <button
-                onClick={() => setMode('traveler')}
+                onClick={() => setAccountMode('traveler')}
                 className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                  mode === 'traveler' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                  accountMode === 'traveler' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
                 }`}
               >
                 Traveler
               </button>
               <button
-                onClick={() => setMode('operator')}
+                onClick={() => setAccountMode('operator')}
                 className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                  mode === 'operator' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                  accountMode === 'operator' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
                 }`}
               >
                 Operator
               </button>
             </div>
-          </div>
-        )}
-
-        <nav className="flex-1 px-2 py-3 space-y-0.5">
-          {navItems.map(({ href, label, Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Account footer */}
-        <div className="px-2 py-3 border-t border-border">
-          {!loading && user && (
-            <div className="flex items-center gap-2.5 px-2 py-1.5">
-              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
-                {user.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-foreground truncate">{user.name}</p>
-                <button
-                  onClick={() => {
-                    logout();
-                    router.push('/');
-                  }}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                >
-                  <LogOut size={10} /> Log out
-                </button>
-              </div>
-            </div>
           )}
-          {!loading && !user && (
-            <Link
-              href="/login"
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+
+          {!operatorProfile && (
+            <button
+              onClick={() => router.push('/dashboard/profile')}
+              className="w-full text-sm font-semibold text-accent px-4 py-2.5 rounded-xl border border-accent/30 hover:bg-accent/5 transition-colors mb-3"
             >
-              <User size={16} /> Log in
-            </Link>
+              + Become an operator
+            </button>
           )}
-        </div>
-      </aside>
 
-      {/* Mobile bottom nav — mirrors whatever mode is set on desktop /
-          the account page; no room for the pill switcher itself here. */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-card/95 backdrop-blur-sm border-t border-border z-50">
-        <div className="flex">
-          {navItems.map(({ href, label, Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon size={20} />
-                <span className="text-[9px] font-semibold">{label}</span>
-              </Link>
-            );
-          })}
-          <Link
-            href="/login"
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-              pathname === '/login' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            }`}
+          <button
+            onClick={() => {
+              logout();
+              router.push('/');
+            }}
+            className="flex items-center justify-center gap-1.5 w-full bg-muted text-foreground text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-80 transition-opacity"
           >
-            {!loading && user ? (
-              <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">
-                {user.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-            ) : (
-              <User size={20} />
-            )}
-            <span className="text-[9px] font-semibold">{!loading && user ? 'Account' : 'Log in'}</span>
-          </Link>
+            <LogOut size={14} /> Log out
+          </button>
         </div>
-      </nav>
-    </>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-full flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full">
+        <h1 className="font-display text-xl font-bold text-foreground mb-1">
+          {mode === 'login' ? 'Welcome back' : 'Create an account'}
+        </h1>
+        <p className="text-sm text-muted-foreground mb-5">
+          {mode === 'login' ? 'Log in to book and manage your tours.' : 'Sign up to start booking tours.'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {mode === 'signup' && (
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+            />
+          )}
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+          />
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-primary text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {submitting ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Sign up'}
+          </button>
+        </form>
+
+        <button
+          onClick={() => {
+            setMode(mode === 'login' ? 'signup' : 'login');
+            setError('');
+          }}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground mt-4"
+        >
+          {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
+        </button>
+      </div>
+    </div>
   );
 }

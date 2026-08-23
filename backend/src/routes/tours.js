@@ -3,7 +3,7 @@
 // Task 14: /compare endpoint.
 // Operator/traveler dual-mode account model: creating a tour now requires
 // being logged in with an operator profile. operator_id is derived from
-// that profile server-side — never trusted from the request body.
+// that profile server-side - never trusted from the request body.
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
@@ -91,4 +91,44 @@ router.get('/:id', (req, res) => {
   res.json(tour);
 });
  
+// Delete a tour - auth required, and only the owning operator can do it.
+// Ownership is derived from the token, same pattern as PUT /operators/:id.
+router.delete('/:id', requireAuth, (req, res) => {
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+ 
+  const ownsIt = db
+    .prepare('SELECT id FROM operators WHERE id = ? AND user_id = ?')
+    .get(tour.operator_id, req.user.userId);
+  if (!ownsIt) {
+    return res.status(403).json({ error: 'you can only delete your own tours' });
+  }
+ 
+  // Safety gate: don't silently wipe out a tour someone has actually
+  // booked. Require an explicit ?force=true to go through anyway.
+  const bookingCount = db
+    .prepare('SELECT COUNT(*) as count FROM bookings WHERE tour_id = ?')
+    .get(tour.id).count;
+  if (bookingCount > 0 && req.query.force !== 'true') {
+    return res.status(409).json({
+      error: `this tour has ${bookingCount} booking(s) - pass ?force=true to delete anyway`,
+      booking_count: bookingCount,
+    });
+  }
+ 
+  // Clean up everything that references this tour so nothing is left
+  // pointing at a tour_id that no longer exists.
+  const deleteTour = db.transaction(() => {
+    db.prepare('DELETE FROM bookings WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM group_formations WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM reviews WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM last_minute_deals WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM tours WHERE id = ?').run(tour.id);
+  });
+  deleteTour();
+ 
+  res.json({ deleted: true, id: tour.id });
+});
+ 
 export default router;
+ 

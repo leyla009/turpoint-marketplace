@@ -92,7 +92,15 @@ export default function Nav() {
         </nav>
 
         {/* Account footer */}
-        <div className="px-2 py-3 border-t border-border">
+        <div className="px-2 py-3 border-t border-border space-y-2">
+          {!loading && user && !operatorProfile && (
+            <Link
+              href="/dashboard/profile"
+              className="block text-center text-[11px] font-semibold text-accent hover:opacity-80"
+            >
+              + Become an operator
+            </Link>
+          )}
           {!loading && user && (
             <div className="flex items-center gap-2.5 px-2 py-1.5">
               <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
