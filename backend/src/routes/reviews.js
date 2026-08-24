@@ -1,29 +1,17 @@
+
 // Task 13: Reviews + operator rating rollup.
-// Same guest-checkout style user resolution as bookings.js - no auth system yet.
+// Fixed: this route never got the auth overhaul the rest of the app got.
+// It used to accept a client-supplied user_id, or create a brand-new
+// "guest" account from any {name, email} pair with no password - meaning
+// anyone could post a review as any existing user_id, or attach to any
+// existing email with no verification. Now identity comes only from the
+// verified JWT, same pattern as bookings.js/tours.js/operators.js.
  
 import { Router } from 'express';
-import crypto from 'node:crypto';
 import { db } from '../db/index.js';
+import { requireAuth } from '../middleware/auth.js';
  
 const router = Router();
- 
-function resolveUser({ user_id, user }) {
-  if (user_id) {
-    const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
-    if (!existing) throw new Error('user_id not found');
-    return existing;
-  }
-  if (user && user.email) {
-    const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(user.email);
-    if (existing) return existing;
-    const placeholderHash = crypto.randomBytes(8).toString('hex');
-    const result = db
-      .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
-      .run(user.name || 'Guest', user.email, placeholderHash);
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
-  }
-  throw new Error('user_id or user {name, email} is required');
-}
  
 // Averages every rating across every tour that belongs to this operator,
 // then writes it straight to operators.rating - this is the "rollup."
@@ -42,8 +30,8 @@ function recalculateOperatorRating(operatorId) {
   return newRating;
 }
  
-router.post('/', (req, res) => {
-  const { tour_id, rating, comment, user_id, user } = req.body;
+router.post('/', requireAuth, (req, res) => {
+  const { tour_id, rating, comment } = req.body;
  
   if (!tour_id || !rating) {
     return res.status(400).json({ error: 'tour_id and rating are required' });
@@ -55,16 +43,18 @@ router.post('/', (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  
-  let resolvedUser;
-  try {
-    resolvedUser = resolveUser({ user_id, user });
-  } catch (err) {
-    return res.status(400).json({ error: err.message });
+  // One review per user per tour - prevents a single account from
+  // stacking ratings on the same tour to skew the operator average.
+  const existing = db
+    .prepare('SELECT id FROM reviews WHERE tour_id = ? AND user_id = ?')
+    .get(tour_id, req.user.userId);
+  if (existing) {
+    return res.status(409).json({ error: 'you already reviewed this tour - edit is not yet supported' });
   }
  
   const result = db
     .prepare('INSERT INTO reviews (tour_id, user_id, rating, comment) VALUES (?, ?, ?, ?)')
-    .run(tour_id, resolvedUser.id, rating, comment ?? null);
+    .run(tour_id, req.user.userId, rating, comment ?? null);
  
   const newOperatorRating = recalculateOperatorRating(tour.operator_id);
  
@@ -85,4 +75,3 @@ router.get('/', (req, res) => {
 });
  
 export default router;
- 

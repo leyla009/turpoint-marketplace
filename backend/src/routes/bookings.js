@@ -95,6 +95,13 @@ router.post('/', requireAuth, (req, res) => {
       .get(tour_id);
  
     if (confirmedGroup) {
+      // Fixed: this path never checked remaining capacity, unlike the
+      // waiting/forming path above - a confirmed group could be
+      // overbooked past tour.max_participants with no error.
+      if (confirmedGroup.current_participants + seats > tour.max_participants) {
+        throw new Error(`only ${tour.max_participants - confirmedGroup.current_participants} spot(s) left on this tour`);
+      }
+ 
       const totalPrice = Math.round(confirmedGroup.price_per_person * seats * 100) / 100;
       const result = db
         .prepare(
@@ -102,6 +109,12 @@ router.post('/', requireAuth, (req, res) => {
            VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
         )
         .run(tour_id, resolvedUser.id, confirmedGroup.id, seats, totalPrice, ticketCode);
+ 
+      // Keep current_participants in sync so the capacity check above stays
+      // accurate for the NEXT booking too, not just this one.
+      db.prepare('UPDATE group_formations SET current_participants = current_participants + ? WHERE id = ?')
+        .run(seats, confirmedGroup.id);
+ 
       return { bookingId: result.lastInsertRowid };
     }
  

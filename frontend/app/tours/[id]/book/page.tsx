@@ -32,9 +32,12 @@ export default function BookTour() {
   }, [id]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
+    fetch(`${API_URL}/api/group-formations`)
       .then((r) => r.json())
-      .then(setGroup)
+      .then((groups) => {
+        const activeGroup = Array.isArray(groups) ? groups.find((g: any) => g.tour_id === Number(id)) : null;
+        setGroup(activeGroup || null);
+      })
       .catch(() => setGroup(null));
   }, [id]);
 

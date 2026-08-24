@@ -99,8 +99,6 @@ export default function TourDetail() {
   const [loadingTour, setLoadingTour] = useState(true);
   const [loadingGroup, setLoadingGroup] = useState(true);
   const [groupError, setGroupError] = useState<string | null>(null);
-  const [joinLoading, setJoinLoading] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewerName, setReviewerName] = useState('');
@@ -143,15 +141,13 @@ export default function TourDetail() {
 
     setLoadingGroup(true);
     setGroupError(null);
-    fetch(`${API_URL}/api/group-formations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tour_id: Number(id) }),
-    })
+    fetch(`${API_URL}/api/group-formations`) // Changed from POST to standard GET
       .then((r) => r.json())
-      .then((g) => {
+      .then((groups) => {
         if (cancelled) return;
-        if (g?.id) setGroup(g);
+        // The backend returns all groups, so we find the one for this tour
+        const currentGroup = Array.isArray(groups) ? groups.find((g: any) => g.tour_id === Number(id)) : null;
+        if (currentGroup) setGroup(currentGroup);
         else setGroupError('No group formation available for this tour yet.');
       })
       .catch(() => !cancelled && setGroupError('Could not load group status.'))
@@ -163,20 +159,6 @@ export default function TourDetail() {
       cancelled = true;
     };
   }, [id, fetchReviews]);
-
-  const handleJoin = () => {
-    if (!group) return;
-    setJoinLoading(true);
-    setJoinError(null);
-    fetch(`${API_URL}/api/group-formations/${group.id}/join`, { method: 'POST' })
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data?.error || 'Could not join the group.');
-        setGroup(data);
-      })
-      .catch((err) => setJoinError(err.message))
-      .finally(() => setJoinLoading(false));
-  };
 
   const handleSubmitReview = (e: FormEvent) => {
     e.preventDefault();
@@ -412,12 +394,6 @@ export default function TourDetail() {
                   </p>
                 </div>
 
-                {joinError && (
-                  <p className="flex items-center gap-1.5 text-xs text-primary mb-2">
-                    <AlertCircle size={12} /> {joinError}
-                  </p>
-                )}
-
                 {(group.status === 'waiting' || group.status === 'forming') && (
                   <p className="text-xs text-muted-foreground">
                     Book your seats below to help this group reach its minimum.
@@ -569,14 +545,12 @@ export default function TourDetail() {
               </p>
             </div>
             {group && (group.status === 'waiting' || group.status === 'forming') ? (
-              <button
-                onClick={handleJoin}
-                disabled={joinLoading}
-                className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              <Link
+                href={`/tours/${tour.id}/book`}
+                className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
               >
-                {joinLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                {joinLoading ? 'Joining...' : 'Join Group'}
-              </button>
+                Join Group
+              </Link>
             ) : (
                <Link
               href={`/tours/${tour.id}/book`}

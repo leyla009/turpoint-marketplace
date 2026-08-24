@@ -1,16 +1,24 @@
-
 {
   "openapi": "3.0.3",
   "info": {
     "title": "TurPoint API",
-    "version": "0.1.0",
-    "description": "Tour marketplace API - operators, tours, group formation pricing, bookings, reviews, deals, and the smart trip planner."
+    "version": "0.2.0",
+    "description": "Tour marketplace API - operators, tours, group formation pricing, bookings, reviews, deals, and the smart trip planner. Most write operations and anything scoped to \"the logged-in account\" require a Bearer JWT; identity is always derived from the verified token, never from the request body."
   },
   "servers": [
     {
       "url": "/api"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
   "paths": {
     "/health": {
       "get": {
@@ -72,15 +80,9 @@
     "/auth/me": {
       "get": {
         "summary": "Get the logged-in user from a Bearer token",
-        "parameters": [
+        "security": [
           {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "Bearer <token>"
+            "bearerAuth": []
           }
         ],
         "responses": {
@@ -95,14 +97,20 @@
     },
     "/operators": {
       "post": {
-        "summary": "Create an operator profile",
+        "summary": "Create an operator profile - requires login; one profile per account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
                 "name": "Qafqaz Tours",
                 "description": "Dag turlari",
-                "languages": "az,en"
+                "languages": "az,en",
+                "vehicle_features": "wifi,ac"
               }
             }
           }
@@ -110,6 +118,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "409": {
+            "description": "This account already has an operator profile - use PUT to update it instead"
           }
         }
       },
@@ -118,6 +132,24 @@
         "responses": {
           "200": {
             "description": "Array of operators"
+          }
+        }
+      }
+    },
+    "/operators/me": {
+      "get": {
+        "summary": "Get the logged-in account's own operator profile, if any - drives the Traveler/Operator mode toggle on the frontend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator profile, or null if this account isn't an operator yet"
+          },
+          "401": {
+            "description": "Missing/invalid token"
           }
         }
       }
@@ -145,7 +177,12 @@
         }
       },
       "put": {
-        "summary": "Update an operator",
+        "summary": "Update an operator profile - must be the owning account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -159,18 +196,28 @@
         "responses": {
           "200": {
             "description": "Updated operator"
+          },
+          "403": {
+            "description": "Not the owning account"
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       }
     },
     "/tours": {
       "post": {
-        "summary": "Create a tour",
+        "summary": "Create a tour - requires login as an operator; operator_id is derived from the token and is not accepted in the request body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "operator_id": 1,
                 "title": "Quba Tebiet Turu",
                 "price": 50,
                 "date": "2026-09-10"
@@ -181,6 +228,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "This account has no operator profile yet"
           }
         }
       },
@@ -282,26 +335,68 @@
             "description": "Not found"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete a tour - must be the owning operator. Blocked if bookings already exist unless ?force=true; cascades cleanup to bookings, group_formations, reviews, and last_minute_deals for that tour",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Delete anyway even if the tour has existing bookings"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "403": {
+            "description": "Not the owning operator"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Tour has existing bookings - pass ?force=true to delete anyway"
+          }
+        }
       }
     },
     "/group-formations": {
-      "post": {
-        "summary": "Start (or fetch existing) group formation for a tour",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "tour_id": 2
-              }
+      "get": {
+        "summary": "Read-only lookup of a tour's current group state - does not create anything, safe to call just to preview status/price",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
-            "description": "Existing waiting/forming group"
+            "description": "The tour's open (waiting/forming) group if one exists, otherwise its most recent confirmed group, otherwise null"
           },
-          "201": {
-            "description": "New group created"
+          "400": {
+            "description": "tour_id query param is required"
           }
         }
       }
@@ -326,53 +421,30 @@
         }
       }
     },
-    "/group-formations/{id}/join": {
-      "post": {
-        "summary": "Join a group - recalculates price_per_person live, auto-confirms at min_participants",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Updated group"
-          },
-          "409": {
-            "description": "Already confirmed, cancelled, or full"
-          }
-        }
-      }
-    },
     "/group-formations/expire-past-due": {
       "post": {
-        "summary": "Cancel any waiting/forming groups whose tour date has passed",
+        "summary": "Cancel any waiting/forming groups whose tour date has passed, and cancel any bookings still pending on them",
         "responses": {
           "200": {
-            "description": "List of cancelled group ids"
+            "description": "List of cancelled group ids and cancelled booking ids"
           }
         }
       }
     },
     "/bookings": {
       "post": {
-        "summary": "Book a tour (simulated payment)",
+        "summary": "Book a tour (simulated payment) - requires login; identity comes from the token, not the request body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
                 "tour_id": 5,
                 "seats": 2,
-                "group_formation_id": null,
-                "user": {
-                  "name": "Nigar Aliyeva",
-                  "email": "nigar@example.com"
-                },
                 "payment": {
                   "card_number": "4242424242424242"
                 }
@@ -385,14 +457,58 @@
             "description": "Booking + ticket_code"
           },
           "400": {
-            "description": "Missing payment or user info"
+            "description": "Missing tour_id, seats, or payment"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "409": {
+            "description": "Not enough spots left in the group"
+          }
+        }
+      }
+    },
+    "/bookings/mine": {
+      "get": {
+        "summary": "An operator's bookings across ALL of their tours - for the operator dashboard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of bookings, each with tour_title, tour_date, traveler_name, traveler_email"
+          },
+          "403": {
+            "description": "This account has no operator profile"
+          }
+        }
+      }
+    },
+    "/bookings/my-trips": {
+      "get": {
+        "summary": "The logged-in traveler's own bookings, across every tour they've booked - distinct from /bookings/mine, which is operator-scoped",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of bookings, each with tour_title, tour_date, tour_location"
           }
         }
       }
     },
     "/bookings/{id}": {
       "get": {
-        "summary": "Get a booking (e-ticket)",
+        "summary": "Get one booking / e-ticket - must be the traveler who made it",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -405,7 +521,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Booking with nested tour info"
+            "description": "Booking with nested tour info (title, date, location, route, operator_name)"
+          },
+          "403": {
+            "description": "Not your booking"
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       }
@@ -449,35 +571,6 @@
         "responses": {
           "200": {
             "description": "Array of reviews"
-          }
-        }
-      }
-    },
-    "/deals": {
-      "post": {
-        "summary": "Create a last-minute deal on a tour",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "tour_id": 1,
-                "discount_percent": 20,
-                "expires_at": "2027-01-01"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created deal"
-          }
-        }
-      },
-      "get": {
-        "summary": "List currently-active deals",
-        "responses": {
-          "200": {
-            "description": "Array of deals"
           }
         }
       }
