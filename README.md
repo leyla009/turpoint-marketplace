@@ -203,12 +203,7 @@ Created as a Holberton School Final Portfolio Project:
 
 - **Leyla Khaspoladova** — Product Manager / Software Engineer
 - **Ramil Mammadov** — Backend Engineer / Lead Architecture
-- **Huseyn Sadatkhanov** — Full-Stack Engineer / UI Implementation
+- **Huseyn Sadatkhanov** —
 - **Aytakin Imanova** — Frontend Engineer / Design System
 
 ---
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
