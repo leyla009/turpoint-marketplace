@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Search, X, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
 import TourCard, { ApiTour } from './components/TourCard';
+import Greeting from './components/Greeting';
 
 // Leaflet touches `window` at import time, so it can only run in the
 // browser — ssr: false keeps Next from trying to render it server-side.
@@ -83,9 +84,10 @@ export default function Home() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="bg-primary px-4 sm:px-6 pt-8 pb-8 relative overflow-hidden">
+      <div className="bg-primary pt-8 pb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-56 h-56 bg-white opacity-[0.04] rounded-full translate-x-20 -translate-y-20" />
-        <div className="relative max-w-5xl mx-auto">
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative">
+          <Greeting />
           <h1
             className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
@@ -111,7 +113,7 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 sm:px-6 pt-6 max-w-5xl mx-auto">
+      <div className="px-4 sm:px-6 pt-6 max-w-[1600px] mx-auto">
         {/* Destination map */}
         {!loading && tours.length > 0 && (
           <div className="mb-6">
@@ -216,7 +218,7 @@ export default function Home() {
           )}
 
           {!error && filtered.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((tour) => (
                 <TourCard
                   key={tour.id}

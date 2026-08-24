@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, CheckCircle2, XCircle, MapPin, Calendar } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../context/AuthContext';
+import PageContainer from '../components/PageContainer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -16,7 +17,7 @@ const STATUS_STYLE: Record<string, { Icon: any; className: string; label: string
 
 export default function MyBookingsPage() {
   const router = useRouter();
-  const { loading: authLoading } = useRequireAuth(); // redirects to /login if not signed in
+  const { loading: authLoading } = useRequireAuth();
   const { token } = useAuth();
 
   const [bookings, setBookings] = useState<any[]>([]);
@@ -35,7 +36,7 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <div className="min-h-full p-4 sm:p-6 max-w-2xl mx-auto pb-20 md:pb-6">
+    <PageContainer maxWidth="max-w-2xl">
       <h1 className="font-display text-xl font-bold text-foreground mb-1">My Bookings</h1>
       <p className="text-sm text-muted-foreground mb-5">Your tours, past and upcoming.</p>
 
@@ -84,6 +85,6 @@ export default function MyBookingsPage() {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

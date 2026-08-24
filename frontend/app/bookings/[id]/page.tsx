@@ -5,11 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../../context/AuthContext';
+import PageContainer from '../../components/PageContainer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Route is stored as freeform "TIME - stop" lines (Task 18 uses the same
-// parsing). The first line is usually the pickup — e.g. "07:00 - Baku pickup".
 function parseFirstStop(route: string | null): { time: string | null; text: string } | null {
   if (!route) return null;
   const firstLine = route
@@ -81,7 +80,7 @@ export default function ETicketPage() {
   const isPending = booking.status === 'pending';
 
   return (
-    <div className="min-h-full p-4 sm:p-6 max-w-md mx-auto pb-20 md:pb-6">
+    <PageContainer maxWidth="max-w-2xl">
       <button
         onClick={() => router.push('/bookings')}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -156,6 +155,6 @@ export default function ETicketPage() {
       >
         <CalendarPlus size={15} /> Add to Calendar
       </button>
-    </div>
+    </PageContainer>
   );
 }

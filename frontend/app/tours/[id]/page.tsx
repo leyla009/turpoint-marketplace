@@ -17,6 +17,7 @@ import {
   Send,
 } from 'lucide-react';
 import { CATEGORY_STYLE } from '../../components/TourCard';
+import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -418,14 +419,9 @@ export default function TourDetail() {
                 )}
 
                 {(group.status === 'waiting' || group.status === 'forming') && (
-                  <button
-                    onClick={handleJoin}
-                    disabled={joinLoading}
-                    className="w-full bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {joinLoading ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
-                    {joinLoading ? 'Joining...' : 'Join this group'}
-                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    Book your seats below to help this group reach its minimum.
+                  </p>
                 )}
 
                 {group.status === 'confirmed' && (
@@ -582,13 +578,12 @@ export default function TourDetail() {
                 {joinLoading ? 'Joining...' : 'Join Group'}
               </button>
             ) : (
-              <button
-                disabled
-                title="Booking flow lands in a later task"
-                className="flex-1 max-w-[220px] bg-muted text-muted-foreground text-sm font-semibold py-2.5 rounded-xl cursor-not-allowed"
-              >
-                {group?.status === 'confirmed' ? 'Group confirmed' : 'Book Now'}
-              </button>
+               <Link
+              href={`/tours/${tour.id}/book`}
+              className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+            >
+              Book Now
+            </Link>
             )}
           </div>
         </div>

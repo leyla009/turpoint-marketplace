@@ -3,8 +3,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        clay: '#B5654A',
-        dusk: '#1F2A24',
+        clay: '#C95E18',
+        dusk: '#1B3D2F',
         sand: '#EFE7D8',
         background: 'var(--background)',
         foreground: 'var(--foreground)',

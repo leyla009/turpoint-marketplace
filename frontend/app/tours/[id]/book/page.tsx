@@ -5,13 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth, useRequireAuth } from '../../../context/AuthContext';
+import PageContainer from '../../../components/PageContainer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function BookTour() {
   const { id } = useParams();
   const router = useRouter();
-  const { loading: authLoading } = useRequireAuth(); // redirects to /login if not signed in
+  const { loading: authLoading } = useRequireAuth();
   const { user, token } = useAuth();
 
   const [tour, setTour] = useState<any>(null);
@@ -37,9 +38,6 @@ export default function BookTour() {
       .catch(() => setGroup(null));
   }, [id]);
 
-  // Preview only - the server recalculates authoritatively on submit. This just
-  // mirrors that formula so the price shown updates live as seats change,
-  // instead of showing a stale number until after you've already booked.
   const previewPricePerPerson = (() => {
     if (!tour) return 0;
     if (group && (group.status === 'waiting' || group.status === 'forming')) {
@@ -96,11 +94,10 @@ export default function BookTour() {
     return <div className="p-6 text-sm text-muted-foreground">Tour not found.</div>;
   }
 
-  // E-ticket confirmation view
   if (ticket) {
     const isPending = ticket.status === 'pending';
     return (
-      <div className="min-h-full p-4 sm:p-6 max-w-md mx-auto">
+      <PageContainer maxWidth="max-w-2xl">
         <div className="bg-card border border-border rounded-xl p-6 text-center">
           {isPending ? (
             <Clock size={40} className="text-primary mx-auto mb-3" />
@@ -152,13 +149,12 @@ export default function BookTour() {
             Back to tours
           </button>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
-  // Booking form view
   return (
-    <div className="min-h-full p-4 sm:p-6 max-w-md mx-auto">
+    <PageContainer maxWidth="max-w-2xl">
       <button
         onClick={() => router.back()}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -251,6 +247,6 @@ export default function BookTour() {
             : `Reserve seat (pending group) · ~AZN${total}`}
         </button>
       </form>
-    </div>
+    </PageContainer>
   );
 }
