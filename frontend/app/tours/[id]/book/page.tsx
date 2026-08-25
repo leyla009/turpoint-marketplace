@@ -1,20 +1,20 @@
 'use client';
-
+ 
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth, useRequireAuth } from '../../../context/AuthContext';
 import PageContainer from '../../../components/PageContainer';
-
+ 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
+ 
 export default function BookTour() {
   const { id } = useParams();
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { user, token } = useAuth();
-
+ 
   const [tour, setTour] = useState<any>(null);
   const [group, setGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,24 +23,27 @@ export default function BookTour() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [ticket, setTicket] = useState<any>(null);
-
+ 
   useEffect(() => {
     fetch(`${API_URL}/api/tours/${id}`)
       .then((r) => r.json())
       .then(setTour)
       .finally(() => setLoading(false));
   }, [id]);
-
+ 
   useEffect(() => {
-    fetch(`${API_URL}/api/group-formations`)
-      .then((r) => r.json())
-      .then((groups) => {
-        const activeGroup = Array.isArray(groups) ? groups.find((g: any) => g.tour_id === Number(id)) : null;
-        setGroup(activeGroup || null);
-      })
+    // Fixed: this was calling GET /api/group-formations with no tour_id,
+    // then treating the response as an array to .find() over. The real
+    // endpoint requires tour_id and returns a single group object (or
+    // null), never an array - so `group` was silently always null,
+    // meaning the "confirmed/forming" banners above and the settled-price
+    // preview never activated, even when a real group already existed.
+    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setGroup)
       .catch(() => setGroup(null));
   }, [id]);
-
+ 
   const previewPricePerPerson = (() => {
     if (!tour) return 0;
     if (group && (group.status === 'waiting' || group.status === 'forming')) {
@@ -56,9 +59,9 @@ export default function BookTour() {
     }
     return tour.discounted_price ?? tour.price;
   })();
-
+ 
   const total = previewPricePerPerson * seats;
-
+ 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -89,14 +92,14 @@ export default function BookTour() {
       setSubmitting(false);
     }
   };
-
+ 
   if (authLoading || loading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
   }
   if (!tour?.id) {
     return <div className="p-6 text-sm text-muted-foreground">Tour not found.</div>;
   }
-
+ 
   if (ticket) {
     const isPending = ticket.status === 'pending';
     return (
@@ -115,7 +118,7 @@ export default function BookTour() {
               ? "You're not charged yet. The price locks in for everyone once the group hits its minimum."
               : 'Your e-ticket is below.'}
           </p>
-
+ 
           <div className="bg-background border border-dashed border-border rounded-lg p-4 text-left space-y-2">
             <div className="flex justify-center pb-2">
               <div className="bg-white p-2 rounded-lg border border-border">
@@ -144,7 +147,7 @@ export default function BookTour() {
               </p>
             )}
           </div>
-
+ 
           <button
             onClick={() => router.push('/')}
             className="mt-5 w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5"
@@ -155,7 +158,7 @@ export default function BookTour() {
       </PageContainer>
     );
   }
-
+ 
   return (
     <PageContainer maxWidth="max-w-2xl">
       <button
@@ -164,7 +167,7 @@ export default function BookTour() {
       >
         <ChevronLeft size={16} /> Back
       </button>
-
+ 
       <h1 className="text-xl font-bold text-foreground mb-1">{tour.title}</h1>
       <p className="text-sm text-muted-foreground mb-2">
         {tour.location} · {tour.date}
@@ -180,7 +183,7 @@ export default function BookTour() {
           your seats will help confirm this group
         </p>
       )}
-
+ 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
           <span className="text-sm font-medium text-foreground">Seats</span>
@@ -202,14 +205,14 @@ export default function BookTour() {
             </button>
           </div>
         </div>
-
+ 
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-sm font-medium text-foreground">Booking as</p>
           <p className="text-sm text-muted-foreground">
             {user?.name} · {user?.email}
           </p>
         </div>
-
+ 
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <CreditCard size={14} /> Payment (simulated)
@@ -222,7 +225,7 @@ export default function BookTour() {
             className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
           />
         </div>
-
+ 
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-1">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>
@@ -235,9 +238,9 @@ export default function BookTour() {
             <span>AZN{total}</span>
           </div>
         </div>
-
+ 
         {error && <p className="text-sm text-red-600">{error}</p>}
-
+ 
         <button
           type="submit"
           disabled={submitting}
