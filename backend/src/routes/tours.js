@@ -11,6 +11,44 @@ import { requireAuth } from '../middleware/auth.js';
  
 const router = Router();
  
+// Task 15: attach discounted_price/active_deal wherever a tour (or list of
+// tours) is returned. Was previously only applied on GET /:id, which meant
+// GET /api/tours (the list/search endpoint) never surfaced deal pricing -
+// silently breaking anything filtering or sorting by effective price on a
+// list view (e.g. the homepage price filter). One query for all active
+// deals, keyed by tour_id, so list endpoints stay O(1) queries instead of
+// N+1.
+function attachActiveDeals(tours) {
+  const list = Array.isArray(tours) ? tours : [tours];
+  if (list.length === 0) return tours;
+ 
+  const ids = list.map((t) => t.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const activeDeals = db
+    .prepare(
+      `SELECT * FROM last_minute_deals
+       WHERE tour_id IN (${placeholders}) AND datetime(expires_at) > datetime('now')
+       ORDER BY discount_percent DESC`
+    )
+    .all(...ids);
+ 
+  // Keep the highest-discount active deal per tour_id (matches the
+  // ORDER BY ... LIMIT 1 behavior the single-tour lookup used).
+  const bestDealByTourId = {};
+  for (const deal of activeDeals) {
+    if (!bestDealByTourId[deal.tour_id]) bestDealByTourId[deal.tour_id] = deal;
+  }
+ 
+  const withDeals = list.map((tour) => {
+    const activeDeal = bestDealByTourId[tour.id];
+    if (!activeDeal) return tour;
+    const discountedPrice = Math.round(tour.price * (1 - activeDeal.discount_percent / 100) * 100) / 100;
+    return { ...tour, discounted_price: discountedPrice, active_deal: activeDeal };
+  });
+ 
+  return Array.isArray(tours) ? withDeals : withDeals[0];
+}
+ 
 router.post('/', requireAuth, (req, res) => {
   const {
     title, description, location, category, route,
@@ -56,7 +94,8 @@ router.get('/', (req, res) => {
   if (fromDate) { query += ' AND date >= ?'; params.push(fromDate); }
   if (toDate) { query += ' AND date <= ?'; params.push(toDate); }
  
-  res.json(db.prepare(query).all(...params));
+  const tours = db.prepare(query).all(...params);
+  res.json(attachActiveDeals(tours));
 });
  
 // Task 14: comparison — GET /api/tours/compare?ids=1,2,3
@@ -67,7 +106,7 @@ router.get('/compare', (req, res) => {
   }
   const placeholders = ids.map(() => '?').join(',');
   const tours = db.prepare(`SELECT * FROM tours WHERE id IN (${placeholders})`).all(...ids);
-  res.json(tours);
+  res.json(attachActiveDeals(tours));
 });
  
 router.get('/:id', (req, res) => {
@@ -75,20 +114,7 @@ router.get('/:id', (req, res) => {
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  
   // Task 15: attach discounted_price if an active last-minute deal exists.
-  const activeDeal = db
-    .prepare(
-      `SELECT * FROM last_minute_deals
-       WHERE tour_id = ? AND datetime(expires_at) > datetime('now')
-       ORDER BY discount_percent DESC LIMIT 1`
-    )
-    .get(req.params.id);
- 
-  if (activeDeal) {
-    const discountedPrice = Math.round(tour.price * (1 - activeDeal.discount_percent / 100) * 100) / 100;
-    return res.json({ ...tour, discounted_price: discountedPrice, active_deal: activeDeal });
-  }
- 
-  res.json(tour);
+  res.json(attachActiveDeals(tour));
 });
  
 // Delete a tour - auth required, and only the owning operator can do it.
@@ -131,4 +157,3 @@ router.delete('/:id', requireAuth, (req, res) => {
 });
  
 export default router;
- 
