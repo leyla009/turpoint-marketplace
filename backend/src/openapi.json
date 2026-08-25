@@ -534,7 +534,7 @@
     },
     "/reviews": {
       "post": {
-        "summary": "Post a review - requires login; identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
+        "summary": "Post a review - requires login and a confirmed booking on the tour (verified buyers only); identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
         "security": [
           {
             "bearerAuth": []
@@ -561,11 +561,17 @@
           "401": {
             "description": "Missing/invalid token"
           },
+          "403": {
+            "description": "No confirmed booking on this tour by this user - reviews are restricted to verified buyers"
+          },
           "404": {
             "description": "Tour not found"
           },
           "409": {
-            "description": "You already reviewed this tour"
+            "description": "You already reviewed this tour - use PUT /api/reviews/{id} to edit it"
+          },
+          "429": {
+            "description": "Rate limited - too many reviews created recently (5 per 60 minutes per account, across all tours)"
           }
         }
       },
@@ -584,6 +590,85 @@
         "responses": {
           "200": {
             "description": "Array of reviews"
+          }
+        }
+      }
+    },
+    "/reviews/{id}": {
+      "put": {
+        "summary": "Edit your own review (rating and/or comment) - requires login and ownership. Re-runs the operator rating rollup.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "rating": 4,
+                "comment": "Updated my thoughts after a second look."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated review + operator_new_rating"
+          },
+          "400": {
+            "description": "Neither rating nor comment provided, or rating not between 1 and 5"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "You can only edit your own review"
+          },
+          "404": {
+            "description": "Review not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete your own review - requires login and ownership. Re-runs the operator rating rollup.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ deleted: true, id, operator_new_rating }"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "You can only delete your own review"
+          },
+          "404": {
+            "description": "Review not found"
           }
         }
       }
@@ -659,4 +744,4 @@
       }
     }
   }
-} 
+}
