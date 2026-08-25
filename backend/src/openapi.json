@@ -534,18 +534,19 @@
     },
     "/reviews": {
       "post": {
-        "summary": "Post a review - updates the operator's rolled-up rating",
+        "summary": "Post a review - requires login; identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
                 "tour_id": 5,
                 "rating": 5,
-                "comment": "Great trip!",
-                "user": {
-                  "name": "Aysel Mammadova",
-                  "email": "aysel@example.com"
-                }
+                "comment": "Great trip!"
               }
             }
           }
@@ -553,6 +554,18 @@
         "responses": {
           "201": {
             "description": "Review + operator_new_rating"
+          },
+          "400": {
+            "description": "Missing tour_id/rating, or rating not between 1 and 5"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "Tour not found"
+          },
+          "409": {
+            "description": "You already reviewed this tour"
           }
         }
       },
@@ -571,6 +584,52 @@
         "responses": {
           "200": {
             "description": "Array of reviews"
+          }
+        }
+      }
+    },
+    "/deals": {
+      "post": {
+        "summary": "Create a last-minute deal on a tour - requires login as the owning operator",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 5,
+                "discount_percent": 20,
+                "expires_at": "2026-09-05T23:59:59Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created deal"
+          },
+          "400": {
+            "description": "Missing fields, or discount_percent not between 1 and 99"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "You do not own this tour"
+          },
+          "404": {
+            "description": "Tour not found"
+          }
+        }
+      },
+      "get": {
+        "summary": "List currently-active (non-expired) deals",
+        "responses": {
+          "200": {
+            "description": "Array of deals, each with tour_title and tour_price"
           }
         }
       }
@@ -600,4 +659,4 @@
       }
     }
   }
-}
+} 
