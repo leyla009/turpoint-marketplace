@@ -117,6 +117,62 @@ router.get('/:id', (req, res) => {
   res.json(attachActiveDeals(tour));
 });
  
+// Update a tour - auth required, and only the owning operator can do it.
+// Partial update: only fields present in the body are changed, same pattern
+// as PUT /api/reviews/:id.
+router.put('/:id', requireAuth, (req, res) => {
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+
+  const ownsIt = db
+    .prepare('SELECT id FROM operators WHERE id = ? AND user_id = ?')
+    .get(tour.operator_id, req.user.userId);
+  if (!ownsIt) {
+    return res.status(403).json({ error: 'you can only edit your own tours' });
+  }
+
+  const {
+    title, description, location, category, route,
+    price, date, duration_days, min_participants, max_participants, interest_score,
+  } = req.body;
+
+  if (title !== undefined && !title) {
+    return res.status(400).json({ error: 'title cannot be empty' });
+  }
+  if (price !== undefined && !(price > 0)) {
+    return res.status(400).json({ error: 'price must be a positive number' });
+  }
+  if (date !== undefined && !date) {
+    return res.status(400).json({ error: 'date cannot be empty' });
+  }
+
+  const updated = {
+    title: title !== undefined ? title : tour.title,
+    description: description !== undefined ? description : tour.description,
+    location: location !== undefined ? location : tour.location,
+    category: category !== undefined ? category : tour.category,
+    route: route !== undefined ? route : tour.route,
+    price: price !== undefined ? price : tour.price,
+    date: date !== undefined ? date : tour.date,
+    duration_days: duration_days !== undefined ? duration_days : tour.duration_days,
+    min_participants: min_participants !== undefined ? min_participants : tour.min_participants,
+    max_participants: max_participants !== undefined ? max_participants : tour.max_participants,
+    interest_score: interest_score !== undefined ? JSON.stringify(interest_score) : tour.interest_score,
+  };
+
+  db.prepare(
+    `UPDATE tours SET title = ?, description = ?, location = ?, category = ?, route = ?,
+       price = ?, date = ?, duration_days = ?, min_participants = ?, max_participants = ?, interest_score = ?
+     WHERE id = ?`
+  ).run(
+    updated.title, updated.description, updated.location, updated.category, updated.route,
+    updated.price, updated.date, updated.duration_days, updated.min_participants,
+    updated.max_participants, updated.interest_score, tour.id
+  );
+
+  res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));
+});
+
 // Delete a tour - auth required, and only the owning operator can do it.
 // Ownership is derived from the token, same pattern as PUT /operators/:id.
 router.delete('/:id', requireAuth, (req, res) => {

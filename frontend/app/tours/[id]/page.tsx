@@ -15,9 +15,12 @@ import {
   Clock,
   MessageSquare,
   Send,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { CATEGORY_STYLE } from '../../components/TourCard';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import Link from 'next/link';
  
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -92,6 +95,7 @@ export default function TourDetail() {
   const { id } = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { showToast } = useToast();
  
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
@@ -107,6 +111,13 @@ export default function TourDetail() {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
  
   // Reviews are gated on the backend to travelers with a *confirmed*
   // booking on this specific tour (Sprint 4 hardening - see reviews.js).
@@ -217,9 +228,62 @@ export default function TourDetail() {
         setReviewComment('');
         setReviewRating(5);
         setShowReviewForm(false);
+        showToast('Review submitted.');
       })
       .catch((err) => setReviewError(err.message))
       .finally(() => setReviewSubmitting(false));
+  };
+
+  const startEditReview = (review: Review) => {
+    setEditingReviewId(review.id);
+    setEditRating(review.rating);
+    setEditComment(review.comment ?? '');
+    setEditError(null);
+  };
+
+  const handleSaveReview = (e: FormEvent, reviewId: number) => {
+    e.preventDefault();
+    if (!token) return;
+    setEditSubmitting(true);
+    setEditError(null);
+    fetch(`${API_URL}/api/reviews/${reviewId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rating: editRating, comment: editComment.trim() || null }),
+    })
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || 'Could not update the review.');
+        setReviews((prev) => prev.map((r2) => (r2.id === reviewId ? data : r2)));
+        if (typeof data.operator_new_rating === 'number') {
+          setOperator((prev) => (prev ? { ...prev, rating: data.operator_new_rating } : prev));
+        }
+        setEditingReviewId(null);
+        showToast('Review updated.');
+      })
+      .catch((err) => setEditError(err.message))
+      .finally(() => setEditSubmitting(false));
+  };
+
+  const handleDeleteReview = (reviewId: number) => {
+    if (!token) return;
+    if (!window.confirm('Delete this review? This cannot be undone.')) return;
+    setDeletingReviewId(reviewId);
+    fetch(`${API_URL}/api/reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || 'Could not delete the review.');
+        setReviews((prev) => prev.filter((r2) => r2.id !== reviewId));
+        if (typeof data.operator_new_rating === 'number') {
+          setOperator((prev) => (prev ? { ...prev, rating: data.operator_new_rating } : prev));
+        }
+        showToast('Review deleted.');
+      })
+      .catch((err) => showToast(err.message, 'error'))
+      .finally(() => setDeletingReviewId(null));
   };
  
   const style = CATEGORY_STYLE[tour?.category ?? ''] ?? CATEGORY_STYLE.history;
@@ -551,17 +615,90 @@ export default function TourDetail() {
               </p>
             ) : (
               <div className="space-y-2.5">
-                {reviews.map((r) => (
-                  <div key={r.id} className="bg-card border border-border rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <StarRow rating={r.rating} />
-                      {r.created_at && (
-                        <span className="text-[10px] text-muted-foreground">{formatDate(r.created_at)}</span>
+                {reviews.map((r) => {
+                  const isOwn = user ? r.user_id === user.id : false;
+                  const isEditing = editingReviewId === r.id;
+                  return (
+                    <div key={r.id} className="bg-card border border-border rounded-xl p-3">
+                      {isEditing ? (
+                        <form
+                          onSubmit={(e) => handleSaveReview(e, r.id)}
+                          className="space-y-2.5"
+                        >
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <button key={n} type="button" onClick={() => setEditRating(n)}>
+                                <Star
+                                  size={18}
+                                  className={n <= editRating ? 'fill-primary text-primary' : 'text-border'}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            value={editComment}
+                            onChange={(e) => setEditComment(e.target.value)}
+                            rows={2}
+                            className="w-full text-sm bg-muted rounded-lg px-3 py-2 outline-none placeholder:text-muted-foreground resize-none"
+                          />
+                          {editError && (
+                            <p className="flex items-center gap-1.5 text-xs text-primary">
+                              <AlertCircle size={12} /> {editError}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="submit"
+                              disabled={editSubmitting}
+                              className="flex items-center justify-center gap-1.5 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50"
+                            >
+                              {editSubmitting ? <Loader2 size={12} className="animate-spin" /> : null}
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingReviewId(null)}
+                              className="text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between mb-1">
+                            <StarRow rating={r.rating} />
+                            <div className="flex items-center gap-2">
+                              {r.created_at && (
+                                <span className="text-[10px] text-muted-foreground">{formatDate(r.created_at)}</span>
+                              )}
+                              {isOwn && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => startEditReview(r)}
+                                    title="Edit review"
+                                    className="text-muted-foreground hover:text-foreground p-0.5"
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteReview(r.id)}
+                                    disabled={deletingReviewId === r.id}
+                                    title="Delete review"
+                                    className="text-muted-foreground hover:text-red-600 disabled:opacity-40 p-0.5"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {r.comment && <p className="text-sm text-foreground/80">{r.comment}</p>}
+                        </>
                       )}
                     </div>
-                    {r.comment && <p className="text-sm text-foreground/80">{r.comment}</p>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

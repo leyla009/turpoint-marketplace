@@ -132,6 +132,37 @@ than folded quietly into the tasks above.
   handling the single object/`null` shape correctly.
 ---
  
+## Sprint 2 — School Rubric Gap Closure (deadline 28.08.2026)
+
+A gap analysis against the school's actual Sprint 2 rubric (separate from the self-authored
+roadmap below) found the codebase was further along than this file reflected — `compare`,
+`planner`, the full operator dashboard, and reviews edit/delete had all shipped in commits made
+after this file was last updated — but also found real, literal gaps against the rubric's CRUD
+and integration acceptance criteria. Closed in this pass:
+
+- [x] **`PUT /api/tours/:id`** — tours previously had Create/Read/Delete but no Update, the
+  clearest literal CRUD gap against "CRUD əməliyyatları tələb olunan modullar üçün işlək
+  vəziyyətdə olmalıdır." Ownership-gated and partial-update, same pattern as `PUT
+  /api/reviews/:id`. Documented in `openapi.json`.
+- [x] **Global error handling in `server.js`** — a catch-all JSON 404 handler for unmatched
+  routes, plus a 4-arg Express error middleware so an uncaught exception in any route returns
+  `{ error: ... }` instead of Express's default HTML stack trace.
+- [x] **"Manage deals" UI on the operator dashboard** — `POST /api/deals` existed on the backend
+  with zero frontend caller; operators could only create a last-minute deal via Swagger. Added
+  an inline per-tour deal-creation form on `/dashboard`, and an active-deal badge on tour rows.
+- [x] **Edit tour UI** — new `/dashboard/edit-tour/[id]` page wired to the new `PUT
+  /api/tours/:id`, linked from a pencil icon on each tour row.
+- [x] **Review edit/delete UI** — `PUT`/`DELETE /api/reviews/:id` existed on the backend
+  (Sprint 4 hardening) but the tour detail page only wired up review *create*. Added inline
+  edit/delete controls on a traveler's own review.
+- [x] **Success/error toasts** — `ToastContext`/`ToastProvider`, mounted at the root layout, used
+  for tour create/edit/delete, deal creation, and review submit/edit/delete — closing the
+  "istifadəçi bildirişləri (Success/Error Messages)" gap where those actions previously relied
+  on silent redirect/refetch as their only feedback.
+- [ ] **Not verified in this pass:** `npm run build` — no Node/npm runtime was available in the
+  environment this work was done in. Re-run it before the review meeting to confirm the
+  "Layihə build olunur və lokal mühitdə problemsiz açılır" criterion still holds.
+
 ## Sprint 2 (self-authored, not yet started)
  
 - [ ] Dedicated filter-bar UI component (location, price range, tour type) wired to the

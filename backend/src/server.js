@@ -42,6 +42,21 @@ app.use('/api/planner', plannerRouter);
 
 // Mərhələ 4: frontend-only work from here - no more backend routers to mount.
 
+// Catch-all for unmatched routes - keeps responses JSON instead of falling
+// through to Express's default HTML 404 page.
+app.use((req, res) => {
+  res.status(404).json({ error: 'not found' });
+});
+
+// Global error handler - must be defined last, with all 4 params, for
+// Express to recognize it as an error middleware. Keeps an uncaught
+// exception in any route from leaking Express's default HTML stack trace
+// to the client.
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'internal server error' });
+});
+
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`TurPoint API listening on http://localhost:${port}`);
