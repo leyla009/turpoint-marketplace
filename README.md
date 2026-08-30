@@ -5,17 +5,6 @@ TurPoint bridges the gap between local tour operators, independent guides, and t
 
 ---
 
-## Table of Contents
-- [About the Project](#about-the-project)
-- [Key Features & Key Differentiators](#key-features--key-differentiators)
-- [Tech Stack](#tech-stack)
-- [Architecture & Flow](#architecture--flow)
-- [Getting Started](#getting-started)
-- [API Documentation](#api-documentation)
-- [Sprint Roadmap](#sprint-roadmap)
-- [The Team](#the-team)
----
-
 ## About the Project
 
 In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Facebook groups, and WhatsApp chats. Finding verified tours, comparing pricing, checking real-time availability, and reading genuine reviews is time-consuming and unreliable.
