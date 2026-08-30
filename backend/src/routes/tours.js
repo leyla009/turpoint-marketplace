@@ -10,7 +10,22 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
  
 const router = Router();
- 
+
+const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
+
+// Mirrors the frontend's buildInterestScore (new-tour/page.tsx): the tour's
+// own category gets a strong match weight, everything else a weak one. Used
+// to keep interest_score in sync with category on the PUT handler below -
+// the Smart Planner (planner.js) ranks tours by this field, so letting it
+// go stale after a category edit would silently corrupt its ranking.
+function buildInterestScore(category) {
+  const score = {};
+  for (const c of CATEGORIES) {
+    score[c] = c === category ? 0.9 : 0.1;
+  }
+  return score;
+}
+
 // Task 15: attach discounted_price/active_deal wherever a tour (or list of
 // tours) is returned. Was previously only applied on GET /:id, which meant
 // GET /api/tours (the list/search endpoint) never surfaced deal pricing -
@@ -157,7 +172,12 @@ router.put('/:id', requireAuth, (req, res) => {
     duration_days: duration_days !== undefined ? duration_days : tour.duration_days,
     min_participants: min_participants !== undefined ? min_participants : tour.min_participants,
     max_participants: max_participants !== undefined ? max_participants : tour.max_participants,
-    interest_score: interest_score !== undefined ? JSON.stringify(interest_score) : tour.interest_score,
+    interest_score:
+      interest_score !== undefined
+        ? JSON.stringify(interest_score)
+        : category !== undefined && category !== tour.category
+        ? JSON.stringify(buildInterestScore(category))
+        : tour.interest_score,
   };
 
   db.prepare(
