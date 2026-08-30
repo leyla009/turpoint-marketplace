@@ -1,7 +1,7 @@
 # TurPoint — Centralized Tourism Marketplace for Azerbaijan
 
 **Holberton School Final Portfolio Project**
-TurPoint bridges the gap between local tour operators, independent guides, and travelers in Azerbaijan through a unified, dynamic, and intelligent marketplace platform.
+TurPoint bridges the gap between local tour operators, independent guides, and travelers in Azerbaijan through a unified marketplace platform.
 
 ---
 
@@ -30,16 +30,16 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
 1. **Dynamic Group Formation & Group Discount Model**
    - Solo travelers or small groups reserve spots on tours that require a minimum capacity threshold.
    - Booking *is* what advances the group — there's no separate "join" action disconnected from an actual reservation. A booking against a group that hasn't hit its minimum goes in as `pending`; the moment any booking tips the group over its minimum, that booking **and every earlier pending booking on the same group** settle together at the same final per-person price:
-     $$\text{Per Person Cost} = \frac{\text{Total Tour Cost}}{\text{Number of Participants}}$$
+     `Per Person Cost = Total Tour Cost / Number of Participants`
    - If a group never fills before the tour date, it's cancelled automatically and any pending bookings on it cancel with it.
 2. **Smart Travel Planner**
    - An algorithmic itinerary generator that builds tour combinations given a user's budget, day count, and interest preferences.
    - Deliberately a **greedy heuristic** (rank by interest-match-per-price, fill budget) rather than a full solver — the underlying problem is a variant of the Team Orienteering Problem with Time Windows (TOPTW), which is NP-complete. A knapsack/local-search upgrade is a documented stretch goal.
 ### Standard Features
 - **Dual-mode accounts:** every user can be a traveler, an operator, or both — a mode toggle in the UI switches between traveler nav and an operator dashboard. Operator profiles are owned by the authenticated account (`operators.user_id`); ownership is always derived from the verified JWT, never trusted from a request body.
-- **Operator Dashboard:** create/edit an operator profile, list and delete owned tours, and view incoming bookings across all owned tours, all from a dedicated `/dashboard` UI.
+- **Operator Dashboard:** create/edit an operator profile, list and delete your tours, and view incoming bookings across them — all from a dedicated `/dashboard` UI.
 - **Tour Management & Comparison:** filter by location, date, price, and category; compare 2–3 tours side-by-side in a dedicated comparison view.
-- **Reviews & Ratings:** travelers rate completed tours (1–5 stars); an operator's average rating rolls up automatically. Restricted to verified buyers — only a traveler with a `confirmed` booking on that specific tour can review it, one review per user per tour, with a rolling-window rate limit against review spam. Reviewers can edit or delete their own review afterward.
+- **Reviews & Ratings:** travelers rate completed tours (1–5 stars); an operator's average rating rolls up automatically. Restricted to verified buyers — only a traveler with a `confirmed` booking on that specific tour can review it, one review per user per tour, with a rolling-window rate limit to curb spam. Reviewers can edit or delete their own review afterward.
 - **Last-Minute Deals:** discounted pricing for upcoming tours with open capacity, restricted to the owning operator.
 - **Booking & E-Ticketing:** authenticated booking flow with a unique text `ticket_code` per booking, rendered as a scannable QR code (`qrcode.react`'s `QRCodeSVG`) on both the post-booking confirmation view and the e-ticket detail page — generated client-side from the ticket code, no backend QR library needed.
 - **"My Trips":** a traveler's own bookings, past and upcoming (`GET /api/bookings/my-trips`).
@@ -58,7 +58,7 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
 | **API Docs** | swagger-ui-express | Interactive, testable OpenAPI documentation at `/api-docs` |
 | **Icons** | lucide-react | UI iconography |
 | **Maps & Location** | Leaflet | Interactive homepage destination map, pinning tours by city — replaces the originally-planned Google Maps API, no paid key required |
-| **Design & Prototyping** | AI-generated clickable prototype (React/TypeScript) | UI/UX reference — see `docs/figma-prototype/`; see [decision note](docs/figma.md) |
+| **Design & Prototyping** | AI-generated clickable prototype (React/TypeScript) | UI/UX reference — see `docs/figma-prototype/` and the [decision note](docs/figma.md) |
 | **Payments** | Simulated (card number presence only, nothing charged) | Real Stripe integration is Sprint 3 scope |
 | **Hosting & CI/CD** | Vercel / Railway | *Planned, not yet deployed* |
 
@@ -107,7 +107,7 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
    PORT=4000
    JWT_SECRET=your_own_secret_here
 ```
-   `JWT_SECRET` falls back to a development default if unset — set a real value before any real deployment.
+   `JWT_SECRET` falls back to an insecure development default if unset — replace it before deploying anywhere real.
 
    `frontend/.env.local`:
 ```env
@@ -135,7 +135,7 @@ In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Faceb
 
 ### A note on GitHub Codespaces
 
-This project has been primarily developed inside GitHub Codespaces. The frontend's (and your browser's, generally) API calls run in your **browser**, not inside the container — so `localhost` refers to your own machine, not the Codespace, and will fail to connect for *anything* you open in-browser, including `/api-docs`.
+This project has been primarily developed inside GitHub Codespaces. API calls happen in your **browser**, not inside the container — so `localhost` refers to your own machine, not the Codespace, and will fail to connect for anything you open in-browser, including `/api-docs`.
 
 1. Open the **Ports** tab in VS Code, find port `4000`, set its visibility to **Public**.
 2. Copy the forwarded URL shown there (e.g. `https://your-codespace-name-4000.app.github.dev`) — use this for `NEXT_PUBLIC_API_URL` in `frontend/.env.local`, **and** use it directly in your browser instead of typing `localhost:4000` by hand.
@@ -154,7 +154,7 @@ http://localhost:4000/api-docs
 
 ## Sprint Roadmap
 
-TurPoint's actual school-assigned deliverable is **Sprint 1**, below. Sprints 2–4 are a
+TurPoint's school-assigned deliverable is **Sprint 1**, below. Sprints 2–4 are a
 self-authored forward plan, not school-assigned deadlines — see `TASKS.md` for the full
 task-by-task breakdown.
 
@@ -184,10 +184,10 @@ gallery — needs a schema change first), further checkout flow polish.
 Real Stripe payments, date/time-slot availability & capacity, cancellation/refunds, extended
 My Trips and Operator Dashboard UI.
 
-### Sprint 4 — planned, partially delivered ahead of schedule
-Reviews restricted to verified buyers is **done** — see Key Features above and `TASKS.md` —
+### Sprint 4 — planned; one item already shipped early
+Restricting reviews to verified buyers is **done** — see Key Features above and `TASKS.md` —
 along with review edit/delete and rate limiting. Remaining: in-app messaging, email
-notifications (QR-code ticketing itself is already live — see `TASKS.md` Task 12), and a
+notifications (QR-code ticketing is already live — see `TASKS.md` Task 12), and a
 decision on whether the existing greedy Smart Planner evolves into an "AI Trip Assistant"
 differentiator or ships as something separate.
 
@@ -199,7 +199,7 @@ Created as a Holberton School Final Portfolio Project:
 
 - **Leyla Khaspoladova** — Product Manager / Software Engineer
 - **Ramil Mammadov** — Backend Engineer / Lead Architecture
-- **Huseyn Sadatkhanov** —
+- **Huseyn Sadatkhanov**
 - **Aytakin Imanova** — Frontend Engineer / Design System
 
 ---
