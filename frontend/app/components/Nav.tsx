@@ -15,9 +15,6 @@ const TRAVELER_ITEMS = [
   { href: '/bookings', label: 'Bookings', Icon: Ticket },
 ];
 
-// Task 20 territory — these routes don't exist yet, so they'll 404 until
-// the operator dashboard is built. Paths are settled now so Task 20 can
-// build straight into them.
 const OPERATOR_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { href: '/dashboard/new-tour', label: 'Add Tour', Icon: PlusCircle },
