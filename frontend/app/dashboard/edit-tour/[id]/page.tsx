@@ -1,27 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
-import { useAuth, useRequireAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ChevronLeft, Loader2 } from 'lucide-react';
+import { useAuth, useRequireAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
-function buildInterestScore(category: string) {
-  const score: Record<string, number> = {};
-  CATEGORIES.forEach((c) => {
-    score[c] = c === category ? 0.9 : 0.1;
-  });
-  return score;
-}
-
-export default function NewTourPage() {
+export default function EditTourPage() {
   const router = useRouter();
+  const { id } = useParams();
   const { loading: authLoading } = useRequireAuth();
   const { token, operatorProfile } = useAuth();
   const { showToast } = useToast();
+
+  const [loadingTour, setLoadingTour] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [notOwner, setNotOwner] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -36,6 +33,35 @@ export default function NewTourPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!id || !operatorProfile) return;
+    setLoadingTour(true);
+    fetch(`${API_URL}/api/tours/${id}`)
+      .then((r) => r.json())
+      .then((tour) => {
+        if (!tour?.id) {
+          setLoadError('Tour not found.');
+          return;
+        }
+        if (tour.operator_id !== operatorProfile.id) {
+          setNotOwner(true);
+          return;
+        }
+        setTitle(tour.title ?? '');
+        setDescription(tour.description ?? '');
+        setLocation(tour.location ?? '');
+        setCategory(tour.category ?? 'nature');
+        setRoute(tour.route ?? '');
+        setPrice(String(tour.price ?? ''));
+        setDate(tour.date ?? '');
+        setDurationDays(String(tour.duration_days ?? 1));
+        setMinParticipants(String(tour.min_participants ?? 3));
+        setMaxParticipants(String(tour.max_participants ?? 10));
+      })
+      .catch(() => setLoadError("Couldn't reach the backend. Is it running?"))
+      .finally(() => setLoadingTour(false));
+  }, [id, operatorProfile]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -45,8 +71,8 @@ export default function NewTourPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/tours`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/api/tours/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           title,
@@ -59,7 +85,6 @@ export default function NewTourPage() {
           duration_days: Number(durationDays),
           min_participants: Number(minParticipants),
           max_participants: Number(maxParticipants),
-          interest_score: buildInterestScore(category),
         }),
       });
       const data = await res.json();
@@ -67,7 +92,7 @@ export default function NewTourPage() {
         setError(data.error ?? 'Something went wrong.');
         return;
       }
-      showToast('Tour published.');
+      showToast('Tour updated.');
       router.push('/dashboard');
     } catch {
       setError("Couldn't reach the backend. Is it running?");
@@ -76,19 +101,20 @@ export default function NewTourPage() {
     }
   }
 
-  if (authLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
-  }
-
-  if (!operatorProfile) {
+  if (authLoading || loadingTour) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        You need an operator profile before adding tours.{' '}
-        <a href="/dashboard/profile" className="text-primary font-semibold">
-          Create one →
-        </a>
+      <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 size={14} className="animate-spin" /> Loading...
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div className="p-6 text-sm text-muted-foreground">{loadError}</div>;
+  }
+
+  if (notOwner) {
+    return <div className="p-6 text-sm text-muted-foreground">You can only edit your own tours.</div>;
   }
 
   return (
@@ -100,8 +126,8 @@ export default function NewTourPage() {
         <ChevronLeft size={16} /> Back to dashboard
       </button>
 
-      <h1 className="font-display text-xl font-bold text-foreground mb-1">Add a tour</h1>
-      <p className="text-sm text-muted-foreground mb-5">Fill this in and it goes live immediately.</p>
+      <h1 className="font-display text-xl font-bold text-foreground mb-1">Edit tour</h1>
+      <p className="text-sm text-muted-foreground mb-5">Changes go live immediately.</p>
 
       <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4">
         <div>
@@ -110,7 +136,6 @@ export default function NewTourPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Quba nature tour"
             className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
           />
         </div>
@@ -132,7 +157,6 @@ export default function NewTourPage() {
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Quba"
               className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
             />
           </div>
@@ -158,7 +182,6 @@ export default function NewTourPage() {
             type="text"
             value={route}
             onChange={(e) => setRoute(e.target.value)}
-            placeholder="Quba mərkəzi -> əsas nöqtə"
             className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
           />
         </div>
@@ -225,7 +248,7 @@ export default function NewTourPage() {
           disabled={submitting}
           className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-50"
         >
-          {submitting ? 'Publishing...' : 'Publish tour'}
+          {submitting ? 'Saving...' : 'Save changes'}
         </button>
       </form>
     </div>

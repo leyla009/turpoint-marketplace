@@ -336,6 +336,48 @@
           }
         }
       },
+      "put": {
+        "summary": "Update a tour - must be the owning operator. Partial update: only fields present in the body are changed",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "price": 60,
+                "date": "2026-09-15"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated tour"
+          },
+          "400": {
+            "description": "Invalid field value (e.g. empty title, non-positive price)"
+          },
+          "403": {
+            "description": "Not the owning operator"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
       "delete": {
         "summary": "Delete a tour - must be the owning operator. Blocked if bookings already exist unless ?force=true; cascades cleanup to bookings, group_formations, reviews, and last_minute_deals for that tour",
         "security": [
