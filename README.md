@@ -165,9 +165,16 @@ active group-formation banners and locked-in group pricing failed to render beca
 `group-formations` request wasn't filtered by `tour_id` and mishandled the endpoint's
 single-object response shape. All fixed — see `TASKS.md` for the full list.
 
-### Sprint 2 — planned, not started
-Dedicated filter-bar UI, full Tour Details page (incl. image
-gallery — needs a schema change first), further checkout flow polish.
+### Sprint 2 — school rubric gap closure ✅ COMPLETE (deadline 28.08.2026)
+Tour Update CRUD (`PUT /api/tours/:id`), global error handling, manage-deals UI, edit-tour UI,
+review edit/delete UI, and success/error toasts — see `TASKS.md` for the full gap-closure list.
+`npm run build` re-verified clean (2026-08-31): zero errors, all routes generate. A follow-up
+fix keeps `interest_score` in sync with `category` on tour edits, since the Smart Planner ranks
+tours by that field and letting it go stale after a category change would silently skew
+recommendations.
+
+Self-authored roadmap items below are still not started: dedicated filter-bar UI, full Tour
+Details page (incl. image gallery — needs a schema change first), further checkout flow polish.
 
 ### Sprint 3 — planned, not started
 Real Stripe payments, date/time-slot availability & capacity, cancellation/refunds, extended

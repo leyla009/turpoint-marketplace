@@ -159,9 +159,17 @@ and integration acceptance criteria. Closed in this pass:
   for tour create/edit/delete, deal creation, and review submit/edit/delete — closing the
   "istifadəçi bildirişləri (Success/Error Messages)" gap where those actions previously relied
   on silent redirect/refetch as their only feedback.
-- [ ] **Not verified in this pass:** `npm run build` — no Node/npm runtime was available in the
-  environment this work was done in. Re-run it before the review meeting to confirm the
-  "Layihə build olunur və lokal mühitdə problemsiz açılır" criterion still holds.
+- [x] **`npm run build` verified (2026-08-31).** `next build` compiles cleanly, zero errors,
+  all 13 routes generate (static + dynamic). Backend boots via `node src/server.js`,
+  `GET /api/health` returns 200, `GET /api/tours` returns the seeded 20 tours across 3
+  operators — confirming the "Layihə build olunur və lokal mühitdə problemsiz açılır"
+  criterion holds.
+- [x] **Fix: `interest_score` went stale on category edits.** `PUT /api/tours/:id` let an
+  operator change a tour's `category` without recalculating `interest_score`, which the
+  Smart Planner (`planner.js`) ranks tours by — silently corrupting planner results for any
+  edited tour. Fixed by recomputing `interest_score` from the new category (mirroring the
+  frontend's `buildInterestScore` in `new-tour/page.tsx`) whenever `category` changes and no
+  explicit `interest_score` is supplied in the request.
 
 ## Sprint 2 (self-authored, not yet started)
  
