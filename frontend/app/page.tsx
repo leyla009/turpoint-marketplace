@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Search, X, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
-import TourCard, { ApiTour } from './components/TourCard';
+import { Search, X, Filter, MapPin, Users, Ticket } from 'lucide-react';
+import TourCard, { ApiTour, CATEGORY_STYLE } from './components/TourCard';
 import Greeting from './components/Greeting';
 
 // Leaflet touches `window` at import time, so it can only run in the
@@ -20,13 +20,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type Category = 'all' | 'nature' | 'history' | 'entertainment' | 'food';
 
-const CATEGORIES: { id: Category; label: string; Icon: any }[] = [
-  { id: 'all', label: 'All', Icon: Filter },
-  { id: 'nature', label: 'Nature', Icon: Leaf },
-  { id: 'history', label: 'History', Icon: Landmark },
-  { id: 'entertainment', label: 'Entertainment', Icon: Music },
-  { id: 'food', label: 'Food', Icon: Utensils },
-];
+const CATEGORY_IDS: Exclude<Category, 'all'>[] = ['nature', 'history', 'entertainment', 'food'];
 
 export default function Home() {
   const router = useRouter();
@@ -81,11 +75,32 @@ export default function Home() {
     });
   }, [tours, activeCategory, searchQuery, locationFilter, minPrice, maxPrice]);
 
+  // Spotlight the best deal (or failing that, the cheapest tour) above the
+  // grid — only while no filter is active, so it can't contradict what the
+  // traveler is actually searching for.
+  const featured = useMemo(() => {
+    if (tours.length === 0) return null;
+    const withDeal = tours.find((t) => typeof t.discounted_price === 'number');
+    if (withDeal) return withDeal;
+    return tours.reduce((best, t) => (t.price < best.price ? t : best), tours[0]);
+  }, [tours]);
+
+  const isFiltering =
+    activeCategory !== 'all' ||
+    searchQuery.trim() !== '' ||
+    locationFilter !== 'all' ||
+    minPrice !== '' ||
+    maxPrice !== '';
+  const showFeatured = !isFiltering && !!featured;
+  const gridTours = showFeatured ? filtered.filter((t) => t.id !== featured!.id) : filtered;
+
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="bg-primary pt-8 pb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-56 h-56 bg-white opacity-[0.04] rounded-full translate-x-20 -translate-y-20" />
+      <div className="relative pt-8 pb-8 overflow-hidden bg-gradient-to-br from-primary to-[#122A21]">
+        <div className="absolute w-[420px] h-[420px] rounded-full bg-accent opacity-[0.16] blur-[90px] -top-40 -right-16" />
+        <div className="absolute w-[360px] h-[360px] rounded-full bg-[#2F6E52] opacity-[0.35] blur-[90px] -bottom-44 left-32" />
+
         <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative">
           <Greeting />
           <h1
@@ -94,7 +109,8 @@ export default function Home() {
           >
             Where to next?
           </h1>
-          <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm max-w-xl">
+
+          <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-3 shadow-lg max-w-xl mb-4">
             <Search size={15} className="text-muted-foreground shrink-0" />
             <input
               type="text"
@@ -109,6 +125,81 @@ export default function Home() {
               </button>
             )}
           </div>
+
+          {/* Category chips */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                activeCategory === 'all'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-white/10 border border-white/15 text-[#EFE7D8] hover:bg-white/[0.15]'
+              }`}
+            >
+              <Filter size={12} />
+              All
+            </button>
+            {CATEGORY_IDS.map((id) => {
+              const cat = CATEGORY_STYLE[id];
+              const Icon = cat.Icon;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveCategory(id)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    activeCategory === id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-white/10 border border-white/15 text-[#EFE7D8] hover:bg-white/[0.15]'
+                  }`}
+                >
+                  <Icon size={12} />
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div className="border-b border-border bg-card">
+        <div className="px-4 sm:px-6 py-6 max-w-[1600px] mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-[10px] bg-background flex items-center justify-center shrink-0">
+              <Search size={16} className="text-primary" />
+            </div>
+            <div>
+              <div className="text-[10px] font-extrabold tracking-wide text-accent mb-0.5">STEP 1</div>
+              <div className="text-sm font-extrabold mb-0.5">Browse verified tours</div>
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                Filter by location, price, and category across licensed local operators.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-[10px] bg-background flex items-center justify-center shrink-0">
+              <Users size={16} className="text-primary" />
+            </div>
+            <div>
+              <div className="text-[10px] font-extrabold tracking-wide text-accent mb-0.5">STEP 2</div>
+              <div className="text-sm font-extrabold mb-0.5">Your booking joins the group</div>
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                Once the group hits its minimum, everyone&apos;s price drops together, automatically.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-[10px] bg-background flex items-center justify-center shrink-0">
+              <Ticket size={16} className="text-primary" />
+            </div>
+            <div>
+              <div className="text-[10px] font-extrabold tracking-wide text-accent mb-0.5">STEP 3</div>
+              <div className="text-sm font-extrabold mb-0.5">Get your e-ticket instantly</div>
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                A scannable QR ticket lands in My Trips the moment your booking confirms.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -118,7 +209,7 @@ export default function Home() {
         {!loading && tours.length > 0 && (
           <div className="mb-6">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-3">
-              <MapPinned size={15} /> Explore destinations
+              <MapPin size={15} /> Explore destinations
             </h2>
             <DestinationMap tours={tours} />
           </div>
@@ -154,9 +245,11 @@ export default function Home() {
             placeholder="Max AZN"
             className="w-24 text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
           />
-          {(locationFilter !== 'all' || minPrice !== '' || maxPrice !== '') && (
+          {isFiltering && (
             <button
               onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
                 setLocationFilter('all');
                 setMinPrice('');
                 setMaxPrice('');
@@ -168,28 +261,58 @@ export default function Home() {
           )}
         </div>
 
-        {/* Category chips */}
-        <div className="flex flex-wrap gap-2 pb-2">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.Icon;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                  activeCategory === cat.id
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-card text-foreground border-border hover:border-primary/30'
+        {/* Featured / spotlight tour */}
+        {showFeatured && featured && (
+          <div className="mb-8">
+            <h2 className="text-sm font-semibold text-foreground mb-3">Featured this week</h2>
+            <div
+              onClick={() => router.push(`/tours/${featured.id}`)}
+              className="flex flex-col sm:flex-row gap-0 bg-card border border-border rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200"
+            >
+              <div
+                className={`relative w-full sm:w-72 h-40 sm:h-auto shrink-0 flex items-center justify-center bg-gradient-to-br ${
+                  (CATEGORY_STYLE[featured.category ?? ''] ?? CATEGORY_STYLE.history).gradient
                 }`}
               >
-                <Icon size={12} />
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
+                {(() => {
+                  const Icon = (CATEGORY_STYLE[featured.category ?? ''] ?? CATEGORY_STYLE.history).Icon;
+                  return <Icon size={44} className="text-white/85" />;
+                })()}
+                <span className="absolute top-3.5 left-3.5 px-2.5 py-1 rounded-full bg-white text-[10px] font-extrabold text-primary">
+                  {typeof featured.discounted_price === 'number' ? 'Last-minute deal' : 'Best value'}
+                </span>
+              </div>
+              <div className="flex-1 p-6 flex flex-col justify-center">
+                <div
+                  className="text-lg sm:text-xl font-bold text-foreground mb-1.5"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                >
+                  {featured.title}
+                </div>
+                <div className="text-xs text-muted-foreground mb-4">
+                  {featured.location} · {featured.duration_days} day{featured.duration_days !== 1 ? 's' : ''} · min{' '}
+                  {featured.min_participants} travelers to confirm group pricing
+                </div>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground mb-0.5">
+                      {operators[featured.operator_id] ?? 'TurPoint operator'}
+                    </div>
+                    <div className="text-xl font-extrabold text-primary">
+                      AZN{featured.discounted_price ?? featured.price}
+                      <span className="text-[11px] font-semibold text-muted-foreground">/pp</span>
+                    </div>
+                  </div>
+                  <div className="px-5 py-2.5 rounded-[10px] bg-primary text-primary-foreground text-sm font-bold">
+                    View tour
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-        <div className="mt-4 mb-10">
+        <div className="mt-1 mb-10">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">
               {loading
@@ -217,9 +340,9 @@ export default function Home() {
             </div>
           )}
 
-          {!error && filtered.length > 0 && (
+          {!error && gridTours.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((tour) => (
+              {gridTours.map((tour) => (
                 <TourCard
                   key={tour.id}
                   tour={tour}

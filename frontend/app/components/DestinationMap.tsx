@@ -51,17 +51,24 @@ export default function DestinationMap({ tours }: { tours: ApiTour[] }) {
     });
     mapRef.current = map;
 
+    // Standard OpenStreetMap tiles — free, no API key or billing account
+    // required. (CARTO's Voyager basemap was tried as a more Google-Maps-
+    // like alternative, but CARTO now gates it behind an API key too, so
+    // it's not actually free anymore — reverted.)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 18,
+      maxZoom: 19,
     }).addTo(map);
 
     const pinIcon = L.divIcon({
       className: '',
-      html: `<div style="width:16px;height:16px;border-radius:50% 50% 50% 0;background:var(--primary);transform:rotate(-45deg);border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 16],
-      popupAnchor: [0, -18],
+      html: `<div style="width:30px;height:30px;position:relative;">
+        <div style="position:absolute;top:0;left:0;width:26px;height:26px;border-radius:50% 50% 50% 0;background:var(--accent);transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35);"></div>
+        <div style="position:absolute;top:7px;left:9px;width:8px;height:8px;border-radius:50%;background:white;"></div>
+      </div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 28],
+      popupAnchor: [0, -26],
     });
 
     // Track how many pins have landed on the same city so duplicates
