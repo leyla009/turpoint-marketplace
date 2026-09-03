@@ -182,12 +182,15 @@ export default function TourDetail() {
  
     setLoadingGroup(true);
     setGroupError(null);
-    fetch(`${API_URL}/api/group-formations`) // Changed from POST to standard GET
-      .then((r) => r.json())
-      .then((groups) => {
+    setGroup(null);
+    // GET /api/group-formations?tour_id=... returns a single group object
+    // (or null) for that tour, never an array - the endpoint doesn't
+    // support an unfiltered "list every group" call. Passing tour_id here
+    // mirrors the same fix already applied on the booking checkout page.
+    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((currentGroup) => {
         if (cancelled) return;
-        // The backend returns all groups, so we find the one for this tour
-        const currentGroup = Array.isArray(groups) ? groups.find((g: any) => g.tour_id === Number(id)) : null;
         if (currentGroup) setGroup(currentGroup);
         else setGroupError('No group formation available for this tour yet.');
       })

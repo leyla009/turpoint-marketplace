@@ -78,4 +78,25 @@ CREATE TABLE IF NOT EXISTS last_minute_deals (
   expires_at TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Sprint 3: indexes for the query patterns the routes actually use (search
+-- filters, ownership lookups, and the per-tour joins on bookings/reviews/
+-- deals/group_formations). IF NOT EXISTS makes these safe to re-run on
+-- every boot, same pattern as the tables above.
+CREATE INDEX IF NOT EXISTS idx_tours_location ON tours(location);
+CREATE INDEX IF NOT EXISTS idx_tours_category ON tours(category);
+CREATE INDEX IF NOT EXISTS idx_tours_date ON tours(date);
+CREATE INDEX IF NOT EXISTS idx_tours_operator_id ON tours(operator_id);
+
+CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_tour_id ON bookings(tour_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_group_formation_id ON bookings(group_formation_id);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_tour_id ON reviews(tour_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_group_formations_tour_id ON group_formations(tour_id);
+
+CREATE INDEX IF NOT EXISTS idx_deals_tour_id ON last_minute_deals(tour_id);
+CREATE INDEX IF NOT EXISTS idx_deals_expires_at ON last_minute_deals(expires_at);
  

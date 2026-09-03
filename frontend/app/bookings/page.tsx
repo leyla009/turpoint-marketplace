@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, CheckCircle2, XCircle, MapPin, Calendar } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, MapPin, Calendar, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../context/AuthContext';
 import PageContainer from '../components/PageContainer';
 
@@ -22,12 +22,18 @@ export default function MyBookingsPage() {
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!token) return;
+    setError(false);
     fetch(`${API_URL}/api/bookings/my-trips`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('request failed');
+        return r.json();
+      })
       .then(setBookings)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -40,7 +46,12 @@ export default function MyBookingsPage() {
       <h1 className="font-display text-xl font-bold text-foreground mb-1">My Bookings</h1>
       <p className="text-sm text-muted-foreground mb-5">Your tours, past and upcoming.</p>
 
-      {bookings.length === 0 ? (
+      {error ? (
+        <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
+          <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load your bookings. Is the backend running?</p>
+        </div>
+      ) : bookings.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <p className="text-sm text-muted-foreground mb-3">You haven't booked a tour yet.</p>
           <button onClick={() => router.push('/')} className="text-sm text-primary font-semibold">

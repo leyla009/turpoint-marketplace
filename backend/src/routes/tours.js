@@ -73,7 +73,23 @@ router.post('/', requireAuth, (req, res) => {
   if (!title || !price || !date) {
     return res.status(400).json({ error: 'title, price, date are required' });
   }
- 
+  if (!(price > 0)) {
+    return res.status(400).json({ error: 'price must be a positive number' });
+  }
+  if (min_participants !== undefined && !(min_participants >= 1)) {
+    return res.status(400).json({ error: 'min_participants must be at least 1' });
+  }
+  if (max_participants !== undefined && !(max_participants >= 1)) {
+    return res.status(400).json({ error: 'max_participants must be at least 1' });
+  }
+  if (
+    min_participants !== undefined &&
+    max_participants !== undefined &&
+    Number(min_participants) > Number(max_participants)
+  ) {
+    return res.status(400).json({ error: 'min_participants cannot exceed max_participants' });
+  }
+
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) {
     return res.status(403).json({ error: 'you need an operator profile before creating tours' });
@@ -159,6 +175,19 @@ router.put('/:id', requireAuth, (req, res) => {
   }
   if (date !== undefined && !date) {
     return res.status(400).json({ error: 'date cannot be empty' });
+  }
+  if (min_participants !== undefined && !(min_participants >= 1)) {
+    return res.status(400).json({ error: 'min_participants must be at least 1' });
+  }
+  if (max_participants !== undefined && !(max_participants >= 1)) {
+    return res.status(400).json({ error: 'max_participants must be at least 1' });
+  }
+  {
+    const effectiveMin = min_participants !== undefined ? Number(min_participants) : tour.min_participants;
+    const effectiveMax = max_participants !== undefined ? Number(max_participants) : tour.max_participants;
+    if (effectiveMin > effectiveMax) {
+      return res.status(400).json({ error: 'min_participants cannot exceed max_participants' });
+    }
   }
 
   const updated = {

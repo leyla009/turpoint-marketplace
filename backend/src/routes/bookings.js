@@ -22,7 +22,10 @@ router.post('/', requireAuth, (req, res) => {
   if (!tour_id || !seats) {
     return res.status(400).json({ error: 'tour_id and seats are required' });
   }
- 
+  if (!Number.isInteger(seats) || seats < 1) {
+    return res.status(400).json({ error: 'seats must be a positive whole number' });
+  }
+
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  

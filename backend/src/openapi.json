@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "TurPoint API",
-    "version": "0.2.0",
-    "description": "Tour marketplace API - operators, tours, group formation pricing, bookings, reviews, deals, and the smart trip planner. Most write operations and anything scoped to \"the logged-in account\" require a Bearer JWT; identity is always derived from the verified token, never from the request body."
+    "version": "0.3.0",
+    "description": "Tour marketplace API - operators, tours, group formation pricing, bookings, reviews, deals, and the smart trip planner. Most write operations and anything scoped to \"the logged-in account\" require a Bearer JWT; identity is always derived from the verified token, never from the request body. Sprint 3: all responses carry standard security headers (helmet); /api/auth/login and /api/auth/signup are rate-limited (20 requests/15min per IP) and every other route shares a broader 300 requests/15min ceiling; in production CORS is restricted to the configured frontend origin via CORS_ORIGIN."
   },
   "servers": [
     {
@@ -50,6 +50,9 @@
           },
           "409": {
             "description": "Email already registered"
+          },
+          "429": {
+            "description": "Rate limited - max 20 requests per 15 minutes per IP"
           }
         }
       }
@@ -73,6 +76,9 @@
           },
           "401": {
             "description": "Invalid credentials"
+          },
+          "429": {
+            "description": "Rate limited - max 20 requests per 15 minutes per IP"
           }
         }
       }
@@ -229,6 +235,9 @@
           "201": {
             "description": "Created"
           },
+          "400": {
+            "description": "Missing title/price/date, non-positive price, or min_participants greater than max_participants"
+          },
           "401": {
             "description": "Missing/invalid token"
           },
@@ -368,7 +377,7 @@
             "description": "Updated tour"
           },
           "400": {
-            "description": "Invalid field value (e.g. empty title, non-positive price)"
+            "description": "Invalid field value (e.g. empty title, non-positive price, min_participants greater than max_participants)"
           },
           "403": {
             "description": "Not the owning operator"
@@ -465,10 +474,24 @@
     },
     "/group-formations/expire-past-due": {
       "post": {
-        "summary": "Cancel any waiting/forming groups whose tour date has passed, and cancel any bookings still pending on them",
+        "summary": "Cancel any waiting/forming groups whose tour date has passed, and cancel any bookings still pending on them. Meant to be called by a scheduler, not end users.",
+        "parameters": [
+          {
+            "name": "x-cron-secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required only if the server has CRON_SECRET set (production). Must match its value. Left open in local dev where CRON_SECRET is unset."
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of cancelled group ids and cancelled booking ids"
+          },
+          "401": {
+            "description": "CRON_SECRET is set on the server and the x-cron-secret header is missing or doesn't match"
           }
         }
       }
@@ -499,7 +522,7 @@
             "description": "Booking + ticket_code"
           },
           "400": {
-            "description": "Missing tour_id, seats, or payment"
+            "description": "Missing tour_id, seats, or payment; seats not a positive whole number; or seats exceeds the tour's max_participants"
           },
           "401": {
             "description": "Missing/invalid token"

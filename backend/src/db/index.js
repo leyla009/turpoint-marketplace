@@ -9,7 +9,15 @@ import 'dotenv/config';
  
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || './turpoint.db';
- 
+
+// In production DB_PATH typically points into a mounted volume (e.g.
+// Railway) whose directory may not exist yet on a fresh volume - create it
+// up front so better-sqlite3 doesn't fail trying to open the file.
+const dbDir = path.dirname(dbPath);
+if (dbDir && dbDir !== '.') {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
 export const db = new Database(dbPath);
 db.pragma('journal_mode = WAL'); // reduces (does not remove) SQLite's single-writer limitation
  

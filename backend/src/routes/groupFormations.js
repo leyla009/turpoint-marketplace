@@ -41,7 +41,18 @@ router.get('/:id', (req, res) => {
  
 // Task 11: no-fill case. Call this on a schedule (e.g. daily cron) or lazily
 // on read - here it's exposed as an explicit endpoint so it's easy to test.
+// Sprint 3 hardening: this mutates state (cancels groups/bookings) with no
+// auth of its own - fine for local dev, but left wide open on a public
+// deployment it's a free "cancel things" lever for anyone who finds the
+// route. If CRON_SECRET is set (production), the caller must present it;
+// left unset (local dev / Swagger "Try it out") the route stays open so it
+// doesn't need extra setup to exercise.
 router.post('/expire-past-due', (req, res) => {
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers['x-cron-secret'] !== cronSecret) {
+    return res.status(401).json({ error: 'missing or invalid x-cron-secret header' });
+  }
+
   const expired = db
     .prepare(
       `SELECT gf.id FROM group_formations gf

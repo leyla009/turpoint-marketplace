@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Star, ListChecks, Ticket, ArrowRight, Trash2, Pencil, Zap } from 'lucide-react';
+import { PlusCircle, Star, ListChecks, Ticket, ArrowRight, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [myTours, setMyTours] = useState<any[]>([]);
   const [bookingCount, setBookingCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; message: string } | null>(null);
 
@@ -37,8 +38,12 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
+    setLoadError(false);
     Promise.all([
-      fetch(`${API_URL}/api/tours`).then((r) => r.json()),
+      fetch(`${API_URL}/api/tours`).then((r) => {
+        if (!r.ok) throw new Error('request failed');
+        return r.json();
+      }),
       fetch(`${API_URL}/api/bookings/mine`, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
         r.ok ? r.json() : []
       ),
@@ -47,6 +52,7 @@ export default function DashboardPage() {
         setMyTours(allTours.filter((t: any) => t.operator_id === operatorProfile.id));
         setBookingCount(bookings.length);
       })
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [operatorProfile, token]);
 
@@ -185,7 +191,12 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {myTours.length === 0 ? (
+      {loadError ? (
+        <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
+          <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load your tours. Is the backend running?</p>
+        </div>
+      ) : myTours.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <Ticket size={26} className="text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground mb-3">You haven't listed a tour yet.</p>

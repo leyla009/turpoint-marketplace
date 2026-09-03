@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../../context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -20,15 +20,21 @@ export default function OperatorBookingsPage() {
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!operatorProfile || !token) {
       setLoading(false);
       return;
     }
+    setError(false);
     fetch(`${API_URL}/api/bookings/mine`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('request failed');
+        return r.json();
+      })
       .then(setBookings)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [operatorProfile, token]);
 
@@ -59,7 +65,12 @@ export default function OperatorBookingsPage() {
       <h1 className="font-display text-xl font-bold text-foreground mb-1">Bookings</h1>
       <p className="text-sm text-muted-foreground mb-5">Across all of your tours, most recent first.</p>
 
-      {bookings.length === 0 ? (
+      {error ? (
+        <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
+          <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load bookings. Is the backend running?</p>
+        </div>
+      ) : bookings.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center text-sm text-muted-foreground">
           No bookings yet.
         </div>

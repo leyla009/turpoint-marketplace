@@ -3,6 +3,8 @@
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,8 +24,42 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json'), 'utf-8'));
 
 const app = express();
-app.use(cors());
+
+// Sets a standard set of protective response headers (no CSP here - this
+// is a pure JSON API, the frontend is a separate origin/deployment).
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS_ORIGIN is a comma-separated allowlist (e.g. the deployed frontend's
+// URL). Unset in dev so localhost works without any config; set it in
+// production so the API doesn't accept requests from arbitrary origins.
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : true;
+app.use(cors({ origin: corsOrigins }));
+
 app.use(express.json());
+
+// Broad, cheap-to-run limiter for every route - a basic ceiling against
+// accidental hammering or naive scripted abuse. Auth gets a much tighter
+// limit below since credential-guessing is the higher-value target.
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many attempts - try again later' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
