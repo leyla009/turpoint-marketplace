@@ -2,17 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
-  Home, TrendingDown, Calendar, Ticket, User, LogOut,
+  Home, TrendingDown, Calendar, Ticket, User, LogOut, Send,
   LayoutDashboard, PlusCircle, ClipboardList, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+// How far (px) you can scroll down the homepage before the transparent
+// hero nav switches to its solid background - roughly the hero's height.
+const HERO_SCROLL_THRESHOLD = 260;
+
 const TRAVELER_ITEMS = [
-  { href: '/', label: 'Home', Icon: Home },
-  { href: '/compare', label: 'Compare', Icon: TrendingDown },
-  { href: '/planner', label: 'Planner', Icon: Calendar },
-  { href: '/bookings', label: 'Bookings', Icon: Ticket },
+  { href: '/', label: 'Ana səhifə', Icon: Home },
+  { href: '/compare', label: 'Müqayisə et', Icon: TrendingDown },
+  { href: '/planner', label: 'Planlaşdırıcı', Icon: Calendar },
+  { href: '/bookings', label: 'Rezervasiyalarım', Icon: Ticket },
 ];
 
 const OPERATOR_ITEMS = [
@@ -29,104 +34,134 @@ export default function Nav() {
 
   const navItems = mode === 'operator' ? OPERATOR_ITEMS : TRAVELER_ITEMS;
 
+  // The homepage hero is a full-bleed photo slideshow the nav floats over
+  // transparently (see page.tsx's -mt-16 overlap); every other page, and
+  // the homepage itself once scrolled past the hero, gets the solid bar.
+  const isHome = pathname === '/';
+  const [scrolledPastHero, setScrolledPastHero] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) return;
+    const onScroll = () => setScrolledPastHero(window.scrollY > HERO_SCROLL_THRESHOLD);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isHome]);
+
+  const transparent = isHome && !scrolledPastHero;
+
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card h-screen sticky top-0">
-        <div className="px-4 py-5 border-b border-border">
-          <h2
-            className="text-xl font-bold text-primary"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            TurPoint
-          </h2>
-          <p className="text-[10px] text-muted-foreground tracking-wide mt-0.5">
-            Azərbaycan Tur Marketplace
-          </p>
-        </div>
-
-        {!loading && operatorProfile && (
-          <div className="px-3 pt-3">
-            <div className="flex bg-muted rounded-full p-1">
-              <button
-                onClick={() => setMode('traveler')}
-                className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                  mode === 'traveler' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                }`}
+      {/* Desktop top bar */}
+      <header
+        className={`hidden md:block sticky top-0 z-40 transition-colors duration-300 ${
+          transparent
+            ? 'bg-gradient-to-b from-black/45 via-black/15 to-transparent'
+            : 'bg-gradient-to-r from-blue-800 to-blue-500 shadow-md'
+        }`}
+      >
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
+              <Send size={17} className="text-white -rotate-45" />
+            </span>
+            <span className="flex flex-col leading-none">
+              <span
+                className="text-lg font-bold text-white"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
-                Traveler
-              </button>
-              <button
-                onClick={() => setMode('operator')}
-                className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                  mode === 'operator' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                }`}
-              >
-                Operator
-              </button>
-            </div>
-          </div>
-        )}
+                TurPoint
+              </span>
+              <span className="text-[10px] text-white/70 tracking-wide">
+                Azərbaycan Tur Marketplace
+              </span>
+            </span>
+          </Link>
 
-        <nav className="flex-1 px-2 py-3 space-y-0.5">
-          {navItems.map(({ href, label, Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex items-center gap-6">
+            {navItems.map(({ href, label }) => {
+              const active = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`text-sm font-semibold pb-0.5 border-b-2 transition-colors ${
+                    active
+                      ? 'text-white border-white'
+                      : 'text-white/80 border-transparent hover:text-white'
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
 
-        {/* Account footer */}
-        <div className="px-2 py-3 border-t border-border space-y-2">
-          {!loading && user && !operatorProfile && (
-            <Link
-              href="/dashboard/profile"
-              className="block text-center text-[11px] font-semibold text-accent hover:opacity-80"
-            >
-              + Become an operator
-            </Link>
-          )}
-          {!loading && user && (
-            <div className="flex items-center gap-2.5 px-2 py-1.5">
-              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
-                {user.name?.[0]?.toUpperCase() ?? '?'}
+          <div className="flex items-center gap-3 shrink-0">
+            {!loading && operatorProfile && (
+              <div className="flex bg-white/15 rounded-full p-1">
+                <button
+                  onClick={() => setMode('traveler')}
+                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
+                    mode === 'traveler' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/80'
+                  }`}
+                >
+                  Traveler
+                </button>
+                <button
+                  onClick={() => setMode('operator')}
+                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
+                    mode === 'operator' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/80'
+                  }`}
+                >
+                  Operator
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-foreground truncate">{user.name}</p>
+            )}
+
+            {!loading && user && !operatorProfile && (
+              <Link
+                href="/dashboard/profile"
+                className="hidden lg:inline-block text-[11px] font-semibold text-white/80 hover:text-white"
+              >
+                + Operator ol
+              </Link>
+            )}
+
+            {!loading && user && (
+              <div className="flex items-center gap-2">
+                <Link href="/login" className="flex items-center gap-2 group">
+                  <span className="w-8 h-8 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                    {user.name?.[0]?.toUpperCase() ?? '?'}
+                  </span>
+                  <span className="hidden lg:inline text-sm font-semibold text-white group-hover:opacity-80 truncate max-w-[100px]">
+                    {user.name}
+                  </span>
+                </Link>
                 <button
                   onClick={() => {
                     logout();
                     router.push('/');
                   }}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  title="Log out"
+                  className="text-white/70 hover:text-white p-1.5"
                 >
-                  <LogOut size={10} /> Log out
+                  <LogOut size={15} />
                 </button>
               </div>
-            </div>
-          )}
-          {!loading && !user && (
-            <Link
-              href="/login"
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-            >
-              <User size={16} /> Log in
-            </Link>
-          )}
+            )}
+
+            {!loading && !user && (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 rounded-full border border-white/70 text-white text-sm font-semibold px-5 py-2 hover:bg-white/10 transition-colors"
+              >
+                Sign In <User size={15} />
+              </Link>
+            )}
+          </div>
         </div>
-      </aside>
+      </header>
 
       {/* Mobile bottom nav — mirrors whatever mode is set on desktop /
           the account page; no room for the pill switcher itself here. */}

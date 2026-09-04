@@ -710,7 +710,7 @@ export default function TourDetail() {
  
       {/* Sticky bottom price / CTA bar */}
       {!loadingTour && tour && (
-        <div className="fixed bottom-16 md:bottom-0 inset-x-0 md:left-56 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
+        <div className="fixed bottom-16 md:bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] text-muted-foreground">Per person</p>

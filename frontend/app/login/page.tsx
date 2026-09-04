@@ -81,7 +81,7 @@ export default function LoginPage() {
               onClick={() => router.push('/dashboard/profile')}
               className="w-full text-sm font-semibold text-accent px-4 py-2.5 rounded-xl border border-accent/30 hover:bg-accent/5 transition-colors mb-3"
             >
-              + Become an operator
+              + Operator ol
             </button>
           )}
 

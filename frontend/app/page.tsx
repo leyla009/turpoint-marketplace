@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Search, X, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
+import { Search, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
 import TourCard, { ApiTour } from './components/TourCard';
 import Greeting from './components/Greeting';
+import HeroSlideshow from './components/HeroSlideshow';
+import HeroSearchCard from './components/HeroSearchCard';
 
 // Leaflet touches `window` at import time, so it can only run in the
 // browser — ssr: false keeps Next from trying to render it server-side.
@@ -35,10 +37,18 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+
+  // Hero search card state. fromCity is decorative only (see
+  // HeroSearchCard's comment - tours have no origin-city field to filter
+  // by). departDate/returnDate are a date-range filter, not a literal
+  // round trip.
+  const [fromCity, setFromCity] = useState('');
+  const [departDate, setDepartDate] = useState('');
+  const [returnDate, setReturnDate] = useState('');
+  const [travelers, setTravelers] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -65,55 +75,65 @@ export default function Home() {
   const filtered = useMemo(() => {
     const min = minPrice === '' ? null : Number(minPrice);
     const max = maxPrice === '' ? null : Number(maxPrice);
+    const minSeats = travelers === '' ? null : Number(travelers);
 
     return tours.filter((t) => {
       const matchCat = activeCategory === 'all' || t.category === activeCategory;
-      const q = searchQuery.toLowerCase();
-      const matchQ =
-        q === '' ||
-        t.title.toLowerCase().includes(q) ||
-        (t.location ?? '').toLowerCase().includes(q);
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
       const effectivePrice = t.discounted_price ?? t.price;
       const matchMin = min === null || effectivePrice >= min;
       const matchMax = max === null || effectivePrice <= max;
-      return matchCat && matchQ && matchLocation && matchMin && matchMax;
+      // ISO 'YYYY-MM-DD' strings compare lexicographically in date order.
+      const matchDepart = departDate === '' || t.date >= departDate;
+      const matchReturn = returnDate === '' || t.date <= returnDate;
+      const matchTravelers = minSeats === null || t.max_participants >= minSeats;
+      return matchCat && matchLocation && matchMin && matchMax && matchDepart && matchReturn && matchTravelers;
     });
-  }, [tours, activeCategory, searchQuery, locationFilter, minPrice, maxPrice]);
+  }, [tours, activeCategory, locationFilter, minPrice, maxPrice, departDate, returnDate, travelers]);
+
+  const scrollToResults = () => {
+    document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="min-h-full">
-      {/* Header */}
-      <div className="bg-primary pt-8 pb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-56 h-56 bg-white opacity-[0.04] rounded-full translate-x-20 -translate-y-20" />
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative">
+      {/* Header - photo slideshow hero, pulled up under the transparent
+          desktop nav (see Nav.tsx) so the images show through behind it. */}
+      <div className="relative md:-mt-16 min-h-[340px] md:min-h-[420px] flex flex-col justify-end overflow-hidden">
+        <HeroSlideshow />
+        <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto relative pt-24 md:pt-28 pb-10 md:pb-16">
           <Greeting />
           <h1
-            className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4"
+            className="text-2xl sm:text-3xl font-bold text-white"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            Where to next?
+            Növbəti dayanacağın haradır?
           </h1>
-          <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm max-w-xl">
-            <Search size={15} className="text-muted-foreground shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tours or destinations..."
-              className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground">
-                <X size={14} />
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
+      {/* Floating search card - straddles the hero/content boundary, with
+          the same left/right page margins as everything else so it never
+          touches the screen edges. */}
+      <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative z-20 -mt-8 md:-mt-10">
+        <HeroSearchCard
+          locations={locations}
+          fromCity={fromCity}
+          onFromCityChange={setFromCity}
+          toLocation={locationFilter}
+          onToLocationChange={setLocationFilter}
+          departDate={departDate}
+          onDepartDateChange={setDepartDate}
+          returnDate={returnDate}
+          onReturnDateChange={setReturnDate}
+          travelers={travelers}
+          onTravelersChange={setTravelers}
+          onSearch={scrollToResults}
+        />
+      </div>
+
       {/* Main Content */}
-      <div className="px-4 sm:px-6 pt-6 max-w-[1600px] mx-auto">
+      <div className="px-4 sm:px-6 pt-8 md:pt-10 max-w-[1600px] mx-auto">
         {/* Destination map */}
         {!loading && tours.length > 0 && (
           <div className="mb-6">
@@ -189,7 +209,7 @@ export default function Home() {
           })}
         </div>
 
-        <div className="mt-4 mb-10">
+        <div id="tour-results" className="mt-4 mb-10 scroll-mt-20">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">
               {loading

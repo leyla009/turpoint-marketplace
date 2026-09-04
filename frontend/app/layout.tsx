@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-background text-foreground">
         <ToastProvider>
           <AuthProvider>
-            <div className="flex min-h-screen">
+            <div className="min-h-screen flex flex-col">
               <Nav />
               <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
             </div>

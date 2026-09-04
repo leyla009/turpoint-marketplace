@@ -145,7 +145,7 @@ export default function DashboardPage() {
           href="/dashboard/profile"
           className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl"
         >
-          Become an operator
+          Operator ol
         </Link>
       </div>
     );

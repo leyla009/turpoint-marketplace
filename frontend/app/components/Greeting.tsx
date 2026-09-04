@@ -15,11 +15,8 @@ function weatherEmoji(code: number): string {
   return '';
 }
 
-function timeGreeting(hour: number): string {
-  if (hour < 5) return 'Good night';
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+function timeGreeting(): string {
+  return 'Salam';
 }
 
 export default function Greeting() {
@@ -49,14 +46,14 @@ export default function Greeting() {
   }, []);
 
   if (!mounted) {
-    return <p className="text-emerald-100/90 text-sm font-medium mb-1 h-5" />;
+    return <p className="text-white/90 text-sm font-medium mb-1 h-5" />;
   }
 
-  const greeting = timeGreeting(new Date().getHours());
+  const greeting = timeGreeting();
   const firstName = user?.name?.split(' ')[0];
 
   return (
-    <p className="text-emerald-100/90 text-sm font-medium mb-1 tracking-wide">
+    <p className="text-white/90 text-sm font-medium mb-1 tracking-wide">
       {greeting}{firstName ? `, ${firstName}` : ''} {emoji}
     </p>
   );

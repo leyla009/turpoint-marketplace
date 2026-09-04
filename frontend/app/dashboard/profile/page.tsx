@@ -82,7 +82,7 @@ export default function OperatorProfilePage() {
       <div className="flex items-center gap-2 mb-1">
         <Store size={20} className="text-primary" />
         <h1 className="font-display text-xl font-bold text-foreground">
-          {isEditing ? 'Edit operator profile' : 'Become an operator'}
+          {isEditing ? 'Edit operator profile' : 'Operator ol'}
         </h1>
       </div>
       <p className="text-sm text-muted-foreground mb-5">
