@@ -214,7 +214,7 @@
     },
     "/tours": {
       "post": {
-        "summary": "Create a tour - requires login as an operator; operator_id is derived from the token and is not accepted in the request body",
+        "summary": "Create a tour - requires login as an operator; operator_id is derived from the token and is not accepted in the request body. `features` is an optional comma-separated list of slugs from: breakfast, evening_tea, guide, road_games, hotel_stay - drives the homepage's feature-tag filter chips.",
         "security": [
           {
             "bearerAuth": []
@@ -226,7 +226,8 @@
               "example": {
                 "title": "Quba Tebiet Turu",
                 "price": 50,
-                "date": "2026-09-10"
+                "date": "2026-09-10",
+                "features": "breakfast,guide"
               }
             }
           }

@@ -67,9 +67,9 @@ function attachActiveDeals(tours) {
 router.post('/', requireAuth, (req, res) => {
   const {
     title, description, location, category, route,
-    price, date, duration_days, min_participants, max_participants, interest_score,
+    price, date, duration_days, min_participants, max_participants, interest_score, features,
   } = req.body;
- 
+
   if (!title || !price || !date) {
     return res.status(400).json({ error: 'title, price, date are required' });
   }
@@ -99,13 +99,14 @@ router.post('/', requireAuth, (req, res) => {
     .prepare(
       `INSERT INTO tours
         (operator_id, title, description, location, category, route, price, date,
-         duration_days, min_participants, max_participants, interest_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         duration_days, min_participants, max_participants, interest_score, features)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       operator.id, title, description ?? null, location ?? null, category ?? null,
       route ?? null, price, date, duration_days ?? 1, min_participants ?? 1,
-      max_participants ?? 10, interest_score ? JSON.stringify(interest_score) : null
+      max_participants ?? 10, interest_score ? JSON.stringify(interest_score) : null,
+      features ?? null
     );
  
   res.status(201).json(db.prepare('SELECT * FROM tours WHERE id = ?').get(result.lastInsertRowid));
@@ -164,7 +165,7 @@ router.put('/:id', requireAuth, (req, res) => {
 
   const {
     title, description, location, category, route,
-    price, date, duration_days, min_participants, max_participants, interest_score,
+    price, date, duration_days, min_participants, max_participants, interest_score, features,
   } = req.body;
 
   if (title !== undefined && !title) {
@@ -207,16 +208,18 @@ router.put('/:id', requireAuth, (req, res) => {
         : category !== undefined && category !== tour.category
         ? JSON.stringify(buildInterestScore(category))
         : tour.interest_score,
+    features: features !== undefined ? features : tour.features,
   };
 
   db.prepare(
     `UPDATE tours SET title = ?, description = ?, location = ?, category = ?, route = ?,
-       price = ?, date = ?, duration_days = ?, min_participants = ?, max_participants = ?, interest_score = ?
+       price = ?, date = ?, duration_days = ?, min_participants = ?, max_participants = ?, interest_score = ?,
+       features = ?
      WHERE id = ?`
   ).run(
     updated.title, updated.description, updated.location, updated.category, updated.route,
     updated.price, updated.date, updated.duration_days, updated.min_participants,
-    updated.max_participants, updated.interest_score, tour.id
+    updated.max_participants, updated.interest_score, updated.features, tour.id
   );
 
   res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));

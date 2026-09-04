@@ -12,6 +12,9 @@ const operators = [
 
 const categories = ['nature', 'history', 'entertainment', 'food'];
 const locations = ['Quba', 'Şəki', 'Qəbələ', 'Bakı', 'Gəbələ', 'Lənkəran'];
+// Homepage feature-tag filter chips - see frontend/app/lib/tourFeatures.ts
+// for the slug -> Azerbaijani label mapping these must match exactly.
+const featureSlugs = ['breakfast', 'evening_tea', 'guide', 'road_games', 'hotel_stay'];
 
 const insertOperator = db.prepare(
   `INSERT INTO operators (name, description, languages, vehicle_features)
@@ -21,10 +24,10 @@ const insertOperator = db.prepare(
 const insertTour = db.prepare(
   `INSERT INTO tours
     (operator_id, title, description, location, category, route, price, date,
-     duration_days, min_participants, max_participants, interest_score)
+     duration_days, min_participants, max_participants, interest_score, features)
    VALUES
     (@operator_id, @title, @description, @location, @category, @route, @price, @date,
-     @duration_days, @min_participants, @max_participants, @interest_score)`
+     @duration_days, @min_participants, @max_participants, @interest_score, @features)`
 );
 
 const seed = db.transaction(() => {
@@ -43,6 +46,8 @@ const seed = db.transaction(() => {
       food: category === 'food' ? 0.9 : 0.1,
     };
 
+    const features = featureSlugs.filter((_, idx) => (i + idx) % 3 === 0).join(',');
+
     insertTour.run({
       operator_id: operatorId,
       title: `${location} ${category} turu #${tourNum}`,
@@ -56,6 +61,7 @@ const seed = db.transaction(() => {
       min_participants: 3,
       max_participants: 10,
       interest_score: JSON.stringify(interestScore),
+      features,
     });
     tourNum += 1;
   }

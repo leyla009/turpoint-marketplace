@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS tours (
   min_participants INTEGER DEFAULT 1,
   max_participants INTEGER DEFAULT 10,
   interest_score TEXT,        -- JSON: {"nature":0.8,"history":0.2}
+  features TEXT,               -- comma-separated slugs: breakfast,evening_tea,guide,road_games,hotel_stay
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
  

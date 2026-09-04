@@ -35,7 +35,15 @@ if (!operatorColumns.includes('user_id')) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_operators_user_id ON operators(user_id)');
   console.log('Migration applied: operators.user_id added.');
 }
- 
+
+// Homepage feature-tag filter (breakfast/evening tea/guide/road games/
+// hotel stay): same defensive add-if-missing pattern as user_id above.
+const tourColumns = db.prepare('PRAGMA table_info(tours)').all().map((c) => c.name);
+if (!tourColumns.includes('features')) {
+  db.exec('ALTER TABLE tours ADD COLUMN features TEXT');
+  console.log('Migration applied: tours.features added.');
+}
+
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Schema applied to ${dbPath}`);
