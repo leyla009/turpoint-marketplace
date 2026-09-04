@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  Home, TrendingDown, Calendar, Ticket, User, LogOut, Send,
+  Home, Ticket, User, LogOut, Send,
   LayoutDashboard, PlusCircle, ClipboardList, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -23,8 +23,6 @@ const LANGUAGES: { locale: Locale; flag: string }[] = [
 
 const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
-  { href: '/compare', labelKey: 'nav.compare' as const, Icon: TrendingDown },
-  { href: '/planner', labelKey: 'nav.planner' as const, Icon: Calendar },
   { href: '/bookings', labelKey: 'nav.bookings' as const, Icon: Ticket },
 ];
 

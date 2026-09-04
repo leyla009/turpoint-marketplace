@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Search, MapPinned } from 'lucide-react';
+import { Search, MapPinned, Calendar } from 'lucide-react';
 import TourCard, { ApiTour } from './components/TourCard';
 import Greeting from './components/Greeting';
 import HeroSlideshow from './components/HeroSlideshow';
 import HeroSearchCard from './components/HeroSearchCard';
 import PriceRangeSlider from './components/PriceRangeSlider';
+import CompareModal from './components/CompareModal';
+import PlannerModal from './components/PlannerModal';
 import { TOUR_FEATURES, parseFeatures } from './lib/tourFeatures';
+import { VEHICLE_FEATURES, parseVehicleFeatures } from './lib/vehicleFeatures';
 import { useLanguage } from './context/LanguageContext';
 
 // Leaflet touches `window` at import time, so it can only run in the
@@ -41,12 +44,28 @@ export default function Home() {
   const { t } = useLanguage();
   const [tours, setTours] = useState<ApiTour[]>([]);
   const [operators, setOperators] = useState<Record<number, string>>({});
+  // Operator vehicle_features (raw comma-separated string), keyed by
+  // operator id - drives the "Vehicle filters" section below, which
+  // filters tours by their OWNING OPERATOR's vehicle, not the tour itself.
+  const [operatorVehicleFeatures, setOperatorVehicleFeatures] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   // Multi-select feature/inclusion tags (breakfast, guide, ...) - a tour
   // must have EVERY selected tag to match, same convention as an amenity
   // filter (not "any of").
   const [activeFeatures, setActiveFeatures] = useState<string[]>([]);
+  const [activeVehicleFeatures, setActiveVehicleFeatures] = useState<string[]>([]);
+  // Inline compare, replacing what used to be a separate /compare page -
+  // toggled on from the sidebar, selects up to 3 cards from the results
+  // grid, and opens a floating side-by-side modal instead of navigating
+  // away (see CompareModal.tsx).
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareSelectedIds, setCompareSelectedIds] = useState<number[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  // Smart Planner, also inlined instead of a separate /planner page - a
+  // persistent corner button opens it as a floating modal from anywhere
+  // on the homepage.
+  const [showPlannerModal, setShowPlannerModal] = useState(false);
   const [locationFilter, setLocationFilter] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -83,6 +102,23 @@ export default function Home() {
   const toggleFeature = (slug: string) => {
     setActiveFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
   };
+  const toggleVehicleFeature = (slug: string) => {
+    setActiveVehicleFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
+  };
+
+  const toggleCompareMode = () => {
+    setCompareMode((prev) => {
+      if (prev) setCompareSelectedIds([]);
+      return !prev;
+    });
+  };
+  const toggleCompareSelect = (id: number) => {
+    setCompareSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 3) return prev; // matches backend's 2-3 id limit
+      return [...prev, id];
+    });
+  };
 
   useEffect(() => {
     Promise.all([
@@ -92,10 +128,13 @@ export default function Home() {
       .then(([toursData, operatorsData]) => {
         setTours(toursData);
         const map: Record<number, string> = {};
+        const vehicleMap: Record<number, string> = {};
         operatorsData.forEach((op: any) => {
           map[op.id] = op.name;
+          vehicleMap[op.id] = op.vehicle_features ?? '';
         });
         setOperators(map);
+        setOperatorVehicleFeatures(vehicleMap);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -110,6 +149,8 @@ export default function Home() {
     return tours.filter((t) => {
       const tourFeatures = parseFeatures(t.features);
       const matchFeatures = activeFeatures.every((f) => tourFeatures.includes(f));
+      const vehicleFeatures = parseVehicleFeatures(operatorVehicleFeatures[t.operator_id]);
+      const matchVehicleFeatures = activeVehicleFeatures.every((f) => vehicleFeatures.includes(f));
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
       const effectivePrice = t.discounted_price ?? t.price;
       const matchMin = min === null || effectivePrice >= min;
@@ -120,9 +161,30 @@ export default function Home() {
       const matchDepart = !datesTouched || departDate === '' || t.date >= departDate;
       const matchReturn = !datesTouched || returnDate === '' || t.date <= returnDate;
       const matchTravelers = minSeats === null || t.max_participants >= minSeats;
-      return matchFeatures && matchLocation && matchMin && matchMax && matchDepart && matchReturn && matchTravelers;
+      return (
+        matchFeatures &&
+        matchVehicleFeatures &&
+        matchLocation &&
+        matchMin &&
+        matchMax &&
+        matchDepart &&
+        matchReturn &&
+        matchTravelers
+      );
     });
-  }, [tours, activeFeatures, locationFilter, minPrice, maxPrice, departDate, returnDate, datesTouched, travelers]);
+  }, [
+    tours,
+    activeFeatures,
+    activeVehicleFeatures,
+    operatorVehicleFeatures,
+    locationFilter,
+    minPrice,
+    maxPrice,
+    departDate,
+    returnDate,
+    datesTouched,
+    travelers,
+  ]);
 
   const scrollToResults = () => {
     document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -145,6 +207,16 @@ export default function Home() {
     });
     return counts;
   }, [tours]);
+
+  const vehicleFeatureCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    VEHICLE_FEATURES.forEach((f) => {
+      counts[f.slug] = tours.filter((t) =>
+        parseVehicleFeatures(operatorVehicleFeatures[t.operator_id]).includes(f.slug)
+      ).length;
+    });
+    return counts;
+  }, [tours, operatorVehicleFeatures]);
 
   return (
     <div className="min-h-full">
@@ -187,7 +259,7 @@ export default function Home() {
       <div className="px-4 sm:px-6 pt-6 md:pt-8 pb-10 max-w-[1600px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* Sidebar */}
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto scrollbar-hide">
             {!loading && tours.length > 0 && (
               <div>
                 <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
@@ -196,6 +268,25 @@ export default function Home() {
                 <DestinationMap tours={tours} heightClassName="h-48" />
               </div>
             )}
+
+            <div className="bg-card border border-border/60 rounded-2xl shadow-sm p-4 flex items-center justify-between">
+              <span className="text-sm font-semibold text-foreground">{t('home.compareProperties')}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={compareMode}
+                onClick={toggleCompareMode}
+                className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${
+                  compareMode ? 'bg-primary' : 'bg-muted'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                    compareMode ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
 
             <div className="bg-card border border-border/60 rounded-2xl shadow-sm p-4">
               <h3 className="text-sm font-semibold text-foreground mb-1">{t('home.budget')}</h3>
@@ -237,10 +328,40 @@ export default function Home() {
                 })}
               </div>
 
-              {(activeFeatures.length > 0 || minPrice !== '' || maxPrice !== '') && (
+              <div className="h-px bg-border my-4" />
+
+              <h3 className="text-sm font-semibold text-foreground mb-2">{t('home.vehicleFilters')}</h3>
+              <div className="space-y-2">
+                {VEHICLE_FEATURES.map((feature) => {
+                  const active = activeVehicleFeatures.includes(feature.slug);
+                  const Icon = feature.Icon;
+                  return (
+                    <label
+                      key={feature.slug}
+                      className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleVehicleFeature(feature.slug)}
+                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                      />
+                      <Icon size={14} className="text-muted-foreground shrink-0" />
+                      <span className="flex-1">{t(feature.labelKey)}</span>
+                      <span className="text-xs text-muted-foreground">{vehicleFeatureCounts[feature.slug] ?? 0}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {(activeFeatures.length > 0 ||
+                activeVehicleFeatures.length > 0 ||
+                minPrice !== '' ||
+                maxPrice !== '') && (
                 <button
                   onClick={() => {
                     setActiveFeatures([]);
+                    setActiveVehicleFeatures([]);
                     setMinPrice('');
                     setMaxPrice('');
                   }}
@@ -258,12 +379,6 @@ export default function Home() {
               <h2 className="text-sm font-semibold text-foreground">
                 {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: filtered.length })}
               </h2>
-              <button
-                onClick={() => router.push('/compare')}
-                className="text-xs text-accent font-semibold hover:underline"
-              >
-                {t('home.compareTours')}
-              </button>
             </div>
 
             {error && (
@@ -287,6 +402,10 @@ export default function Home() {
                     tour={tour}
                     operatorName={operators[tour.operator_id]}
                     onClick={() => router.push(`/tours/${tour.id}`)}
+                    compareMode={compareMode}
+                    compareSelected={compareSelectedIds.includes(tour.id)}
+                    compareDisabled={!compareSelectedIds.includes(tour.id) && compareSelectedIds.length >= 3}
+                    onToggleCompare={() => toggleCompareSelect(tour.id)}
                   />
                 ))}
               </div>
@@ -294,6 +413,52 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Floating compare tray - only while compare mode is on and at
+          least one card is selected; mirrors the old /compare page's
+          "N selected" pill but stays on this page instead of navigating. */}
+      {compareMode && compareSelectedIds.length > 0 && (
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-40 bg-primary text-primary-foreground rounded-full shadow-lg px-5 py-3 flex items-center gap-4">
+          <span className="text-sm font-semibold">{t('compare.selected', { count: compareSelectedIds.length })}</span>
+          {compareSelectedIds.length >= 2 ? (
+            <button
+              onClick={() => setShowCompareModal(true)}
+              className="text-sm font-bold bg-accent text-accent-foreground rounded-full px-4 py-1.5 hover:opacity-90"
+            >
+              {t('compare.compareNow')}
+            </button>
+          ) : (
+            <span className="text-xs text-primary-foreground/80">{t('home.selectMoreToCompare')}</span>
+          )}
+        </div>
+      )}
+
+      {showCompareModal && (
+        <CompareModal
+          tourIds={compareSelectedIds}
+          operators={operators}
+          onClose={() => setShowCompareModal(false)}
+          onViewTour={(id) => router.push(`/tours/${id}`)}
+        />
+      )}
+
+      {/* Persistent Smart Planner button - replaces the old separate
+          /planner page with a floating modal, opened from anywhere on
+          the homepage. */}
+      <button
+        onClick={() => setShowPlannerModal(true)}
+        className="fixed bottom-20 md:bottom-4 right-4 z-40 flex items-center gap-2 bg-accent text-accent-foreground rounded-full shadow-lg px-4 py-3 hover:opacity-90 transition-opacity"
+      >
+        <Calendar size={16} />
+        <span className="text-sm font-semibold">{t('nav.planner')}</span>
+      </button>
+
+      {showPlannerModal && (
+        <PlannerModal
+          onClose={() => setShowPlannerModal(false)}
+          onViewTour={(id) => router.push(`/tours/${id}`)}
+        />
+      )}
     </div>
   );
 }

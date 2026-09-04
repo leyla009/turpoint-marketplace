@@ -5,7 +5,7 @@
 @tailwind utilities;
  
 :root {
-  --background: #F3EEE4;
+  --background: #FFFFFF;
   --foreground: #1F2A24;
   --card: #FFFFFF;
   --card-foreground: #1F2A24;
@@ -20,6 +20,17 @@
  
 body {
   font-family: 'Nunito', system-ui, sans-serif;
+}
+
+/* Hides the scrollbar track/thumb while leaving the element scrollable -
+   used on the sidebar (page.tsx), which scrolls internally once its
+   filters are taller than the viewport. */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and legacy Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, current Edge */
 }
 
 /* Dual-handle price range slider (PriceRangeSlider.tsx) - the track itself

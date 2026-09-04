@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Nav from './components/Nav';
+import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="min-h-screen flex flex-col">
                 <Nav />
                 <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
+                <Footer />
               </div>
             </AuthProvider>
           </ToastProvider>

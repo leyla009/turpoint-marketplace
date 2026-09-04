@@ -1,6 +1,6 @@
 'use client';
 
-import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap } from 'lucide-react';
+import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
@@ -30,10 +30,20 @@ export default function TourCard({
   tour,
   operatorName,
   onClick,
+  compareMode = false,
+  compareSelected = false,
+  compareDisabled = false,
+  onToggleCompare,
 }: {
   tour: ApiTour;
   operatorName?: string;
   onClick: () => void;
+  /** Show the compare checkbox overlay (homepage's "Compare properties" toggle). */
+  compareMode?: boolean;
+  compareSelected?: boolean;
+  /** True once the compare cap (3) is hit and this card isn't already selected. */
+  compareDisabled?: boolean;
+  onToggleCompare?: () => void;
 }) {
   const { t } = useLanguage();
   const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
@@ -43,7 +53,9 @@ export default function TourCard({
   return (
     <div
       onClick={onClick}
-      className="bg-card rounded-xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group"
+      className={`bg-card rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group ${
+        compareSelected ? 'border-accent ring-2 ring-accent/30' : 'border-border'
+      }`}
     >
       <div className={`relative h-36 sm:h-40 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
         <Icon size={40} className="text-white/70" />
@@ -51,6 +63,25 @@ export default function TourCard({
           <span className="absolute top-2 left-2 flex items-center gap-1 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full">
             <Zap size={9} /> {t('tourCard.lastMinuteDeal')}
           </span>
+        )}
+        {compareMode && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!compareDisabled) onToggleCompare?.();
+            }}
+            disabled={compareDisabled}
+            title={t('home.compareProperties')}
+            className={`absolute top-2 right-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+              compareSelected
+                ? 'bg-accent border-accent'
+                : compareDisabled
+                ? 'bg-white/60 border-white/60 cursor-not-allowed'
+                : 'bg-white/90 border-white hover:bg-white'
+            }`}
+          >
+            {compareSelected && <Check size={14} className="text-white" />}
+          </button>
         )}
         <span className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">
           {t(style.labelKey)}

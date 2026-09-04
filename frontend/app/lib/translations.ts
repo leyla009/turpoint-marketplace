@@ -17,7 +17,7 @@ const az = {
   'nav.compare': 'Müqayisə et',
   'nav.planner': 'Planlaşdırıcı',
   'nav.bookings': 'Rezervasiyalarım',
-  'nav.dashboard': 'Dashboard',
+  'nav.dashboard': 'Panel',
   'nav.addTour': 'Tur əlavə et',
   'nav.operatorBookings': 'Rezervasiyalar',
   'nav.profile': 'Profil',
@@ -33,13 +33,16 @@ const az = {
   'home.whereToNext': 'Növbəti dayanacağın haradır?',
   'home.exploreOnMap': 'Turlar xəritədə',
   'home.budget': 'Büdcəniz (AZN)',
-  'home.popularFilters': 'Populyar filtrlər',
+  'home.popularFilters': 'Səyahət filtrləri',
+  'home.vehicleFilters': 'Nəqliyyat filtrləri',
   'home.clearFilters': 'Filtrləri təmizlə',
   'home.loadingTours': 'Turlar yüklənir...',
   'home.toursAvailable': 'Tapılan turlar: {count}',
   'home.compareTours': 'Turları müqayisə et →',
   'home.couldntReachBackend': 'Backend-ə qoşulmaq mümkün olmadı. İşləyirmi?',
   'home.noToursMatch': 'Axtarışınıza uyğun tur tapılmadı.',
+  'home.compareProperties': 'Müqayisəni aktivləşdir',
+  'home.selectMoreToCompare': 'Müqayisə üçün daha bir tur seçin',
 
   // Hero search card
   'search.from': 'Haradan?',
@@ -63,6 +66,12 @@ const az = {
   'feature.roadGames': 'Yolboyu əyləncəli oyunlar',
   'feature.hotelStay': 'Otel gecələməsi',
 
+  // Vehicle/transport feature tags (operators.vehicle_features)
+  'vehicleFeature.ac': 'Kondisioner',
+  'vehicleFeature.wifi': 'Wi-Fi',
+  'vehicleFeature.luggage': 'Bagaj yeri',
+  'vehicleFeature.charging': 'Enerji doldurma',
+
   // Tour card
   'tourCard.lastMinuteDeal': 'Son dəqiqə təklifi',
   'tourCard.defaultOperator': 'TurPoint operatoru',
@@ -71,6 +80,8 @@ const az = {
 
   // Destination map popup
   'map.viewTour': 'Turu gör →',
+  'map.expand': 'Xəritəni böyüt',
+  'map.close': 'Bağla',
 
   // Greeting
   'greeting.hello': 'Salam',
@@ -105,7 +116,7 @@ const az = {
   'tourDetail.noGroupYet': 'Bu tur üçün hələ qrup formalaşması yoxdur.',
   'tourDetail.joinedToConfirm': 'təsdiq üçün {min}-dan {current} qoşuldu',
   'tourDetail.bookSeatsHelp': 'Bu qrupun minimum sayına çatmasına kömək etmək üçün aşağıda yer bron edin.',
-  'tourDetail.minimumReached': 'Minimum sayına çatıldı — bu qrup təsdiqləndi. Bron etmə tezliklə aktiv olacaq.',
+  'tourDetail.minimumReached': 'Minimum sayına çatıldı — bu qrup təsdiqləndi. Aşağıdan bron edə bilərsiniz.',
   'tourDetail.groupCancelled': 'Bu qrup vaxtında minimum sayına çatmadığı üçün ləğv edildi.',
   'tourDetail.reviews': 'Rəylər',
   'tourDetail.writeReview': 'Rəy yaz',
@@ -328,6 +339,11 @@ const az = {
   'operatorBookings.needProfile': 'Rezervasiyaları görmək üçün operator profili yaratmalısınız.',
   'operatorBookings.createOne': 'Bir profil yaradın →',
   'operatorBookings.noBookingsYet': 'Hələ rezervasiya yoxdur.',
+
+  // Footer
+  'footer.quickLinks': 'Sürətli keçidlər',
+  'footer.forOperators': 'Operatorlar üçün',
+  'footer.rights': '© {year} TurPoint. Bütün hüquqlar qorunur.',
 } as const;
 
 export type Locale = 'az' | 'en' | 'ru';
@@ -352,15 +368,18 @@ const en: Record<TranslationKey, string> = {
   'nav.account': 'Account',
 
   'home.whereToNext': 'Where to next?',
-  'home.exploreOnMap': 'Explore on the map',
+  'home.exploreOnMap': 'Tours on the map',
   'home.budget': 'Your budget (AZN)',
-  'home.popularFilters': 'Popular filters',
+  'home.popularFilters': 'Travel filters',
+  'home.vehicleFilters': 'Vehicle filters',
   'home.clearFilters': 'Clear filters',
   'home.loadingTours': 'Loading tours...',
   'home.toursAvailable': 'Tours found: {count}',
   'home.compareTours': 'Compare tours →',
   'home.couldntReachBackend': "Couldn't reach the backend. Is it running?",
   'home.noToursMatch': 'No tours match your search.',
+  'home.compareProperties': 'Enable comparison',
+  'home.selectMoreToCompare': 'Select one more to compare',
 
   'search.from': 'From',
   'search.to': 'To',
@@ -373,7 +392,7 @@ const en: Record<TranslationKey, string> = {
   'category.nature': 'Nature',
   'category.history': 'History',
   'category.entertainment': 'Entertainment',
-  'category.food': 'Food',
+  'category.food': 'Gastronomy',
 
   'feature.breakfast': 'Breakfast',
   'feature.eveningTea': 'Evening tea spread',
@@ -381,12 +400,19 @@ const en: Record<TranslationKey, string> = {
   'feature.roadGames': 'Fun games along the way',
   'feature.hotelStay': 'Hotel stay',
 
+  'vehicleFeature.ac': 'Air conditioning',
+  'vehicleFeature.wifi': 'Wi-Fi',
+  'vehicleFeature.luggage': 'Luggage space',
+  'vehicleFeature.charging': 'Charging port',
+
   'tourCard.lastMinuteDeal': 'Last-minute deal',
   'tourCard.defaultOperator': 'TurPoint operator',
   'tourCard.minToConfirm': 'min {count} to confirm',
   'tourCard.perPerson': '/pp',
 
   'map.viewTour': 'View tour →',
+  'map.expand': 'Expand map',
+  'map.close': 'Close',
 
   'greeting.hello': 'Hello',
 
@@ -418,7 +444,7 @@ const en: Record<TranslationKey, string> = {
   'tourDetail.noGroupYet': 'No group formation available for this tour yet.',
   'tourDetail.joinedToConfirm': '{current} of {min} joined to confirm',
   'tourDetail.bookSeatsHelp': 'Book your seats below to help this group reach its minimum.',
-  'tourDetail.minimumReached': 'Minimum reached — this group is confirmed. Booking flow is coming soon.',
+  'tourDetail.minimumReached': 'Minimum reached — this group is confirmed. You can book below.',
   'tourDetail.groupCancelled': "This group didn't reach the minimum in time and was cancelled.",
   'tourDetail.reviews': 'Reviews',
   'tourDetail.writeReview': 'Write a review',
@@ -632,6 +658,10 @@ const en: Record<TranslationKey, string> = {
   'operatorBookings.needProfile': 'You need an operator profile to see bookings.',
   'operatorBookings.createOne': 'Create one →',
   'operatorBookings.noBookingsYet': 'No bookings yet.',
+
+  'footer.quickLinks': 'Quick links',
+  'footer.forOperators': 'For operators',
+  'footer.rights': '© {year} TurPoint. All rights reserved.',
 };
 
 const ru: Record<TranslationKey, string> = {
@@ -655,13 +685,16 @@ const ru: Record<TranslationKey, string> = {
   'home.whereToNext': 'Куда дальше?',
   'home.exploreOnMap': 'Туры на карте',
   'home.budget': 'Ваш бюджет (AZN)',
-  'home.popularFilters': 'Популярные фильтры',
+  'home.popularFilters': 'Фильтры поездки',
+  'home.vehicleFilters': 'Фильтры транспорта',
   'home.clearFilters': 'Сбросить фильтры',
   'home.loadingTours': 'Загрузка туров...',
   'home.toursAvailable': 'Найдено туров: {count}',
   'home.compareTours': 'Сравнить туры →',
   'home.couldntReachBackend': 'Не удалось подключиться к серверу. Он запущен?',
   'home.noToursMatch': 'По вашему запросу туры не найдены.',
+  'home.compareProperties': 'Включить сравнение',
+  'home.selectMoreToCompare': 'Выберите ещё один тур для сравнения',
 
   'search.from': 'Откуда?',
   'search.to': 'Куда?',
@@ -682,12 +715,19 @@ const ru: Record<TranslationKey, string> = {
   'feature.roadGames': 'Весёлые игры в дороге',
   'feature.hotelStay': 'Проживание в отеле',
 
+  'vehicleFeature.ac': 'Кондиционер',
+  'vehicleFeature.wifi': 'Wi-Fi',
+  'vehicleFeature.luggage': 'Место для багажа',
+  'vehicleFeature.charging': 'Зарядка устройств',
+
   'tourCard.lastMinuteDeal': 'Горящее предложение',
   'tourCard.defaultOperator': 'Оператор TurPoint',
   'tourCard.minToConfirm': 'мин. для подтверждения: {count}',
   'tourCard.perPerson': '/чел.',
 
   'map.viewTour': 'Смотреть тур →',
+  'map.expand': 'Развернуть карту',
+  'map.close': 'Закрыть',
 
   'greeting.hello': 'Привет',
 
@@ -719,7 +759,7 @@ const ru: Record<TranslationKey, string> = {
   'tourDetail.noGroupYet': 'Для этого тура пока нет формирующейся группы.',
   'tourDetail.joinedToConfirm': 'присоединилось {current} из {min} для подтверждения',
   'tourDetail.bookSeatsHelp': 'Забронируйте места ниже, чтобы помочь группе набрать минимум.',
-  'tourDetail.minimumReached': 'Минимум набран — группа подтверждена. Бронирование скоро будет доступно.',
+  'tourDetail.minimumReached': 'Минимум набран — группа подтверждена. Вы можете забронировать ниже.',
   'tourDetail.groupCancelled': 'Эта группа не набрала минимум вовремя и была отменена.',
   'tourDetail.reviews': 'Отзывы',
   'tourDetail.writeReview': 'Написать отзыв',
@@ -933,6 +973,10 @@ const ru: Record<TranslationKey, string> = {
   'operatorBookings.needProfile': 'Чтобы видеть брони, нужен профиль оператора.',
   'operatorBookings.createOne': 'Создать профиль →',
   'operatorBookings.noBookingsYet': 'Пока нет броней.',
+
+  'footer.quickLinks': 'Быстрые ссылки',
+  'footer.forOperators': 'Для операторов',
+  'footer.rights': '© {year} TurPoint. Все права защищены.',
 };
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { az, en, ru };

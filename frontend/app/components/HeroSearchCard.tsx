@@ -63,7 +63,7 @@ export default function HeroSearchCard({
   const { t } = useLanguage();
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-border/60 p-1.5 md:p-1">
+    <div className="bg-card rounded-2xl shadow-xl border border-border/60 p-1.5 md:p-1">
       <div className="flex flex-col md:flex-row md:items-stretch">
         <Field label={t('search.from')} icon={<Navigation size={13} className="text-muted-foreground shrink-0" />}>
           <select
