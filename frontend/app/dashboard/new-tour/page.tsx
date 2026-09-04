@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { TOUR_FEATURES } from '../../lib/tourFeatures';
+import { useLanguage } from '../../context/LanguageContext';
+import type { TranslationKey } from '../../lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
@@ -22,6 +25,7 @@ export default function NewTourPage() {
   const { loading: authLoading } = useRequireAuth();
   const { token, operatorProfile } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,14 +37,19 @@ export default function NewTourPage() {
   const [durationDays, setDurationDays] = useState('1');
   const [minParticipants, setMinParticipants] = useState('3');
   const [maxParticipants, setMaxParticipants] = useState('10');
+  const [features, setFeatures] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  function toggleFeature(slug: string) {
+    setFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!title || !price || !date) {
-      setError('Title, price, and date are required.');
+      setError(t('tourForm.requiredError'));
       return;
     }
     setSubmitting(true);
@@ -60,32 +69,33 @@ export default function NewTourPage() {
           min_participants: Number(minParticipants),
           max_participants: Number(maxParticipants),
           interest_score: buildInterestScore(category),
+          features: features.join(','),
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Something went wrong.');
+        setError(data.error ?? t('tourForm.somethingWrong'));
         return;
       }
-      showToast('Tour published.');
+      showToast(t('tourForm.publishedToast'));
       router.push('/dashboard');
     } catch {
-      setError("Couldn't reach the backend. Is it running?");
+      setError(t('tourForm.couldntReachBackend'));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (authLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
 
   if (!operatorProfile) {
     return (
       <div className="p-6 text-center text-sm text-muted-foreground">
-        You need an operator profile before adding tours.{' '}
+        {t('tourForm.needProfile')}{' '}
         <a href="/dashboard/profile" className="text-primary font-semibold">
-          Create one →
+          {t('tourForm.createOne')}
         </a>
       </div>
     );
@@ -97,15 +107,15 @@ export default function NewTourPage() {
         onClick={() => router.push('/dashboard')}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
       >
-        <ChevronLeft size={16} /> Back to dashboard
+        <ChevronLeft size={16} /> {t('tourForm.backToDashboard')}
       </button>
 
-      <h1 className="font-display text-xl font-bold text-foreground mb-1">Add a tour</h1>
-      <p className="text-sm text-muted-foreground mb-5">Fill this in and it goes live immediately.</p>
+      <h1 className="font-display text-xl font-bold text-foreground mb-1">{t('tourForm.addTitle')}</h1>
+      <p className="text-sm text-muted-foreground mb-5">{t('tourForm.addSubtitle')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4">
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Title</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.titleLabel')}</label>
           <input
             type="text"
             value={title}
@@ -116,7 +126,7 @@ export default function NewTourPage() {
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Description</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.descriptionLabel')}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -127,7 +137,7 @@ export default function NewTourPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Location</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.locationLabel')}</label>
             <input
               type="text"
               value={location}
@@ -137,7 +147,7 @@ export default function NewTourPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Category</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.categoryLabel')}</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -145,7 +155,7 @@ export default function NewTourPage() {
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {c[0].toUpperCase() + c.slice(1)}
+                  {t(`category.${c}` as TranslationKey)}
                 </option>
               ))}
             </select>
@@ -153,7 +163,7 @@ export default function NewTourPage() {
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Route / itinerary</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.routeLabel')}</label>
           <input
             type="text"
             value={route}
@@ -165,7 +175,7 @@ export default function NewTourPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Price per person (AZN)</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.pricePerson')}</label>
             <input
               type="number"
               min="0"
@@ -175,7 +185,7 @@ export default function NewTourPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Date</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.dateLabel')}</label>
             <input
               type="date"
               value={date}
@@ -187,7 +197,7 @@ export default function NewTourPage() {
 
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Days</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.daysLabel')}</label>
             <input
               type="number"
               min="1"
@@ -197,7 +207,7 @@ export default function NewTourPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Min group</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.minGroup')}</label>
             <input
               type="number"
               min="1"
@@ -207,7 +217,7 @@ export default function NewTourPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground block mb-1">Max group</label>
+            <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.maxGroup')}</label>
             <input
               type="number"
               min="1"
@@ -218,6 +228,31 @@ export default function NewTourPage() {
           </div>
         </div>
 
+        <div>
+          <label className="text-xs font-semibold text-foreground block mb-1.5">{t('tourForm.features')}</label>
+          <div className="flex flex-wrap gap-2">
+            {TOUR_FEATURES.map((feature) => {
+              const active = features.includes(feature.slug);
+              const Icon = feature.Icon;
+              return (
+                <button
+                  key={feature.slug}
+                  type="button"
+                  onClick={() => toggleFeature(feature.slug)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-foreground border-border hover:border-primary/30'
+                  }`}
+                >
+                  <Icon size={12} />
+                  {t(feature.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {error && <p className="text-xs text-red-600">{error}</p>}
 
         <button
@@ -225,7 +260,7 @@ export default function NewTourPage() {
           disabled={submitting}
           className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-50"
         >
-          {submitting ? 'Publishing...' : 'Publish tour'}
+          {submitting ? t('tourForm.publishing') : t('tourForm.publishTour')}
         </button>
       </form>
     </div>

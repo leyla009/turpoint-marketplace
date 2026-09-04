@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TrendingDown, Search, X, Check, ArrowLeft, MapPin, Calendar, Users, Tag } from 'lucide-react';
 import { CATEGORY_STYLE, ApiTour } from '../components/TourCard';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -14,6 +15,7 @@ interface CompareTour extends ApiTour {
 
 export default function ComparePage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [tours, setTours] = useState<ApiTour[]>([]);
   const [operators, setOperators] = useState<Record<number, string>>({});
@@ -93,28 +95,28 @@ export default function ComparePage() {
           onClick={backToSelection}
           className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground mb-4"
         >
-          <ArrowLeft size={14} /> Change tours
+          <ArrowLeft size={14} /> {t('compare.changeTours')}
         </button>
 
         <h1
           className="text-xl sm:text-2xl font-bold text-foreground mb-5"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Comparing {selectedIds.length} tours
+          {t('compare.comparing', { count: selectedIds.length })}
         </h1>
 
         {compareLoading && (
-          <div className="text-center py-20 text-muted-foreground text-sm">Loading comparison...</div>
+          <div className="text-center py-20 text-muted-foreground text-sm">{t('compare.loadingComparison')}</div>
         )}
 
         {compareError && (
           <div className="text-center py-20 text-muted-foreground">
-            <p className="text-sm">Couldn&apos;t load the comparison. Is the backend running?</p>
+            <p className="text-sm">{t('compare.couldntLoadComparison')}</p>
             <button
               onClick={runCompare}
               className="mt-3 text-xs text-accent font-semibold hover:underline"
             >
-              Try again
+              {t('compare.tryAgain')}
             </button>
           </div>
         )}
@@ -141,7 +143,7 @@ export default function ComparePage() {
                         onClick={() => router.push(`/tours/${tour.id}`)}
                         className="text-[11px] text-accent font-semibold hover:underline"
                       >
-                        View tour →
+                        {t('compare.viewTour')}
                       </button>
                     </div>
                   </div>
@@ -149,7 +151,7 @@ export default function ComparePage() {
               })}
 
               {/* Price row */}
-              <div className="flex items-center text-xs font-semibold text-muted-foreground">Price</div>
+              <div className="flex items-center text-xs font-semibold text-muted-foreground">{t('compare.price')}</div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1">
                   {typeof tour.discounted_price === 'number' ? (
@@ -165,17 +167,20 @@ export default function ComparePage() {
 
               {/* Category row */}
               <div className="flex items-center text-xs font-semibold text-muted-foreground">
-                <Tag size={13} className="mr-1.5" /> Category
+                <Tag size={13} className="mr-1.5" /> {t('compare.category')}
               </div>
-              {compareData.map((tour) => (
-                <div key={tour.id} className="flex items-center px-1 text-sm text-foreground capitalize">
-                  {tour.category ?? '—'}
-                </div>
-              ))}
+              {compareData.map((tour) => {
+                const catStyle = CATEGORY_STYLE[tour.category ?? ''];
+                return (
+                  <div key={tour.id} className="flex items-center px-1 text-sm text-foreground capitalize">
+                    {catStyle ? t(catStyle.labelKey) : '—'}
+                  </div>
+                );
+              })}
 
               {/* Location row */}
               <div className="flex items-center text-xs font-semibold text-muted-foreground">
-                <MapPin size={13} className="mr-1.5" /> Location
+                <MapPin size={13} className="mr-1.5" /> {t('compare.location')}
               </div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
@@ -185,7 +190,7 @@ export default function ComparePage() {
 
               {/* Date row */}
               <div className="flex items-center text-xs font-semibold text-muted-foreground">
-                <Calendar size={13} className="mr-1.5" /> Date
+                <Calendar size={13} className="mr-1.5" /> {t('compare.date')}
               </div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
@@ -194,25 +199,25 @@ export default function ComparePage() {
               ))}
 
               {/* Duration row */}
-              <div className="flex items-center text-xs font-semibold text-muted-foreground">Duration</div>
+              <div className="flex items-center text-xs font-semibold text-muted-foreground">{t('compare.duration')}</div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
-                  {tour.duration_days} day{tour.duration_days !== 1 ? 's' : ''}
+                  {t('compare.days', { count: tour.duration_days })}
                 </div>
               ))}
 
               {/* Group size row */}
               <div className="flex items-center text-xs font-semibold text-muted-foreground">
-                <Users size={13} className="mr-1.5" /> Group size
+                <Users size={13} className="mr-1.5" /> {t('compare.groupSize')}
               </div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
-                  {tour.min_participants}–{tour.max_participants} people
+                  {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
                 </div>
               ))}
 
               {/* Operator row */}
-              <div className="flex items-center text-xs font-semibold text-muted-foreground">Operator</div>
+              <div className="flex items-center text-xs font-semibold text-muted-foreground">{t('compare.operator')}</div>
               {compareData.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
                   {operators[tour.operator_id] ?? '—'}
@@ -233,10 +238,10 @@ export default function ComparePage() {
           className="text-xl sm:text-2xl font-bold text-foreground"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Compare tours
+          {t('compare.title')}
         </h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">Pick 2 or 3 tours to compare side-by-side.</p>
+      <p className="text-sm text-muted-foreground mb-5">{t('compare.subtitle')}</p>
 
       <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm max-w-xl mb-5">
         <Search size={15} className="text-muted-foreground shrink-0" />
@@ -244,7 +249,7 @@ export default function ComparePage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search tours or destinations..."
+          placeholder={t('compare.searchPlaceholder')}
           className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
         />
         {searchQuery && (
@@ -254,18 +259,18 @@ export default function ComparePage() {
         )}
       </div>
 
-      {loading && <div className="text-center py-20 text-muted-foreground text-sm">Loading tours...</div>}
+      {loading && <div className="text-center py-20 text-muted-foreground text-sm">{t('compare.loadingTours')}</div>}
 
       {error && (
         <div className="text-center py-20 text-muted-foreground">
-          <p className="text-sm">Couldn&apos;t reach the backend. Is it running?</p>
+          <p className="text-sm">{t('compare.couldntReachBackend')}</p>
         </div>
       )}
 
       {!loading && !error && filteredTours.length === 0 && (
         <div className="text-center py-20 text-muted-foreground">
           <Search size={30} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No tours match your search.</p>
+          <p className="text-sm">{t('compare.noToursMatch')}</p>
         </div>
       )}
 
@@ -312,12 +317,12 @@ export default function ComparePage() {
 
       {selectedIds.length >= 2 && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 bg-primary text-primary-foreground rounded-full shadow-lg px-5 py-3 flex items-center gap-4">
-          <span className="text-sm font-semibold">{selectedIds.length} selected</span>
+          <span className="text-sm font-semibold">{t('compare.selected', { count: selectedIds.length })}</span>
           <button
             onClick={runCompare}
             className="text-sm font-bold bg-accent text-accent-foreground rounded-full px-4 py-1.5 hover:opacity-90"
           >
-            Compare now
+            {t('compare.compareNow')}
           </button>
         </div>
       )}

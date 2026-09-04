@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { ApiTour } from './TourCard';
+import { useLanguage } from '../context/LanguageContext';
 
 // Known coordinates for Azerbaijan's common tour destinations. Keyed by a
 // normalized city name (lowercase, no country suffix) so it matches
@@ -34,9 +35,16 @@ function normalize(location: string): string {
   return location.split(',')[0].trim().toLowerCase();
 }
 
-export default function DestinationMap({ tours }: { tours: ApiTour[] }) {
+export default function DestinationMap({
+  tours,
+  heightClassName = 'h-64 sm:h-80',
+}: {
+  tours: ApiTour[];
+  heightClassName?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const { locale, t } = useLanguage();
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -89,7 +97,7 @@ export default function DestinationMap({ tours }: { tours: ApiTour[] }) {
           <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${tour.title}</p>
           <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${tour.location}</p>
           <p style="font-weight:700;font-size:13px;color:#1B3D2F;margin:0 0 6px;">AZN${price}<span style="font-weight:400;font-size:10px;color:#7A7266;">/pp</span></p>
-          <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#C95E18;text-decoration:none;">View tour &rarr;</a>
+          <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#C95E18;text-decoration:none;">${t('map.viewTour')}</a>
         </div>`;
 
       L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup(popupHtml);
@@ -104,12 +112,12 @@ export default function DestinationMap({ tours }: { tours: ApiTour[] }) {
       map.remove();
       mapRef.current = null;
     };
-  }, [tours]);
+  }, [tours, locale]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-64 sm:h-80 rounded-xl overflow-hidden border border-border"
+      className={`w-full ${heightClassName} rounded-xl overflow-hidden border border-border`}
     />
   );
 }

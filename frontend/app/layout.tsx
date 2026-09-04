@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import Nav from './components/Nav';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 export const metadata: Metadata = {
   title: 'TurPoint',
@@ -14,14 +15,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="az">
       <body className="bg-background text-foreground">
-        <ToastProvider>
-          <AuthProvider>
-            <div className="min-h-screen flex flex-col">
-              <Nav />
-              <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
-            </div>
-          </AuthProvider>
-        </ToastProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <div className="min-h-screen flex flex-col">
+                <Nav />
+                <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
+              </div>
+            </AuthProvider>
+          </ToastProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PlusCircle, Star, ListChecks, Ticket, ArrowRight, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -12,6 +13,7 @@ export default function DashboardPage() {
   const { loading: authLoading } = useRequireAuth();
   const { token, operatorProfile } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [myTours, setMyTours] = useState<any[]>([]);
   const [bookingCount, setBookingCount] = useState<number | null>(null);
@@ -57,7 +59,7 @@ export default function DashboardPage() {
   }, [operatorProfile, token]);
 
   async function handleDelete(tourId: number, title: string, force = false) {
-    if (!force && !window.confirm(`Delete "${title}"? This can't be undone.`)) return;
+    if (!force && !window.confirm(t('dashboard.deleteConfirm', { title }))) return;
     setDeleteError(null);
     setDeletingId(tourId);
     try {
@@ -67,18 +69,18 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (res.status === 409 && data.booking_count && !force) {
-        const proceed = window.confirm(`${data.error}\n\nDelete anyway?`);
+        const proceed = window.confirm(`${data.error}\n\n${t('dashboard.deleteAnyway')}`);
         if (proceed) return handleDelete(tourId, title, true);
         return;
       }
       if (!res.ok) {
-        setDeleteError({ id: tourId, message: data.error ?? 'Could not delete this tour.' });
+        setDeleteError({ id: tourId, message: data.error ?? t('dashboard.couldntDeleteTour') });
         return;
       }
-      showToast(`"${title}" deleted.`);
+      showToast(t('dashboard.tourDeletedToast', { title }));
       loadTours();
     } catch {
-      setDeleteError({ id: tourId, message: "Couldn't reach the backend." });
+      setDeleteError({ id: tourId, message: t('dashboard.couldntReachBackend') });
     } finally {
       setDeletingId(null);
     }
@@ -96,11 +98,11 @@ export default function DashboardPage() {
     setDealError('');
     const discount = Number(dealDiscount);
     if (!(discount > 0 && discount < 100)) {
-      setDealError('Discount must be between 1 and 99.');
+      setDealError(t('dashboard.discountRangeError'));
       return;
     }
     if (!dealExpiresAt) {
-      setDealError('Expiry date/time is required.');
+      setDealError(t('dashboard.expiryRequiredError'));
       return;
     }
     setDealSubmitting(true);
@@ -116,36 +118,34 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setDealError(data.error ?? 'Could not create this deal.');
+        setDealError(data.error ?? t('dashboard.couldntCreateDeal'));
         return;
       }
-      showToast('Last-minute deal created.');
+      showToast(t('dashboard.dealCreatedToast'));
       setDealFormTourId(null);
       loadTours();
     } catch {
-      setDealError("Couldn't reach the backend.");
+      setDealError(t('dashboard.couldntReachBackend'));
     } finally {
       setDealSubmitting(false);
     }
   }
 
   if (authLoading || loading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
 
   if (!operatorProfile) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center text-center px-6 py-20">
         <ListChecks size={32} className="text-muted-foreground mb-3" />
-        <h1 className="text-lg font-semibold text-foreground mb-1">No operator profile yet</h1>
-        <p className="text-sm text-muted-foreground max-w-xs mb-4">
-          Create one to start listing tours and see bookings roll in.
-        </p>
+        <h1 className="text-lg font-semibold text-foreground mb-1">{t('dashboard.noProfileYet')}</h1>
+        <p className="text-sm text-muted-foreground max-w-xs mb-4">{t('dashboard.createProfileHint')}</p>
         <Link
           href="/dashboard/profile"
           className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl"
         >
-          Operator ol
+          {t('dashboard.becomeOperator')}
         </Link>
       </div>
     );
@@ -156,52 +156,52 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-display text-xl font-bold text-foreground">{operatorProfile.name}</h1>
-          <p className="text-sm text-muted-foreground">Operator dashboard</p>
+          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
         <Link
           href="/dashboard/new-tour"
           className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-semibold px-3 py-2 rounded-xl"
         >
-          <PlusCircle size={15} /> Add tour
+          <PlusCircle size={15} /> {t('dashboard.addTour')}
         </Link>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-card border border-border rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-foreground">{myTours.length}</p>
-          <p className="text-[11px] text-muted-foreground">Active tours</p>
+          <p className="text-[11px] text-muted-foreground">{t('dashboard.activeTours')}</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-foreground flex items-center justify-center gap-1">
             <Star size={16} className="text-primary" fill="currentColor" />
             {operatorProfile.rating ?? 0}
           </p>
-          <p className="text-[11px] text-muted-foreground">Rating</p>
+          <p className="text-[11px] text-muted-foreground">{t('dashboard.rating')}</p>
         </div>
         <Link href="/dashboard/bookings" className="bg-card border border-border rounded-xl p-3 text-center hover:border-primary/40">
           <p className="text-2xl font-bold text-foreground">{bookingCount ?? 0}</p>
-          <p className="text-[11px] text-muted-foreground">Bookings</p>
+          <p className="text-[11px] text-muted-foreground">{t('dashboard.bookingsStat')}</p>
         </Link>
       </div>
 
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-foreground">Your tours</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t('dashboard.yourTours')}</h2>
         <Link href="/dashboard/bookings" className="flex items-center gap-1 text-xs text-accent font-semibold">
-          View bookings <ArrowRight size={12} />
+          {t('dashboard.viewBookings')} <ArrowRight size={12} />
         </Link>
       </div>
 
       {loadError ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Couldn&apos;t load your tours. Is the backend running?</p>
+          <p className="text-sm text-muted-foreground">{t('dashboard.couldntLoadTours')}</p>
         </div>
       ) : myTours.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <Ticket size={26} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground mb-3">You haven't listed a tour yet.</p>
+          <p className="text-sm text-muted-foreground mb-3">{t('dashboard.noToursYet')}</p>
           <Link href="/dashboard/new-tour" className="text-sm text-primary font-semibold">
-            Add your first tour →
+            {t('dashboard.addFirstTour')}
           </Link>
         </div>
       ) : (
@@ -219,23 +219,23 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {tour.location} · {tour.date} · AZN{tour.price}/pp
+                    {tour.location} · {tour.date} · AZN{tour.price}{t('tourCard.perPerson')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span className="text-[10px] font-semibold text-muted-foreground">
-                    min {tour.min_participants} · max {tour.max_participants}
+                    {t('dashboard.minMax', { min: tour.min_participants, max: tour.max_participants })}
                   </span>
                   <Link
                     href={`/dashboard/edit-tour/${tour.id}`}
-                    title="Edit tour"
+                    title={t('dashboard.editTour')}
                     className="text-muted-foreground hover:text-foreground p-1"
                   >
                     <Pencil size={14} />
                   </Link>
                   <button
                     onClick={() => openDealForm(tour.id)}
-                    title="Create last-minute deal"
+                    title={t('dashboard.createDeal')}
                     disabled={!!tour.active_deal}
                     className="text-muted-foreground hover:text-accent disabled:opacity-30 p-1"
                   >
@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleDelete(tour.id, tour.title)}
                     disabled={deletingId === tour.id}
-                    title="Delete tour"
+                    title={t('dashboard.deleteTour')}
                     className="text-muted-foreground hover:text-red-600 disabled:opacity-40 p-1"
                   >
                     <Trash2 size={14} />
@@ -261,7 +261,7 @@ export default function DashboardPage() {
                 >
                   <div>
                     <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
-                      Discount %
+                      {t('dashboard.discountPercent')}
                     </label>
                     <input
                       type="number"
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
-                      Expires
+                      {t('dashboard.expires')}
                     </label>
                     <input
                       type="datetime-local"
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                     disabled={dealSubmitting}
                     className="text-xs font-semibold bg-accent text-accent-foreground px-3 py-1.5 rounded-lg disabled:opacity-50"
                   >
-                    {dealSubmitting ? 'Creating...' : 'Create deal'}
+                    {dealSubmitting ? t('dashboard.creating') : t('dashboard.createDealBtn')}
                   </button>
                   {dealError && <p className="text-[11px] text-red-600 w-full">{dealError}</p>}
                 </form>
@@ -299,4 +299,4 @@ export default function DashboardPage() {
       )}
     </div>
   );
-}  
+}

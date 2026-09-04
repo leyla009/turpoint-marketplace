@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Store } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -11,6 +12,7 @@ export default function OperatorProfilePage() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { token, operatorProfile, setMode, refreshOperatorProfile } = useAuth();
+  const { t } = useLanguage();
 
   const isEditing = Boolean(operatorProfile);
 
@@ -36,7 +38,7 @@ export default function OperatorProfilePage() {
     setError('');
     setSuccess(false);
     if (!name.trim()) {
-      setError('Operator/company name is required.');
+      setError(t('profile.nameRequired'));
       return;
     }
     setSubmitting(true);
@@ -50,7 +52,7 @@ export default function OperatorProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Something went wrong.');
+        setError(data.error ?? t('profile.somethingWrong'));
         return;
       }
       await refreshOperatorProfile();
@@ -60,14 +62,14 @@ export default function OperatorProfilePage() {
         setTimeout(() => router.push('/dashboard'), 800);
       }
     } catch {
-      setError("Couldn't reach the backend. Is it running?");
+      setError(t('profile.couldntReachBackend'));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (authLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
 
   return (
@@ -76,24 +78,22 @@ export default function OperatorProfilePage() {
         onClick={() => router.push(isEditing ? '/dashboard' : '/')}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
       >
-        <ChevronLeft size={16} /> Back
+        <ChevronLeft size={16} /> {t('profile.back')}
       </button>
 
       <div className="flex items-center gap-2 mb-1">
         <Store size={20} className="text-primary" />
         <h1 className="font-display text-xl font-bold text-foreground">
-          {isEditing ? 'Edit operator profile' : 'Operator ol'}
+          {isEditing ? t('profile.editProfileTitle') : t('profile.becomeOperatorTitle')}
         </h1>
       </div>
       <p className="text-sm text-muted-foreground mb-5">
-        {isEditing
-          ? 'Update how travelers see your company on TurPoint.'
-          : 'List tours and start receiving bookings — takes a minute.'}
+        {isEditing ? t('profile.editSubtitle') : t('profile.createSubtitle')}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4">
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Company / guide name</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.companyName')}</label>
           <input
             type="text"
             value={name}
@@ -103,17 +103,17 @@ export default function OperatorProfilePage() {
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Description</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.description')}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What makes your tours worth booking?"
+            placeholder={t('profile.descriptionPlaceholder')}
             rows={3}
             className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary resize-none"
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Languages (comma-separated)</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.languages')}</label>
           <input
             type="text"
             value={languages}
@@ -123,7 +123,7 @@ export default function OperatorProfilePage() {
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">Vehicle features (comma-separated)</label>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.vehicleFeatures')}</label>
           <input
             type="text"
             value={vehicleFeatures}
@@ -134,17 +134,16 @@ export default function OperatorProfilePage() {
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
-        {success && <p className="text-xs text-accent font-semibold">Saved!</p>}
+        {success && <p className="text-xs text-accent font-semibold">{t('profile.saved')}</p>}
 
         <button
           type="submit"
           disabled={submitting}
           className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-50"
         >
-          {submitting ? 'Saving...' : isEditing ? 'Save changes' : 'Create operator profile'}
+          {submitting ? t('profile.saving') : isEditing ? t('profile.saveChanges') : t('profile.createProfile')}
         </button>
       </form>
     </div>
   );
-} 
-
+}

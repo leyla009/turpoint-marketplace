@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Search, Filter, Leaf, Landmark, Music, Utensils, MapPinned } from 'lucide-react';
+import { Search, MapPinned } from 'lucide-react';
 import TourCard, { ApiTour } from './components/TourCard';
 import Greeting from './components/Greeting';
 import HeroSlideshow from './components/HeroSlideshow';
 import HeroSearchCard from './components/HeroSearchCard';
+import PriceRangeSlider from './components/PriceRangeSlider';
+import { TOUR_FEATURES, parseFeatures } from './lib/tourFeatures';
+import { useLanguage } from './context/LanguageContext';
 
 // Leaflet touches `window` at import time, so it can only run in the
 // browser — ssr: false keeps Next from trying to render it server-side.
@@ -20,23 +23,30 @@ const DestinationMap = dynamic(() => import('./components/DestinationMap'), {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type Category = 'all' | 'nature' | 'history' | 'entertainment' | 'food';
-
-const CATEGORIES: { id: Category; label: string; Icon: any }[] = [
-  { id: 'all', label: 'All', Icon: Filter },
-  { id: 'nature', label: 'Nature', Icon: Leaf },
-  { id: 'history', label: 'History', Icon: Landmark },
-  { id: 'entertainment', label: 'Entertainment', Icon: Music },
-  { id: 'food', label: 'Food', Icon: Utensils },
-];
+// Local calendar date as YYYY-MM-DD. Deliberately NOT
+// `new Date().toISOString().slice(0, 10)` - toISOString() converts to UTC
+// first, so for anyone in a timezone ahead of UTC (Azerbaijan is UTC+4)
+// the date field showed yesterday's date for the first few hours after
+// local midnight, since UTC hadn't rolled over to the new day yet.
+function todayLocalISODate(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [tours, setTours] = useState<ApiTour[]>([]);
   const [operators, setOperators] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
+  // Multi-select feature/inclusion tags (breakfast, guide, ...) - a tour
+  // must have EVERY selected tag to match, same convention as an amenity
+  // filter (not "any of").
+  const [activeFeatures, setActiveFeatures] = useState<string[]>([]);
   const [locationFilter, setLocationFilter] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -44,11 +54,35 @@ export default function Home() {
   // Hero search card state. fromCity is decorative only (see
   // HeroSearchCard's comment - tours have no origin-city field to filter
   // by). departDate/returnDate are a date-range filter, not a literal
-  // round trip.
-  const [fromCity, setFromCity] = useState('');
+  // round trip - both default to today, set client-side after mount to
+  // avoid a server/client render mismatch on the initial date.
+  const [fromCity, setFromCity] = useState('Bakı');
   const [departDate, setDepartDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [travelers, setTravelers] = useState('');
+  // Both date fields show today by default, but that shouldn't immediately
+  // hide every tour that isn't happening today - the date filter only
+  // actually applies once the traveler changes a date themselves.
+  const [datesTouched, setDatesTouched] = useState(false);
+
+  useEffect(() => {
+    const today = todayLocalISODate();
+    setDepartDate(today);
+    setReturnDate(today);
+  }, []);
+
+  const handleDepartDateChange = (value: string) => {
+    setDepartDate(value);
+    setDatesTouched(true);
+  };
+  const handleReturnDateChange = (value: string) => {
+    setReturnDate(value);
+    setDatesTouched(true);
+  };
+
+  const toggleFeature = (slug: string) => {
+    setActiveFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
+  };
 
   useEffect(() => {
     Promise.all([
@@ -67,10 +101,6 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  const locations = useMemo(
-    () => Array.from(new Set(tours.map((t) => t.location).filter(Boolean))) as string[],
-    [tours]
-  );
 
   const filtered = useMemo(() => {
     const min = minPrice === '' ? null : Number(minPrice);
@@ -78,22 +108,43 @@ export default function Home() {
     const minSeats = travelers === '' ? null : Number(travelers);
 
     return tours.filter((t) => {
-      const matchCat = activeCategory === 'all' || t.category === activeCategory;
+      const tourFeatures = parseFeatures(t.features);
+      const matchFeatures = activeFeatures.every((f) => tourFeatures.includes(f));
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
       const effectivePrice = t.discounted_price ?? t.price;
       const matchMin = min === null || effectivePrice >= min;
       const matchMax = max === null || effectivePrice <= max;
       // ISO 'YYYY-MM-DD' strings compare lexicographically in date order.
-      const matchDepart = departDate === '' || t.date >= departDate;
-      const matchReturn = returnDate === '' || t.date <= returnDate;
+      // Both dates default to today for display, so the range filter only
+      // kicks in once the traveler has actually touched one of them.
+      const matchDepart = !datesTouched || departDate === '' || t.date >= departDate;
+      const matchReturn = !datesTouched || returnDate === '' || t.date <= returnDate;
       const matchTravelers = minSeats === null || t.max_participants >= minSeats;
-      return matchCat && matchLocation && matchMin && matchMax && matchDepart && matchReturn && matchTravelers;
+      return matchFeatures && matchLocation && matchMin && matchMax && matchDepart && matchReturn && matchTravelers;
     });
-  }, [tours, activeCategory, locationFilter, minPrice, maxPrice, departDate, returnDate, travelers]);
+  }, [tours, activeFeatures, locationFilter, minPrice, maxPrice, departDate, returnDate, datesTouched, travelers]);
 
   const scrollToResults = () => {
     document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Price slider bounds adapt to whatever tours are actually loaded,
+  // instead of a hardcoded ceiling that could clip real prices.
+  const priceSliderMax = useMemo(() => {
+    const prices = tours.map((t) => t.discounted_price ?? t.price);
+    const highest = prices.length ? Math.max(...prices) : 100;
+    return Math.max(100, Math.ceil(highest / 10) * 10);
+  }, [tours]);
+  const sliderMinValue = minPrice === '' ? 0 : Number(minPrice);
+  const sliderMaxValue = maxPrice === '' ? priceSliderMax : Number(maxPrice);
+
+  const featureCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    TOUR_FEATURES.forEach((f) => {
+      counts[f.slug] = tours.filter((t) => parseFeatures(t.features).includes(f.slug)).length;
+    });
+    return counts;
+  }, [tours]);
 
   return (
     <div className="min-h-full">
@@ -107,7 +158,7 @@ export default function Home() {
             className="text-2xl sm:text-3xl font-bold text-white"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            Növbəti dayanacağın haradır?
+            {t('home.whereToNext')}
           </h1>
         </div>
       </div>
@@ -117,138 +168,130 @@ export default function Home() {
           touches the screen edges. */}
       <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative z-20 -mt-8 md:-mt-10">
         <HeroSearchCard
-          locations={locations}
           fromCity={fromCity}
           onFromCityChange={setFromCity}
           toLocation={locationFilter}
           onToLocationChange={setLocationFilter}
           departDate={departDate}
-          onDepartDateChange={setDepartDate}
+          onDepartDateChange={handleDepartDateChange}
           returnDate={returnDate}
-          onReturnDateChange={setReturnDate}
+          onReturnDateChange={handleReturnDateChange}
           travelers={travelers}
           onTravelersChange={setTravelers}
           onSearch={scrollToResults}
         />
       </div>
 
-      {/* Main Content */}
-      <div className="px-4 sm:px-6 pt-8 md:pt-10 max-w-[1600px] mx-auto">
-        {/* Destination map */}
-        {!loading && tours.length > 0 && (
-          <div className="mb-6">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-3">
-              <MapPinned size={15} /> Explore destinations
-            </h2>
-            <DestinationMap tours={tours} />
-          </div>
-        )}
+      {/* Main Content - left sidebar (map + filters) alongside the results
+          grid on the right, matching a standard listing-site layout. */}
+      <div className="px-4 sm:px-6 pt-6 md:pt-8 pb-10 max-w-[1600px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+          {/* Sidebar */}
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            {!loading && tours.length > 0 && (
+              <div>
+                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+                  <MapPinned size={15} /> {t('home.exploreOnMap')}
+                </h2>
+                <DestinationMap tours={tours} heightClassName="h-48" />
+              </div>
+            )}
 
-        {/* Filters: location + price range */}
-        <div className="flex flex-wrap items-center gap-2 pb-3">
-          <select
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-            className="text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground outline-none"
-          >
-            <option value="all">All locations</option>
-            {locations.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            placeholder="Min AZN"
-            className="w-24 text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
-          />
-          <input
-            type="number"
-            inputMode="numeric"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            placeholder="Max AZN"
-            className="w-24 text-xs bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
-          />
-          {(locationFilter !== 'all' || minPrice !== '' || maxPrice !== '') && (
-            <button
-              onClick={() => {
-                setLocationFilter('all');
-                setMinPrice('');
-                setMaxPrice('');
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
+            <div className="bg-card border border-border/60 rounded-2xl shadow-sm p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-1">{t('home.budget')}</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                AZN {sliderMinValue} – AZN {sliderMaxValue}
+              </p>
+              <PriceRangeSlider
+                min={0}
+                max={priceSliderMax}
+                valueMin={sliderMinValue}
+                valueMax={sliderMaxValue}
+                onChangeMin={(v) => setMinPrice(String(v))}
+                onChangeMax={(v) => setMaxPrice(String(v))}
+              />
 
-        {/* Category chips */}
-        <div className="flex flex-wrap gap-2 pb-2">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.Icon;
-            return (
+              <div className="h-px bg-border my-4" />
+
+              <h3 className="text-sm font-semibold text-foreground mb-2">{t('home.popularFilters')}</h3>
+              <div className="space-y-2">
+                {TOUR_FEATURES.map((feature) => {
+                  const active = activeFeatures.includes(feature.slug);
+                  const Icon = feature.Icon;
+                  return (
+                    <label
+                      key={feature.slug}
+                      className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleFeature(feature.slug)}
+                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                      />
+                      <Icon size={14} className="text-muted-foreground shrink-0" />
+                      <span className="flex-1">{t(feature.labelKey)}</span>
+                      <span className="text-xs text-muted-foreground">{featureCounts[feature.slug] ?? 0}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {(activeFeatures.length > 0 || minPrice !== '' || maxPrice !== '') && (
+                <button
+                  onClick={() => {
+                    setActiveFeatures([]);
+                    setMinPrice('');
+                    setMaxPrice('');
+                  }}
+                  className="mt-3 text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  {t('home.clearFilters')}
+                </button>
+              )}
+            </div>
+          </aside>
+
+          {/* Results */}
+          <div id="tour-results" className="scroll-mt-20">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: filtered.length })}
+              </h2>
               <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                  activeCategory === cat.id
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-card text-foreground border-border hover:border-primary/30'
-                }`}
+                onClick={() => router.push('/compare')}
+                className="text-xs text-accent font-semibold hover:underline"
               >
-                <Icon size={12} />
-                {cat.label}
+                {t('home.compareTours')}
               </button>
-            );
-          })}
-        </div>
+            </div>
 
-        <div id="tour-results" className="mt-4 mb-10 scroll-mt-20">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              {loading
-                ? 'Loading tours...'
-                : `${filtered.length} tour${filtered.length !== 1 ? 's' : ''} available`}
-            </h2>
-            <button
-              onClick={() => router.push('/compare')}
-              className="text-xs text-accent font-semibold hover:underline"
-            >
-              Compare tours →
-            </button>
+            {error && (
+              <div className="text-center py-14 text-muted-foreground">
+                <p className="text-sm">{t('home.couldntReachBackend')}</p>
+              </div>
+            )}
+
+            {!error && !loading && filtered.length === 0 && (
+              <div className="text-center py-14 text-muted-foreground">
+                <Search size={30} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">{t('home.noToursMatch')}</p>
+              </div>
+            )}
+
+            {!error && filtered.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filtered.map((tour) => (
+                  <TourCard
+                    key={tour.id}
+                    tour={tour}
+                    operatorName={operators[tour.operator_id]}
+                    onClick={() => router.push(`/tours/${tour.id}`)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-
-          {error && (
-            <div className="text-center py-14 text-muted-foreground">
-              <p className="text-sm">Couldn&apos;t reach the backend. Is it running?</p>
-            </div>
-          )}
-
-          {!error && !loading && filtered.length === 0 && (
-            <div className="text-center py-14 text-muted-foreground">
-              <Search size={30} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No tours match your search.</p>
-            </div>
-          )}
-
-          {!error && filtered.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((tour) => (
-                <TourCard
-                  key={tour.id}
-                  tour={tour}
-                  operatorName={operators[tour.operator_id]}
-                  onClick={() => router.push(`/tours/${tour.id}`)}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

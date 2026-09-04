@@ -4,19 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-const STATUS_STYLE: Record<string, { Icon: any; className: string; label: string }> = {
-  pending: { Icon: Clock, className: 'text-primary bg-primary/10', label: 'Pending' },
-  confirmed: { Icon: CheckCircle2, className: 'text-accent bg-accent/10', label: 'Confirmed' },
-  cancelled: { Icon: XCircle, className: 'text-muted-foreground bg-muted', label: 'Cancelled' },
+const STATUS_STYLE: Record<string, { Icon: any; className: string; labelKey: 'status.pending' | 'status.confirmed' | 'status.cancelled' }> = {
+  pending: { Icon: Clock, className: 'text-primary bg-primary/10', labelKey: 'status.pending' },
+  confirmed: { Icon: CheckCircle2, className: 'text-accent bg-accent/10', labelKey: 'status.confirmed' },
+  cancelled: { Icon: XCircle, className: 'text-muted-foreground bg-muted', labelKey: 'status.cancelled' },
 };
 
 export default function OperatorBookingsPage() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { token, operatorProfile } = useAuth();
+  const { t } = useLanguage();
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,15 +41,15 @@ export default function OperatorBookingsPage() {
   }, [operatorProfile, token]);
 
   if (authLoading || loading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
 
   if (!operatorProfile) {
     return (
       <div className="p-6 text-center text-sm text-muted-foreground">
-        You need an operator profile to see bookings.{' '}
+        {t('operatorBookings.needProfile')}{' '}
         <a href="/dashboard/profile" className="text-primary font-semibold">
-          Create one →
+          {t('operatorBookings.createOne')}
         </a>
       </div>
     );
@@ -59,20 +61,20 @@ export default function OperatorBookingsPage() {
         onClick={() => router.push('/dashboard')}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
       >
-        <ChevronLeft size={16} /> Back to dashboard
+        <ChevronLeft size={16} /> {t('operatorBookings.backToDashboard')}
       </button>
 
-      <h1 className="font-display text-xl font-bold text-foreground mb-1">Bookings</h1>
-      <p className="text-sm text-muted-foreground mb-5">Across all of your tours, most recent first.</p>
+      <h1 className="font-display text-xl font-bold text-foreground mb-1">{t('operatorBookings.title')}</h1>
+      <p className="text-sm text-muted-foreground mb-5">{t('operatorBookings.subtitle')}</p>
 
       {error ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Couldn&apos;t load bookings. Is the backend running?</p>
+          <p className="text-sm text-muted-foreground">{t('operatorBookings.couldntLoad')}</p>
         </div>
       ) : bookings.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center text-sm text-muted-foreground">
-          No bookings yet.
+          {t('operatorBookings.noBookingsYet')}
         </div>
       ) : (
         <div className="space-y-2">
@@ -91,12 +93,12 @@ export default function OperatorBookingsPage() {
                   <span
                     className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${style.className}`}
                   >
-                    <StatusIcon size={10} /> {style.label}
+                    <StatusIcon size={10} /> {t(style.labelKey)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-xs">
                   <span className="text-muted-foreground">
-                    {b.seats} seat{b.seats !== 1 ? 's' : ''} · {b.ticket_code}
+                    {t('myBookings.seatsCount', { count: b.seats })} · {b.ticket_code}
                   </span>
                   <span className="font-semibold text-foreground">AZN{b.total_price}</span>
                 </div>

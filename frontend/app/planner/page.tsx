@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Leaf, Landmark, Music, Utensils, Wallet, Sparkles, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import type { TranslationKey } from '../lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type Interest = 'nature' | 'history' | 'entertainment' | 'food';
 
-const INTERESTS: { id: Interest; label: string; Icon: any }[] = [
-  { id: 'nature', label: 'Nature', Icon: Leaf },
-  { id: 'history', label: 'History', Icon: Landmark },
-  { id: 'entertainment', label: 'Entertainment', Icon: Music },
-  { id: 'food', label: 'Food', Icon: Utensils },
+const INTERESTS: { id: Interest; labelKey: TranslationKey; Icon: any }[] = [
+  { id: 'nature', labelKey: 'category.nature', Icon: Leaf },
+  { id: 'history', labelKey: 'category.history', Icon: Landmark },
+  { id: 'entertainment', labelKey: 'category.entertainment', Icon: Music },
+  { id: 'food', labelKey: 'category.food', Icon: Utensils },
 ];
 
 interface PlannerTour {
@@ -33,6 +35,7 @@ interface PlannerResult {
 
 export default function PlannerPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [budget, setBudget] = useState('');
   const [days, setDays] = useState('');
@@ -52,10 +55,10 @@ export default function PlannerPage() {
     const budgetNum = Number(budget);
     const daysNum = Number(days);
     if (!budget || Number.isNaN(budgetNum) || budgetNum <= 0) {
-      errs.budget = 'Enter a budget greater than 0';
+      errs.budget = t('planner.budgetError');
     }
     if (!days || Number.isNaN(daysNum) || daysNum <= 0 || !Number.isInteger(daysNum)) {
-      errs.days = 'Enter a whole number of days';
+      errs.days = t('planner.daysError');
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -92,19 +95,16 @@ export default function PlannerPage() {
           className="text-xl sm:text-2xl font-bold text-foreground"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Smart Planner
+          {t('planner.title')}
         </h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-6">
-        Tell us your budget, how many days you have, and what you like — we&apos;ll put together a
-        trip that fits.
-      </p>
+      <p className="text-sm text-muted-foreground mb-6">{t('planner.subtitle')}</p>
 
       <form onSubmit={handleSubmit} className="bg-card border border-border rounded-xl p-4 sm:p-5 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-1.5">
-              <Wallet size={13} /> Budget (AZN)
+              <Wallet size={13} /> {t('planner.budgetLabel')}
             </label>
             <input
               type="number"
@@ -112,7 +112,7 @@ export default function PlannerPage() {
               min={1}
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
-              placeholder="e.g. 200"
+              placeholder={t('planner.budgetPlaceholder')}
               className={`w-full text-sm bg-background border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none ${
                 fieldErrors.budget ? 'border-red-400' : 'border-border'
               }`}
@@ -122,7 +122,7 @@ export default function PlannerPage() {
 
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-1.5">
-              <Calendar size={13} /> Days available
+              <Calendar size={13} /> {t('planner.daysLabel')}
             </label>
             <input
               type="number"
@@ -131,7 +131,7 @@ export default function PlannerPage() {
               step={1}
               value={days}
               onChange={(e) => setDays(e.target.value)}
-              placeholder="e.g. 5"
+              placeholder={t('planner.daysPlaceholder')}
               className={`w-full text-sm bg-background border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none ${
                 fieldErrors.days ? 'border-red-400' : 'border-border'
               }`}
@@ -141,7 +141,7 @@ export default function PlannerPage() {
         </div>
 
         <label className="text-xs font-semibold text-foreground mb-1.5 block">
-          Interests <span className="text-muted-foreground font-normal">(optional)</span>
+          {t('planner.interests')} <span className="text-muted-foreground font-normal">{t('planner.optional')}</span>
         </label>
         <div className="flex flex-wrap gap-2 mb-5">
           {INTERESTS.map((interest) => {
@@ -159,7 +159,7 @@ export default function PlannerPage() {
                 }`}
               >
                 <Icon size={12} />
-                {interest.label}
+                {t(interest.labelKey)}
               </button>
             );
           })}
@@ -171,13 +171,13 @@ export default function PlannerPage() {
           className="w-full flex items-center justify-center gap-2 bg-accent text-accent-foreground font-bold text-sm rounded-lg py-3 hover:opacity-90 disabled:opacity-60"
         >
           <Sparkles size={15} />
-          {loading ? 'Building your trip...' : 'Build my trip'}
+          {loading ? t('planner.buildingTrip') : t('planner.buildTrip')}
         </button>
       </form>
 
       {error && (
         <div className="text-center py-10 text-muted-foreground">
-          <p className="text-sm">Couldn&apos;t reach the planner. Is the backend running?</p>
+          <p className="text-sm">{t('planner.couldntReachPlanner')}</p>
         </div>
       )}
 
@@ -186,24 +186,22 @@ export default function PlannerPage() {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-4 text-sm">
             <span className="text-foreground">
               <span className="font-bold">{result.total_price} AZN</span>{' '}
-              <span className="text-muted-foreground">spent</span>
+              <span className="text-muted-foreground">{t('planner.spent')}</span>
             </span>
             <span className="text-foreground">
               <span className="font-bold">{result.total_days}</span>{' '}
-              <span className="text-muted-foreground">days used</span>
+              <span className="text-muted-foreground">{t('planner.daysUsed')}</span>
             </span>
             <span className="text-foreground">
               <span className="font-bold">{result.remaining_budget} AZN</span>{' '}
-              <span className="text-muted-foreground">left over</span>
+              <span className="text-muted-foreground">{t('planner.leftOver')}</span>
             </span>
           </div>
 
           {result.selected_tours.length === 0 ? (
             <div className="text-center py-14 text-muted-foreground bg-card border border-border rounded-xl">
               <Sparkles size={26} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">
-                No tours fit that budget and day count. Try raising the budget or adding a day.
-              </p>
+              <p className="text-sm">{t('planner.noToursFit')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -221,7 +219,7 @@ export default function PlannerPage() {
                       <h3 className="text-sm font-semibold text-foreground truncate">{tour.title}</h3>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {tour.duration_days} day{tour.duration_days !== 1 ? 's' : ''} · {tour.reason}
+                      {t('planner.dayCount', { count: tour.duration_days })} · {tour.reason}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

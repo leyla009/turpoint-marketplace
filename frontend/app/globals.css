@@ -5,7 +5,7 @@
 @tailwind utilities;
  
 :root {
-  --background: #EFE7D8;
+  --background: #F3EEE4;
   --foreground: #1F2A24;
   --card: #FFFFFF;
   --card-foreground: #1F2A24;
@@ -20,4 +20,39 @@
  
 body {
   font-family: 'Nunito', system-ui, sans-serif;
+}
+
+/* Dual-handle price range slider (PriceRangeSlider.tsx) - the track itself
+   is invisible/non-interactive; only the round thumb is drawn and
+   draggable, so two overlapping <input type="range"> elements can share
+   one track without one blocking the other. */
+.range-thumb::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  height: 100%;
+  background: transparent;
+}
+.range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.range-thumb::-moz-range-track {
+  height: 100%;
+  background: transparent;
+}
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
 }

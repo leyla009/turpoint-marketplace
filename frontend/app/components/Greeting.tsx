@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 function weatherEmoji(code: number): string {
   if (code === 0) return '☀️';
@@ -15,12 +16,9 @@ function weatherEmoji(code: number): string {
   return '';
 }
 
-function timeGreeting(): string {
-  return 'Salam';
-}
-
 export default function Greeting() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [emoji, setEmoji] = useState('');
 
@@ -49,7 +47,7 @@ export default function Greeting() {
     return <p className="text-white/90 text-sm font-medium mb-1 h-5" />;
   }
 
-  const greeting = timeGreeting();
+  const greeting = t('greeting.hello');
   const firstName = user?.name?.split(' ')[0];
 
   return (

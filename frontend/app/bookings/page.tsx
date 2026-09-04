@@ -5,20 +5,22 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, CheckCircle2, XCircle, MapPin, Calendar, AlertCircle } from 'lucide-react';
 import { useAuth, useRequireAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import PageContainer from '../components/PageContainer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-const STATUS_STYLE: Record<string, { Icon: any; className: string; label: string }> = {
-  pending: { Icon: Clock, className: 'text-primary bg-primary/10', label: 'Pending' },
-  confirmed: { Icon: CheckCircle2, className: 'text-accent bg-accent/10', label: 'Confirmed' },
-  cancelled: { Icon: XCircle, className: 'text-muted-foreground bg-muted', label: 'Cancelled' },
+const STATUS_STYLE: Record<string, { Icon: any; className: string; labelKey: 'status.pending' | 'status.confirmed' | 'status.cancelled' }> = {
+  pending: { Icon: Clock, className: 'text-primary bg-primary/10', labelKey: 'status.pending' },
+  confirmed: { Icon: CheckCircle2, className: 'text-accent bg-accent/10', labelKey: 'status.confirmed' },
+  cancelled: { Icon: XCircle, className: 'text-muted-foreground bg-muted', labelKey: 'status.cancelled' },
 };
 
 export default function MyBookingsPage() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { token } = useAuth();
+  const { t } = useLanguage();
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,24 +40,24 @@ export default function MyBookingsPage() {
   }, [token]);
 
   if (authLoading || loading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
 
   return (
     <PageContainer maxWidth="max-w-2xl">
-      <h1 className="font-display text-xl font-bold text-foreground mb-1">My Bookings</h1>
-      <p className="text-sm text-muted-foreground mb-5">Your tours, past and upcoming.</p>
+      <h1 className="font-display text-xl font-bold text-foreground mb-1">{t('myBookings.title')}</h1>
+      <p className="text-sm text-muted-foreground mb-5">{t('myBookings.subtitle')}</p>
 
       {error ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
           <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Couldn&apos;t load your bookings. Is the backend running?</p>
+          <p className="text-sm text-muted-foreground">{t('myBookings.couldntLoad')}</p>
         </div>
       ) : bookings.length === 0 ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
-          <p className="text-sm text-muted-foreground mb-3">You haven't booked a tour yet.</p>
+          <p className="text-sm text-muted-foreground mb-3">{t('myBookings.notBookedYet')}</p>
           <button onClick={() => router.push('/')} className="text-sm text-primary font-semibold">
-            Browse tours →
+            {t('myBookings.browseTours')}
           </button>
         </div>
       ) : (
@@ -81,13 +83,13 @@ export default function MyBookingsPage() {
                   <span
                     className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${style.className}`}
                   >
-                    <StatusIcon size={10} /> {style.label}
+                    <StatusIcon size={10} /> {t(style.labelKey)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-xs">
                   <span className="font-mono text-muted-foreground">{b.ticket_code}</span>
                   <span className="text-muted-foreground">
-                    {b.seats} seat{b.seats !== 1 ? 's' : ''} ·{' '}
+                    {t('myBookings.seatsCount', { count: b.seats })} ·{' '}
                     <span className="font-semibold text-foreground">AZN{b.total_price}</span>
                   </span>
                 </div>

@@ -1,12 +1,14 @@
 'use client';
 
 import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import type { TranslationKey } from '../lib/translations';
 
-export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; label: string }> = {
-  nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, label: 'Nature' },
-  history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, label: 'History' },
-  entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: Music, label: 'Entertainment' },
-  food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, label: 'Food' },
+export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; labelKey: TranslationKey }> = {
+  nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, labelKey: 'category.nature' },
+  history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, labelKey: 'category.history' },
+  entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: Music, labelKey: 'category.entertainment' },
+  food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, labelKey: 'category.food' },
 };
 
 export interface ApiTour {
@@ -21,6 +23,7 @@ export interface ApiTour {
   min_participants: number;
   max_participants: number;
   discounted_price?: number;
+  features?: string | null;
 }
 
 export default function TourCard({
@@ -32,6 +35,7 @@ export default function TourCard({
   operatorName?: string;
   onClick: () => void;
 }) {
+  const { t } = useLanguage();
   const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
   const Icon = style.Icon;
   const hasDeal = typeof tour.discounted_price === 'number';
@@ -45,11 +49,11 @@ export default function TourCard({
         <Icon size={40} className="text-white/70" />
         {hasDeal && (
           <span className="absolute top-2 left-2 flex items-center gap-1 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full">
-            <Zap size={9} /> Last-minute deal
+            <Zap size={9} /> {t('tourCard.lastMinuteDeal')}
           </span>
         )}
         <span className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">
-          {style.label}
+          {t(style.labelKey)}
         </span>
       </div>
       <div className="p-3">
@@ -61,9 +65,11 @@ export default function TourCard({
         )}
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium truncate text-foreground">{operatorName ?? 'TurPoint operator'}</p>
+            <p className="text-xs font-medium truncate text-foreground">
+              {operatorName ?? t('tourCard.defaultOperator')}
+            </p>
             <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-              <Users size={10} /> min {tour.min_participants} to confirm
+              <Users size={10} /> {t('tourCard.minToConfirm', { count: tour.min_participants })}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -72,13 +78,13 @@ export default function TourCard({
                 <p className="text-[10px] text-muted-foreground line-through">AZN{tour.price}</p>
                 <p className="text-sm font-bold text-primary">
                   AZN{tour.discounted_price}
-                  <span className="text-[10px] font-normal text-muted-foreground">/pp</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
                 </p>
               </>
             ) : (
               <p className="text-sm font-bold text-primary">
                 AZN{tour.price}
-                <span className="text-[10px] font-normal text-muted-foreground">/pp</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
               </p>
             )}
           </div>

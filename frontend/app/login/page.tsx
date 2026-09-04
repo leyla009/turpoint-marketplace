@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, login, logout, operatorProfile, mode: accountMode, setMode: setAccountMode } = useAuth();
+  const { t } = useLanguage();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -33,13 +35,13 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Something went wrong');
+        setError(data.error ?? t('login.somethingWrong'));
         return;
       }
       login(data.token, data.user);
       router.push('/');
     } catch {
-      setError("Couldn't reach the backend. Is it running?");
+      setError(t('login.couldntReachBackend'));
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +65,7 @@ export default function LoginPage() {
                   accountMode === 'traveler' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
                 }`}
               >
-                Traveler
+                {t('nav.traveler')}
               </button>
               <button
                 onClick={() => setAccountMode('operator')}
@@ -71,7 +73,7 @@ export default function LoginPage() {
                   accountMode === 'operator' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
                 }`}
               >
-                Operator
+                {t('nav.operator')}
               </button>
             </div>
           )}
@@ -81,7 +83,7 @@ export default function LoginPage() {
               onClick={() => router.push('/dashboard/profile')}
               className="w-full text-sm font-semibold text-accent px-4 py-2.5 rounded-xl border border-accent/30 hover:bg-accent/5 transition-colors mb-3"
             >
-              + Operator ol
+              {t('nav.becomeOperator')}
             </button>
           )}
 
@@ -92,7 +94,7 @@ export default function LoginPage() {
             }}
             className="flex items-center justify-center gap-1.5 w-full bg-muted text-foreground text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-80 transition-opacity"
           >
-            <LogOut size={14} /> Log out
+            <LogOut size={14} /> {t('nav.logOut')}
           </button>
         </div>
       </div>
@@ -103,10 +105,10 @@ export default function LoginPage() {
     <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full">
         <h1 className="font-display text-xl font-bold text-foreground mb-1">
-          {mode === 'login' ? 'Welcome back' : 'Create an account'}
+          {mode === 'login' ? t('login.welcomeBack') : t('login.createAccount')}
         </h1>
         <p className="text-sm text-muted-foreground mb-5">
-          {mode === 'login' ? 'Log in to book and manage your tours.' : 'Sign up to start booking tours.'}
+          {mode === 'login' ? t('login.loginSubtitle') : t('login.signupSubtitle')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -116,7 +118,7 @@ export default function LoginPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
+              placeholder={t('login.fullName')}
               className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
             />
           )}
@@ -125,7 +127,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t('login.email')}
             className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
           />
           <input
@@ -134,7 +136,7 @@ export default function LoginPage() {
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t('login.password')}
             className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
           />
 
@@ -145,7 +147,7 @@ export default function LoginPage() {
             disabled={submitting}
             className="w-full bg-primary text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {submitting ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Sign up'}
+            {submitting ? t('login.pleaseWait') : mode === 'login' ? t('login.logIn') : t('login.signUp')}
           </button>
         </form>
 
@@ -156,7 +158,7 @@ export default function LoginPage() {
           }}
           className="w-full text-center text-xs text-muted-foreground hover:text-foreground mt-4"
         >
-          {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
+          {mode === 'login' ? t('login.noAccount') : t('login.haveAccount')}
         </button>
       </div>
     </div>
