@@ -147,7 +147,7 @@ TurPoint's school-assigned deliverable is **Sprint 1**, below. Sprints 2–4 are
 self-authored forward plan, not school-assigned deadlines — see `TASKS.md` for the full
 task-by-task breakdown.
 
-### Sprint 1 — Initial MVP Setup — ✅ COMPLETE (deadline 25.08.2026)
+### Sprint 1 — Initial MVP Setup
 - [x] Backend structure, core API endpoints, auth (signup/login), Swagger documentation
 - [x] Real homepage: live data, category filters, search, responsive, persistent nav, Leaflet destination map
 - [x] `npm run build` passes with zero errors
@@ -165,7 +165,7 @@ active group-formation banners and locked-in group pricing failed to render beca
 `group-formations` request wasn't filtered by `tour_id` and mishandled the endpoint's
 single-object response shape. All fixed — see `TASKS.md` for the full list.
 
-### Sprint 2 — school rubric gap closure ✅ COMPLETE (deadline 28.08.2026)
+### Sprint 2 — school rubric gap closure
 Tour Update CRUD (`PUT /api/tours/:id`), global error handling, manage-deals UI, edit-tour UI,
 review edit/delete UI, and success/error toasts — see `TASKS.md` for the full gap-closure list.
 `npm run build` re-verified clean (2026-08-31): zero errors, all routes generate. A follow-up
