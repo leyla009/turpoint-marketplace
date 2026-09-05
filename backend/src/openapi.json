@@ -99,6 +99,43 @@
             "description": "Missing/invalid token"
           }
         }
+      },
+      "put": {
+        "summary": "Update the logged-in account's own name/email/password/id_number - all optional, partial update. Identity comes only from the verified token. Returns a fresh token since the JWT payload carries email. id_number is the traveler's saved ID card (FIN) number, kept on file so it doesn't need to be retyped for every reservation; sending an empty string clears it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Aysel Mammadova",
+                "email": "aysel.new@example.com",
+                "password": "newSecret123",
+                "id_number": "AZE1234567"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user + a fresh token"
+          },
+          "400": {
+            "description": "Empty name/email, or password under 6 characters"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "409": {
+            "description": "Another account already uses this email"
+          }
+        }
       }
     },
     "/operators": {

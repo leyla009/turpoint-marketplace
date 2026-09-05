@@ -44,6 +44,14 @@ if (!tourColumns.includes('features')) {
   console.log('Migration applied: tours.features added.');
 }
 
+// Saved ID card number ("Sənədlərim") so travelers can book without typing
+// it in every time: same defensive add-if-missing pattern as above.
+const userColumns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+if (!userColumns.includes('id_number')) {
+  db.exec('ALTER TABLE users ADD COLUMN id_number TEXT');
+  console.log('Migration applied: users.id_number added.');
+}
+
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Schema applied to ${dbPath}`);

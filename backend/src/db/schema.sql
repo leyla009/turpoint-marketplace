@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  id_number TEXT,             -- saved ID card (FIN) number, so bookings don't require retyping it
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
  
