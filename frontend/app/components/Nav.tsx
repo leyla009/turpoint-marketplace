@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  Home, Ticket, User, LogOut, Send,
+  Home, User, Send,
   LayoutDashboard, PlusCircle, ClipboardList, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { Locale } from '../lib/translations';
+import AccountMenu, { type AccountSection } from './AccountMenu';
+import AccountDetailModal from './AccountDetailModal';
 
 // How far (px) you can scroll down the homepage before the transparent
 // hero nav switches to its solid background - roughly the hero's height.
@@ -23,7 +25,6 @@ const LANGUAGES: { locale: Locale; flag: string }[] = [
 
 const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
-  { href: '/bookings', labelKey: 'nav.bookings' as const, Icon: Ticket },
 ];
 
 const OPERATOR_ITEMS = [
@@ -56,6 +57,19 @@ export default function Nav() {
   }, [isHome]);
 
   const transparent = isHome && !scrolledPastHero;
+
+  // Clicking the avatar/name opens a small anchored dropdown ("pocket")
+  // with 3 rows; picking one closes the dropdown and opens that section's
+  // own focused modal. accountMenuOpen tracks WHICH trigger opened it
+  // (desktop header vs mobile bottom bar) so the dropdown anchors itself
+  // above or below correctly.
+  const [accountMenuOpen, setAccountMenuOpen] = useState<'desktop' | 'mobile' | null>(null);
+  const [activeSection, setActiveSection] = useState<AccountSection | null>(null);
+
+  const openSection = (s: AccountSection) => {
+    setActiveSection(s);
+    setAccountMenuOpen(null);
+  };
 
   return (
     <>
@@ -103,6 +117,42 @@ export default function Nav() {
           </nav>
 
           <div className="flex items-center gap-3 shrink-0">
+            {!loading && operatorProfile && (
+              <div className="flex bg-white/15 rounded-full p-1">
+                <button
+                  onClick={() => {
+                    setMode('traveler');
+                    router.push('/');
+                  }}
+                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
+                    mode === 'traveler' ? 'bg-white text-primary shadow-sm' : 'text-white/80'
+                  }`}
+                >
+                  {t('nav.traveler')}
+                </button>
+                <button
+                  onClick={() => {
+                    setMode('operator');
+                    router.push('/dashboard');
+                  }}
+                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
+                    mode === 'operator' ? 'bg-white text-primary shadow-sm' : 'text-white/80'
+                  }`}
+                >
+                  {t('nav.operator')}
+                </button>
+              </div>
+            )}
+
+            {!loading && user && !operatorProfile && (
+              <Link
+                href="/dashboard/profile"
+                className="hidden lg:inline-block text-[11px] font-semibold text-white/80 hover:text-white"
+              >
+                {t('nav.becomeOperator')}
+              </Link>
+            )}
+
             {/* Language switcher - persists via LanguageContext (localStorage),
                 every t()-driven string on the site re-renders in the new
                 language immediately, no page reload needed. */}
@@ -122,56 +172,30 @@ export default function Nav() {
               ))}
             </div>
 
-            {!loading && operatorProfile && (
-              <div className="flex bg-white/15 rounded-full p-1">
-                <button
-                  onClick={() => setMode('traveler')}
-                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
-                    mode === 'traveler' ? 'bg-white text-primary shadow-sm' : 'text-white/80'
-                  }`}
-                >
-                  {t('nav.traveler')}
-                </button>
-                <button
-                  onClick={() => setMode('operator')}
-                  className={`px-3 text-xs font-semibold py-1 rounded-full transition-all ${
-                    mode === 'operator' ? 'bg-white text-primary shadow-sm' : 'text-white/80'
-                  }`}
-                >
-                  {t('nav.operator')}
-                </button>
-              </div>
-            )}
-
-            {!loading && user && !operatorProfile && (
-              <Link
-                href="/dashboard/profile"
-                className="hidden lg:inline-block text-[11px] font-semibold text-white/80 hover:text-white"
-              >
-                {t('nav.becomeOperator')}
-              </Link>
-            )}
-
             {!loading && user && (
-              <div className="flex items-center gap-2">
-                <Link href="/login" className="flex items-center gap-2 group">
+              <div className="flex items-center gap-2 relative">
+                <button
+                  onClick={() => setAccountMenuOpen((v) => (v === 'desktop' ? null : 'desktop'))}
+                  className="flex items-center gap-2 group"
+                >
                   <span className="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {user.name?.[0]?.toUpperCase() ?? '?'}
                   </span>
                   <span className="hidden lg:inline text-sm font-semibold text-white group-hover:opacity-80 truncate max-w-[100px]">
                     {user.name}
                   </span>
-                </Link>
-                <button
-                  onClick={() => {
-                    logout();
-                    router.push('/');
-                  }}
-                  title={t('nav.logOut')}
-                  className="text-white/70 hover:text-white p-1.5"
-                >
-                  <LogOut size={15} />
                 </button>
+                {accountMenuOpen === 'desktop' && (
+                  <AccountMenu
+                    anchor="below"
+                    onSelect={openSection}
+                    onClose={() => setAccountMenuOpen(null)}
+                    onLogout={() => {
+                      logout();
+                      router.push('/');
+                    }}
+                  />
+                )}
               </div>
             )}
 
@@ -206,23 +230,44 @@ export default function Nav() {
               </Link>
             );
           })}
-          <Link
-            href="/login"
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-              pathname === '/login' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {!loading && user ? (
-              <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">
-                {user.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-            ) : (
+          {!loading && user ? (
+            <div className="flex-1 relative">
+              <button
+                onClick={() => setAccountMenuOpen((v) => (v === 'mobile' ? null : 'mobile'))}
+                className="w-full flex flex-col items-center gap-0.5 py-2.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">
+                  {user.name?.[0]?.toUpperCase() ?? '?'}
+                </div>
+                <span className="text-[9px] font-semibold">{t('nav.account')}</span>
+              </button>
+              {accountMenuOpen === 'mobile' && (
+                <AccountMenu
+                  anchor="above"
+                  onSelect={openSection}
+                  onClose={() => setAccountMenuOpen(null)}
+                  onLogout={() => {
+                    logout();
+                    router.push('/');
+                  }}
+                />
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+                pathname === '/login' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
               <User size={20} />
-            )}
-            <span className="text-[9px] font-semibold">{!loading && user ? t('nav.account') : t('nav.logIn')}</span>
-          </Link>
+              <span className="text-[9px] font-semibold">{t('nav.logIn')}</span>
+            </Link>
+          )}
         </div>
       </nav>
+
+      {activeSection && <AccountDetailModal section={activeSection} onClose={() => setActiveSection(null)} />}
     </>
   );
 }

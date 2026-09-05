@@ -344,6 +344,20 @@ const az = {
   'footer.quickLinks': 'Sürətli keçidlər',
   'footer.forOperators': 'Operatorlar üçün',
   'footer.rights': '© {year} TurPoint. Bütün hüquqlar qorunur.',
+
+  // Account panel (floating, opened by clicking the avatar/name in the nav)
+  'account.personalInfo': 'Şəxsi məlumatlarım',
+  'account.myDocuments': 'Sənədlərim',
+  'account.myBookings': 'Rezervasiyalarım',
+  'account.history': 'Tarixçə',
+  'account.newPassword': 'Yeni şifrə (istəyə bağlı)',
+  'account.newPasswordPlaceholder': 'Dəyişməmək üçün boş buraxın',
+  'account.noUpcomingBookings': 'Gələcək rezervasiya yoxdur.',
+  'account.noHistory': 'Hələ keçmiş rezervasiya yoxdur.',
+  'account.idNumber': 'Şəxsiyyət vəsiqəsinin nömrəsi (FIN)',
+  'account.idNumberPlaceholder': 'Məsələn: AZE1234567',
+  'account.idNumberHint': 'Bir dəfə yadda saxlayın, rezervasiya edərkən hər dəfə yenidən yazmayın.',
+  'account.idNumberSaved': 'Sənəd məlumatı yadda saxlanıldı',
 } as const;
 
 export type Locale = 'az' | 'en' | 'ru';
@@ -662,6 +676,19 @@ const en: Record<TranslationKey, string> = {
   'footer.quickLinks': 'Quick links',
   'footer.forOperators': 'For operators',
   'footer.rights': '© {year} TurPoint. All rights reserved.',
+
+  'account.personalInfo': 'My personal info',
+  'account.myDocuments': 'My documents',
+  'account.myBookings': 'My bookings',
+  'account.history': 'History',
+  'account.newPassword': 'New password (optional)',
+  'account.newPasswordPlaceholder': 'Leave blank to keep your current password',
+  'account.noUpcomingBookings': 'No upcoming bookings.',
+  'account.noHistory': 'No past bookings yet.',
+  'account.idNumber': 'ID card number (FIN)',
+  'account.idNumberPlaceholder': 'e.g. AZE1234567',
+  'account.idNumberHint': 'Save it once and skip retyping it for every reservation.',
+  'account.idNumberSaved': 'Document details saved',
 };
 
 const ru: Record<TranslationKey, string> = {
@@ -977,6 +1004,19 @@ const ru: Record<TranslationKey, string> = {
   'footer.quickLinks': 'Быстрые ссылки',
   'footer.forOperators': 'Для операторов',
   'footer.rights': '© {year} TurPoint. Все права защищены.',
+
+  'account.personalInfo': 'Личные данные',
+  'account.myDocuments': 'Мои документы',
+  'account.myBookings': 'Мои брони',
+  'account.history': 'История',
+  'account.newPassword': 'Новый пароль (необязательно)',
+  'account.newPasswordPlaceholder': 'Оставьте пустым, чтобы не менять пароль',
+  'account.noUpcomingBookings': 'Нет предстоящих броней.',
+  'account.noHistory': 'Пока нет прошедших броней.',
+  'account.idNumber': 'Номер удостоверения личности (FIN)',
+  'account.idNumberPlaceholder': 'Например: AZE1234567',
+  'account.idNumberHint': 'Сохраните один раз и не вводите заново при каждом бронировании.',
+  'account.idNumberSaved': 'Данные документа сохранены',
 };
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { az, en, ru };

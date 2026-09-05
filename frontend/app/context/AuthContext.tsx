@@ -10,6 +10,7 @@ export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  id_number?: string | null;
   created_at?: string;
 }
  

@@ -13,6 +13,7 @@ import CompareModal from './components/CompareModal';
 import PlannerModal from './components/PlannerModal';
 import { TOUR_FEATURES, parseFeatures } from './lib/tourFeatures';
 import { VEHICLE_FEATURES, parseVehicleFeatures } from './lib/vehicleFeatures';
+import { todayLocalISODate } from './lib/date';
 import { useLanguage } from './context/LanguageContext';
 
 // Leaflet touches `window` at import time, so it can only run in the
@@ -25,19 +26,6 @@ const DestinationMap = dynamic(() => import('./components/DestinationMap'), {
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
-// Local calendar date as YYYY-MM-DD. Deliberately NOT
-// `new Date().toISOString().slice(0, 10)` - toISOString() converts to UTC
-// first, so for anyone in a timezone ahead of UTC (Azerbaijan is UTC+4)
-// the date field showed yesterday's date for the first few hours after
-// local midnight, since UTC hadn't rolled over to the new day yet.
-function todayLocalISODate(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 export default function Home() {
   const router = useRouter();
