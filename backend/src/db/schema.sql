@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS operators (
   languages TEXT,             -- comma-separated, e.g. "az,en,ru"
   photo_url TEXT,
   vehicle_features TEXT,      -- e.g. "wifi,ac,charging,luggage"
+  phone TEXT,                 -- always starts with +994
+  instagram TEXT,             -- handle, without the leading @
   rating REAL DEFAULT 0,
   completed_tours_count INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP

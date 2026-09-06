@@ -140,7 +140,7 @@
     },
     "/operators": {
       "post": {
-        "summary": "Create an operator profile - requires login; one profile per account",
+        "summary": "Create an operator profile - requires login; one profile per account. phone is required and must start with +994.",
         "security": [
           {
             "bearerAuth": []
@@ -153,7 +153,8 @@
                 "name": "Qafqaz Tours",
                 "description": "Dag turlari",
                 "languages": "az,en",
-                "vehicle_features": "wifi,ac"
+                "phone": "+994501234567",
+                "instagram": "qafqaztours"
               }
             }
           }
@@ -161,6 +162,9 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Missing name, or missing/invalid phone (must start with +994)"
           },
           "401": {
             "description": "Missing/invalid token"
@@ -197,6 +201,45 @@
         }
       }
     },
+    "/operators/me/photo": {
+      "post": {
+        "summary": "Upload/replace the logged-in account's operator profile photo - multipart/form-data with a single 'photo' image file field (max 5MB). Requires an existing operator profile (create one first via POST /operators).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated operator, with the new photo_url"
+          },
+          "400": {
+            "description": "No file uploaded, or the file isn't an image"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "No operator profile yet - create one first"
+          }
+        }
+      }
+    },
     "/operators/{id}": {
       "get": {
         "summary": "Get one operator",
@@ -220,7 +263,7 @@
         }
       },
       "put": {
-        "summary": "Update an operator profile - must be the owning account",
+        "summary": "Update an operator profile - must be the owning account. phone is required and must start with +994 (vehicle_features isn't sent by the frontend form anymore, but is preserved untouched if omitted).",
         "security": [
           {
             "bearerAuth": []
@@ -236,9 +279,25 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Qafqaz Tours",
+                "description": "Dag turlari",
+                "languages": "az,en",
+                "phone": "+994501234567",
+                "instagram": "qafqaztours"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Updated operator"
+          },
+          "400": {
+            "description": "Missing/invalid phone (must start with +994)"
           },
           "403": {
             "description": "Not the owning account"

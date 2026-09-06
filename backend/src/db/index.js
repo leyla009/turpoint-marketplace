@@ -52,6 +52,17 @@ if (!userColumns.includes('id_number')) {
   console.log('Migration applied: users.id_number added.');
 }
 
+// Operator contact info (phone/Instagram) replacing the vehicle_features
+// profile field - vehicle_features itself stays untouched so the
+// homepage's existing "Nəqliyyat filtrləri" filter keeps working off
+// whatever operators already set before this change.
+const operatorContactColumns = db.prepare('PRAGMA table_info(operators)').all().map((c) => c.name);
+if (!operatorContactColumns.includes('phone')) {
+  db.exec('ALTER TABLE operators ADD COLUMN phone TEXT');
+  db.exec('ALTER TABLE operators ADD COLUMN instagram TEXT');
+  console.log('Migration applied: operators.phone and operators.instagram added.');
+}
+
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Schema applied to ${dbPath}`);

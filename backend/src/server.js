@@ -39,6 +39,20 @@ app.use(cors({ origin: corsOrigins }));
 
 app.use(express.json());
 
+// Serves uploaded operator profile photos (see POST /api/operators/me/photo).
+// helmet's default Cross-Origin-Resource-Policy is "same-origin", which
+// would silently block the frontend (a different origin) from loading
+// these images in an <img> tag - override it just for this public,
+// non-sensitive path.
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.join(__dirname, '../uploads'))
+);
+
 // Broad, cheap-to-run limiter for every route - a basic ceiling against
 // accidental hammering or naive scripted abuse. Auth gets a much tighter
 // limit below since credential-guessing is the higher-value target.
@@ -51,15 +65,19 @@ app.use(
   })
 );
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'too many attempts - try again later' },
-});
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/signup', authLimiter);
+// Only enforced in production - during local dev this would otherwise lock
+// you out after repeated test logins/signups from the same machine.
+if (process.env.NODE_ENV === 'production') {
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'too many attempts - try again later' },
+  });
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/signup', authLimiter);
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
