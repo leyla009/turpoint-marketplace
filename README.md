@@ -141,54 +141,6 @@ http://localhost:4000/api-docs
 
 ---
 
-## Sprint Roadmap
-
-TurPoint's school-assigned deliverable is **Sprint 1**, below. Sprints 2–4 are a
-self-authored forward plan, not school-assigned deadlines — see `TASKS.md` for the full
-task-by-task breakdown.
-
-### Sprint 1 — Initial MVP Setup
-- [x] Backend structure, core API endpoints, auth (signup/login), Swagger documentation
-- [x] Real homepage: live data, category filters, search, responsive, persistent nav, Leaflet destination map
-- [x] `npm run build` passes with zero errors
-- [x] Dual-mode auth with client-side session persistence
-- [x] Tour detail page, booking & e-ticket UI
-- [x] Operator dashboard UI, tour comparison UI, and Smart Planner UI
-- [ ] Formal end-to-end integration pass, final presentation deck
-
-**Post-Sprint-1 hardening:** a security/correctness review found and fixed several gaps that
-predated this document — most notably, `POST /api/reviews` and `POST /api/deals` had no auth
-at all (client-supplied identity and no ownership checks, respectively), a dead legacy
-group-join route was still live and bypassed the booking flow entirely, and confirmed groups
-had no capacity check. A later fix corrected a silent bug in the booking checkout page where
-active group-formation banners and locked-in group pricing failed to render because the
-`group-formations` request wasn't filtered by `tour_id` and mishandled the endpoint's
-single-object response shape. All fixed — see `TASKS.md` for the full list.
-
-### Sprint 2 — school rubric gap closure
-Tour Update CRUD (`PUT /api/tours/:id`), global error handling, manage-deals UI, edit-tour UI,
-review edit/delete UI, and success/error toasts — see `TASKS.md` for the full gap-closure list.
-`npm run build` re-verified clean (2026-08-31): zero errors, all routes generate. A follow-up
-fix keeps `interest_score` in sync with `category` on tour edits, since the Smart Planner ranks
-tours by that field and letting it go stale after a category change would silently skew
-recommendations.
-
-Self-authored roadmap items below are still not started: dedicated filter-bar UI, full Tour
-Details page (incl. image gallery — needs a schema change first), further checkout flow polish.
-
-### Sprint 3 — planned, not started
-Real Stripe payments, date/time-slot availability & capacity, cancellation/refunds, extended
-My Trips and Operator Dashboard UI.
-
-### Sprint 4 — planned; one item already shipped early
-Restricting reviews to verified buyers is **done** — see Key Features above and `TASKS.md` —
-along with review edit/delete and rate limiting. Remaining: in-app messaging, email
-notifications (QR-code ticketing is already live — see `TASKS.md` Task 12), and a
-decision on whether the existing greedy Smart Planner evolves into an "AI Trip Assistant"
-differentiator or ships as something separate.
-
----
-
 ## The Team
 
 Created as a Holberton School Final Portfolio Project:
