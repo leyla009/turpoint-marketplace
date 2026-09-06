@@ -188,7 +188,7 @@ export default function AccountDetailModal({
               />
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-danger">{error}</p>}
 
             <button
               type="submit"
@@ -214,7 +214,7 @@ export default function AccountDetailModal({
               <p className="text-xs text-muted-foreground mt-1.5">{t('account.idNumberHint')}</p>
             </div>
 
-            {idError && <p className="text-xs text-red-600">{idError}</p>}
+            {idError && <p className="text-xs text-danger">{idError}</p>}
 
             <button
               type="submit"

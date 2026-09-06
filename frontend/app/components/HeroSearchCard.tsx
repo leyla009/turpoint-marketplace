@@ -1,14 +1,43 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Navigation, MapPin, Calendar, Users, Search } from 'lucide-react';
+import { Navigation, MapPin, Calendar, Users, Search, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-// Azerbaijan's district centers plus its major cities, sorted per the
-// Azerbaijani alphabet (ə, ı, ö, ü, ç, ş, ğ collate correctly via the 'az'
-// locale). Used for both Haradan? and Hara? - a tour marketplace covering
-// the whole country should let you pick any of them, not just the handful
-// that happen to have a tour listed right now.
+// Azerbaijani alphabet order, used to sort AZERBAIJAN_CITIES below instead
+// of `localeCompare(x, 'az')`. That locale-aware sort depends on the ICU
+// data baked into whatever JS engine runs it, which differs between
+// Node (server-side render) and the browser (client-side render) - the two
+// could silently disagree on ə/ı/ö/ü/ç/ş/ğ ordering and produce a
+// server/client markup mismatch (a React hydration error) purely from list
+// order. A fixed index lookup gives the identical order everywhere.
+// Lower- and upper-case pairs listed explicitly (rather than lower-casing
+// input at compare time) so this never touches a locale-aware case-mapping
+// API either - Intl case folding for the dotted/dotless İ/I pair is itself
+// ICU-version-dependent, which is exactly the kind of environment
+// difference this function exists to avoid.
+const AZ_ALPHABET_LOWER = 'abcçdeəfgğhxıijklmnoöprsştuüvyz';
+const AZ_ALPHABET_UPPER = 'ABCÇDEƏFGĞHXIİJKLMNOÖPRSŞTUÜVYZ';
+function azRank(char: string): number {
+  const i = AZ_ALPHABET_LOWER.indexOf(char);
+  if (i !== -1) return i;
+  const j = AZ_ALPHABET_UPPER.indexOf(char);
+  return j !== -1 ? j : AZ_ALPHABET_LOWER.length;
+}
+function azCompare(a: string, b: string): number {
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const ra = i < a.length ? azRank(a[i]) : -1;
+    const rb = i < b.length ? azRank(b[i]) : -1;
+    if (ra !== rb) return ra - rb;
+  }
+  return 0;
+}
+
+// Azerbaijan's district centers plus its major cities. Used for both
+// Haradan? and Hara? - a tour marketplace covering the whole country should
+// let you pick any of them, not just the handful that happen to have a
+// tour listed right now.
 const AZERBAIJAN_CITIES = [
   'Ağcabədi', 'Ağdam', 'Ağdaş', 'Ağstafa', 'Ağsu', 'Astara', 'Bakı', 'Balakən',
   'Beyləqan', 'Bərdə', 'Biləsuvar', 'Cəbrayıl', 'Cəlilabad', 'Daşkəsən',
@@ -20,7 +49,7 @@ const AZERBAIJAN_CITIES = [
   'Salyan', 'Samux', 'Siyəzən', 'Sumqayıt', 'Şabran', 'Şamaxı', 'Şəki',
   'Şəmkir', 'Şirvan', 'Şuşa', 'Tərtər', 'Tovuz', 'Ucar', 'Yardımlı', 'Yevlax',
   'Zaqatala', 'Zəngilan', 'Zərdab',
-].sort((a, b) => a.localeCompare(b, 'az'));
+].sort(azCompare);
 
 interface HeroSearchCardProps {
   fromCity: string;
@@ -63,9 +92,9 @@ export default function HeroSearchCard({
   const { t } = useLanguage();
 
   return (
-    <div className="bg-card rounded-2xl shadow-xl border border-border/60 p-1.5 md:p-1">
-      <div className="flex flex-col md:flex-row md:items-stretch">
-        <Field label={t('search.from')} icon={<Navigation size={13} className="text-muted-foreground shrink-0" />}>
+    <div className="bg-accent rounded-2xl shadow-xl p-1.5">
+      <div className="flex flex-col md:flex-row gap-1.5 md:items-stretch">
+        <Field label={t('search.from')} icon={<Navigation size={15} className="text-muted-foreground shrink-0" />}>
           <select
             value={fromCity}
             onChange={(e) => onFromCityChange(e.target.value)}
@@ -79,9 +108,7 @@ export default function HeroSearchCard({
           </select>
         </Field>
 
-        <Divider />
-
-        <Field label={t('search.to')} icon={<MapPin size={13} className="text-muted-foreground shrink-0" />}>
+        <Field label={t('search.to')} icon={<MapPin size={15} className="text-muted-foreground shrink-0" />}>
           <select
             value={toLocation}
             onChange={(e) => onToLocationChange(e.target.value)}
@@ -96,20 +123,14 @@ export default function HeroSearchCard({
           </select>
         </Field>
 
-        <Divider />
-
         <DateField label={t('search.depart')} value={departDate} onChange={onDepartDateChange} />
-
-        <Divider />
 
         <DateField label={t('search.return')} value={returnDate} onChange={onReturnDateChange} />
 
-        <Divider />
-
         <Field
           label={t('search.travelers')}
-          icon={<Users size={13} className="text-muted-foreground shrink-0" />}
-          className="md:flex-none md:w-24"
+          icon={<Users size={15} className="text-muted-foreground shrink-0" />}
+          className="md:flex-none md:w-28"
         >
           <input
             type="number"
@@ -120,13 +141,14 @@ export default function HeroSearchCard({
             placeholder="1"
             className="w-full bg-transparent outline-none text-sm font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal"
           />
+          <ChevronDown size={14} className="text-muted-foreground shrink-0" />
         </Field>
 
         <button
           onClick={onSearch}
-          className="mt-1.5 md:mt-0 md:ml-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-5 py-2.5 md:py-0 rounded-xl hover:opacity-90 transition-opacity shrink-0"
+          className="flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-bold px-8 py-3 md:py-0 rounded-xl hover:opacity-90 transition-opacity shrink-0"
         >
-          {t('search.search')} <Search size={14} />
+          <Search size={16} /> {t('search.search')}
         </button>
       </div>
     </div>
@@ -145,8 +167,10 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`flex-1 min-w-0 px-2.5 py-1.5 md:py-1 ${className}`}>
-      <p className="text-[10px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
+    <div
+      className={`flex-1 min-w-0 bg-card rounded-xl border-2 border-transparent focus-within:border-primary px-3 py-2 transition-colors ${className}`}
+    >
+      <p className="text-[11px] font-semibold text-foreground mb-0.5 truncate">{label}</p>
       <div className="flex items-center gap-1.5">
         {icon}
         {children}
@@ -170,8 +194,8 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex-1 min-w-0 px-2.5 py-1.5 md:py-1">
-      <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">{label}</p>
+    <div className="flex-1 min-w-0 bg-card rounded-xl border-2 border-transparent focus-within:border-primary px-3 py-2 transition-colors">
+      <p className="text-[11px] font-semibold text-foreground mb-0.5">{label}</p>
       <div className="relative flex items-center">
         <input
           type="date"
@@ -183,8 +207,4 @@ function DateField({
       </div>
     </div>
   );
-}
-
-function Divider() {
-  return <div className="hidden md:block w-px my-1 bg-border shrink-0" />;
 }

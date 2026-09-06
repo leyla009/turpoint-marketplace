@@ -148,10 +148,10 @@ export default function PlannerModal({
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder={t('planner.budgetPlaceholder')}
                 className={`w-full text-sm bg-card border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none ${
-                  fieldErrors.budget ? 'border-red-400' : 'border-border'
+                  fieldErrors.budget ? 'border-danger' : 'border-border'
                 }`}
               />
-              {fieldErrors.budget && <p className="text-xs text-red-500 mt-1">{fieldErrors.budget}</p>}
+              {fieldErrors.budget && <p className="text-xs text-danger mt-1">{fieldErrors.budget}</p>}
             </div>
 
             <div>
@@ -167,10 +167,10 @@ export default function PlannerModal({
                 onChange={(e) => setDays(e.target.value)}
                 placeholder={t('planner.daysPlaceholder')}
                 className={`w-full text-sm bg-card border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none ${
-                  fieldErrors.days ? 'border-red-400' : 'border-border'
+                  fieldErrors.days ? 'border-danger' : 'border-border'
                 }`}
               />
-              {fieldErrors.days && <p className="text-xs text-red-500 mt-1">{fieldErrors.days}</p>}
+              {fieldErrors.days && <p className="text-xs text-danger mt-1">{fieldErrors.days}</p>}
             </div>
           </div>
 

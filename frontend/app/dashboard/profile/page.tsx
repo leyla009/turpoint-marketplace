@@ -133,7 +133,7 @@ export default function OperatorProfilePage() {
           />
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
         {success && <p className="text-xs text-accent font-semibold">{t('profile.saved')}</p>}
 
         <button

@@ -245,14 +245,14 @@ export default function DashboardPage() {
                     onClick={() => handleDelete(tour.id, tour.title)}
                     disabled={deletingId === tour.id}
                     title={t('dashboard.deleteTour')}
-                    className="text-muted-foreground hover:text-red-600 disabled:opacity-40 p-1"
+                    className="text-muted-foreground hover:text-danger disabled:opacity-40 p-1"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
               {deleteError?.id === tour.id && (
-                <p className="text-[11px] text-red-600 mt-2 pt-2 border-t border-border">{deleteError.message}</p>
+                <p className="text-[11px] text-danger mt-2 pt-2 border-t border-border">{deleteError.message}</p>
               )}
               {dealFormTourId === tour.id && (
                 <form
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                   >
                     {dealSubmitting ? t('dashboard.creating') : t('dashboard.createDealBtn')}
                   </button>
-                  {dealError && <p className="text-[11px] text-red-600 w-full">{dealError}</p>}
+                  {dealError && <p className="text-[11px] text-danger w-full">{dealError}</p>}
                 </form>
               )}
             </div>

@@ -63,7 +63,39 @@ function attachActiveDeals(tours) {
  
   return Array.isArray(tours) ? withDeals : withDeals[0];
 }
- 
+
+// Attaches rating/review_count aggregated straight from the reviews table,
+// so tour cards and search results can show real review data instead of
+// requiring a separate per-tour request. Same one-query-for-the-whole-list
+// shape as attachActiveDeals, for the same reason (avoid N+1 on a list).
+function attachReviewStats(tours) {
+  const list = Array.isArray(tours) ? tours : [tours];
+  if (list.length === 0) return tours;
+
+  const ids = list.map((t) => t.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const stats = db
+    .prepare(
+      `SELECT tour_id, AVG(rating) as avgRating, COUNT(*) as reviewCount
+       FROM reviews WHERE tour_id IN (${placeholders}) GROUP BY tour_id`
+    )
+    .all(...ids);
+
+  const statsByTourId = {};
+  for (const row of stats) statsByTourId[row.tour_id] = row;
+
+  const withStats = list.map((tour) => {
+    const row = statsByTourId[tour.id];
+    return {
+      ...tour,
+      rating: row ? Math.round(row.avgRating * 10) / 10 : null,
+      review_count: row ? row.reviewCount : 0,
+    };
+  });
+
+  return Array.isArray(tours) ? withStats : withStats[0];
+}
+
 router.post('/', requireAuth, (req, res) => {
   const {
     title, description, location, category, route,
@@ -127,9 +159,9 @@ router.get('/', (req, res) => {
   if (toDate) { query += ' AND date <= ?'; params.push(toDate); }
  
   const tours = db.prepare(query).all(...params);
-  res.json(attachActiveDeals(tours));
+  res.json(attachReviewStats(attachActiveDeals(tours)));
 });
- 
+
 // Task 14: comparison — GET /api/tours/compare?ids=1,2,3
 router.get('/compare', (req, res) => {
   const ids = (req.query.ids || '').split(',').filter(Boolean).map(Number);
@@ -138,15 +170,15 @@ router.get('/compare', (req, res) => {
   }
   const placeholders = ids.map(() => '?').join(',');
   const tours = db.prepare(`SELECT * FROM tours WHERE id IN (${placeholders})`).all(...ids);
-  res.json(attachActiveDeals(tours));
+  res.json(attachReviewStats(attachActiveDeals(tours)));
 });
- 
+
 router.get('/:id', (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
- 
+
   // Task 15: attach discounted_price if an active last-minute deal exists.
-  res.json(attachActiveDeals(tour));
+  res.json(attachReviewStats(attachActiveDeals(tour)));
 });
  
 // Update a tour - auth required, and only the owning operator can do it.

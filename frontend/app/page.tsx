@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Search, MapPinned, Calendar } from 'lucide-react';
-import TourCard, { ApiTour } from './components/TourCard';
+import {
+  Search, MapPinned, Calendar, LayoutGrid, Zap,
+  Users2, ShieldCheck, Wallet, ChevronDown, MapPin,
+} from 'lucide-react';
+import TourCard, { ApiTour, CATEGORY_STYLE } from './components/TourCard';
 import Greeting from './components/Greeting';
 import HeroSlideshow from './components/HeroSlideshow';
 import HeroSearchCard from './components/HeroSearchCard';
@@ -15,6 +18,7 @@ import { TOUR_FEATURES, parseFeatures } from './lib/tourFeatures';
 import { VEHICLE_FEATURES, parseVehicleFeatures } from './lib/vehicleFeatures';
 import { todayLocalISODate } from './lib/date';
 import { useLanguage } from './context/LanguageContext';
+import type { TranslationKey } from './lib/translations';
 
 // Leaflet touches `window` at import time, so it can only run in the
 // browser — ssr: false keeps Next from trying to render it server-side.
@@ -55,8 +59,10 @@ export default function Home() {
   // on the homepage.
   const [showPlannerModal, setShowPlannerModal] = useState(false);
   const [locationFilter, setLocationFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
 
   // Hero search card state. fromCity is decorative only (see
   // HeroSearchCard's comment - tours have no origin-city field to filter
@@ -76,6 +82,22 @@ export default function Home() {
     const today = todayLocalISODate();
     setDepartDate(today);
     setReturnDate(today);
+  }, []);
+
+  // Deep-linking for the footer's category links and any shared/bookmarked
+  // homepage URL - reads plain window.location instead of Next's
+  // useSearchParams() so this stays a one-time client-side read with no
+  // Suspense-boundary requirement, matching how the rest of this page
+  // already treats itself as fully client-rendered.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get('category');
+    const location = params.get('location');
+    if (category) setCategoryFilter(category);
+    if (location) setLocationFilter(location);
+    if (category || location) {
+      setTimeout(() => document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    }
   }, []);
 
   const handleDepartDateChange = (value: string) => {
@@ -140,6 +162,7 @@ export default function Home() {
       const vehicleFeatures = parseVehicleFeatures(operatorVehicleFeatures[t.operator_id]);
       const matchVehicleFeatures = activeVehicleFeatures.every((f) => vehicleFeatures.includes(f));
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
+      const matchCategory = categoryFilter === 'all' || t.category === categoryFilter;
       const effectivePrice = t.discounted_price ?? t.price;
       const matchMin = min === null || effectivePrice >= min;
       const matchMax = max === null || effectivePrice <= max;
@@ -153,6 +176,7 @@ export default function Home() {
         matchFeatures &&
         matchVehicleFeatures &&
         matchLocation &&
+        matchCategory &&
         matchMin &&
         matchMax &&
         matchDepart &&
@@ -166,6 +190,7 @@ export default function Home() {
     activeVehicleFeatures,
     operatorVehicleFeatures,
     locationFilter,
+    categoryFilter,
     minPrice,
     maxPrice,
     departDate,
@@ -173,6 +198,63 @@ export default function Home() {
     datesTouched,
     travelers,
   ]);
+
+  // Client-side sort - all the data needed (price, discounted_price, rating)
+  // is already on each tour from the list response, so there's no reason to
+  // round-trip to the backend just to reorder what's already in memory.
+  const sortedFiltered = useMemo(() => {
+    const list = [...filtered];
+    const effective = (t: ApiTour) => t.discounted_price ?? t.price;
+    switch (sortBy) {
+      case 'price-asc':
+        return list.sort((a, b) => effective(a) - effective(b));
+      case 'price-desc':
+        return list.sort((a, b) => effective(b) - effective(a));
+      case 'rating-desc':
+        return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+      default:
+        return list;
+    }
+  }, [filtered, sortBy]);
+
+  // Real categories actually present in the loaded tours, with counts - no
+  // point offering a "Food" pill if not a single tour is tagged that way.
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tours.forEach((t) => {
+      if (t.category) counts[t.category] = (counts[t.category] ?? 0) + 1;
+    });
+    return counts;
+  }, [tours]);
+
+  // Popular destinations - grouped straight from each tour's own `location`
+  // field, not a separate hardcoded list, so it only ever shows places that
+  // actually have a bookable tour right now.
+  const destinations = useMemo(() => {
+    const byLocation: Record<string, { count: number; minPrice: number; category: string | null }> = {};
+    tours.forEach((t) => {
+      if (!t.location) return;
+      const price = t.discounted_price ?? t.price;
+      const existing = byLocation[t.location];
+      if (!existing) {
+        byLocation[t.location] = { count: 1, minPrice: price, category: t.category };
+      } else {
+        existing.count += 1;
+        existing.minPrice = Math.min(existing.minPrice, price);
+      }
+    });
+    return Object.entries(byLocation)
+      .map(([location, info]) => ({ location, ...info }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [tours]);
+
+  const dealTours = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number'), [tours]);
+
+  const selectDestination = (location: string) => {
+    setLocationFilter(location);
+    scrollToResults();
+  };
 
   const scrollToResults = () => {
     document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -215,11 +297,12 @@ export default function Home() {
         <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto relative pt-24 md:pt-28 pb-10 md:pb-16">
           <Greeting />
           <h1
-            className="text-2xl sm:text-3xl font-bold text-white"
+            className="text-3xl sm:text-4xl md:text-5xl font-bold text-white"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             {t('home.whereToNext')}
           </h1>
+          <p className="mt-2 text-sm sm:text-base text-white/90">{t('home.whereToNextSubtitle')}</p>
         </div>
       </div>
 
@@ -241,6 +324,110 @@ export default function Home() {
           onSearch={scrollToResults}
         />
       </div>
+
+      {/* Category quick filters - the tour's `category` field drove only
+          the card's color/icon before; this is the first place a visitor
+          can actually filter by it. Only categories with at least one real
+          tour show up, so an empty category never dead-ends the browse. */}
+      {!loading && tours.length > 0 && (
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+            <button
+              onClick={() => setCategoryFilter('all')}
+              className={`flex items-center gap-1.5 shrink-0 text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${
+                categoryFilter === 'all'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-foreground border-border hover:border-primary/40'
+              }`}
+            >
+              <LayoutGrid size={14} /> {t('home.allCategories')}
+            </button>
+            {Object.keys(CATEGORY_STYLE)
+              .filter((cat) => categoryCounts[cat] > 0)
+              .map((cat) => {
+                const style = CATEGORY_STYLE[cat];
+                const CatIcon = style.Icon;
+                const active = categoryFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(active ? 'all' : cat)}
+                    className={`flex items-center gap-1.5 shrink-0 text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-foreground border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <CatIcon size={14} /> {t(style.labelKey)}
+                    <span className={active ? 'text-primary-foreground/70' : 'text-muted-foreground'}>
+                      {categoryCounts[cat]}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Last-minute deals - surfaces tours that already have an active
+          last_minute_deals row (real discount data, same discounted_price
+          the cards below already show) as their own dedicated strip instead
+          of leaving them to blend into the general grid. */}
+      {!loading && dealTours.length > 0 && (
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
+          <h2 className="flex items-center gap-1.5 text-base font-bold text-foreground mb-3">
+            <Zap size={16} className="text-accent" /> {t('home.lastMinuteDeals')}
+          </h2>
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+            {dealTours.map((tour) => (
+              <div key={tour.id} className="w-64 shrink-0">
+                <TourCard
+                  tour={tour}
+                  operatorName={operators[tour.operator_id]}
+                  onClick={() => router.push(`/tours/${tour.id}`)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Popular destinations - grouped straight from tours' real `location`
+          values (see `destinations` above), so this only ever lists places
+          that currently have a bookable tour. */}
+      {!loading && destinations.length > 0 && (
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
+          <h2 className="text-base font-bold text-foreground mb-3">{t('home.popularDestinations')}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {destinations.map((d) => {
+              const style = CATEGORY_STYLE[d.category ?? ''] ?? CATEGORY_STYLE.history;
+              const DIcon = style.Icon;
+              return (
+                <button
+                  key={d.location}
+                  onClick={() => selectDestination(d.location)}
+                  className={`text-left rounded-xl border overflow-hidden bg-card hover:shadow-md transition-all group ${
+                    locationFilter === d.location ? 'border-accent ring-2 ring-accent/30' : 'border-border'
+                  }`}
+                >
+                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                    <DIcon size={22} className="text-white/80 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-sm font-semibold text-foreground truncate">{d.location}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('home.toursAvailable', { count: d.count })}
+                    </p>
+                    <p className="text-[11px] font-semibold text-primary mt-0.5">
+                      {t('home.fromPrice', { price: d.minPrice })}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Main Content - left sidebar (map + filters) alongside the results
           grid on the right, matching a standard listing-site layout. */}
@@ -363,10 +550,26 @@ export default function Home() {
 
           {/* Results */}
           <div id="tour-results" className="scroll-mt-20">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-sm font-semibold text-foreground">
-                {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: filtered.length })}
+                {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: sortedFiltered.length })}
               </h2>
+              {!loading && sortedFiltered.length > 0 && (
+                <div className="relative shrink-0">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    aria-label={t('home.sortBy')}
+                    className="appearance-none text-xs font-semibold bg-card border border-border rounded-full pl-3 pr-7 py-1.5 outline-none cursor-pointer hover:border-primary/40"
+                  >
+                    <option value="recommended">{t('home.sortRecommended')}</option>
+                    <option value="price-asc">{t('home.sortPriceAsc')}</option>
+                    <option value="price-desc">{t('home.sortPriceDesc')}</option>
+                    <option value="rating-desc">{t('home.sortRatingDesc')}</option>
+                  </select>
+                  <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              )}
             </div>
 
             {error && (
@@ -375,16 +578,31 @@ export default function Home() {
               </div>
             )}
 
-            {!error && !loading && filtered.length === 0 && (
+            {loading && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6" aria-hidden>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-card rounded-2xl overflow-hidden border border-border animate-pulse">
+                    <div className="h-36 sm:h-40 bg-muted" />
+                    <div className="p-3.5 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                      <div className="h-3 bg-muted rounded w-2/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!error && !loading && sortedFiltered.length === 0 && (
               <div className="text-center py-14 text-muted-foreground">
                 <Search size={30} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm">{t('home.noToursMatch')}</p>
               </div>
             )}
 
-            {!error && filtered.length > 0 && (
+            {!error && !loading && sortedFiltered.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filtered.map((tour) => (
+                {sortedFiltered.map((tour) => (
                   <TourCard
                     key={tour.id}
                     tour={tour}
@@ -399,6 +617,58 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* How it works - explains the group-buying mechanic (price drops as
+          more travelers join, confirmed once the tour's minimum is hit),
+          which isn't obvious from a first glance at a tour card. */}
+      <div className="bg-muted/40 border-y border-border">
+        <div className="px-4 sm:px-6 py-10 md:py-14 max-w-[1600px] mx-auto">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-8" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            {t('home.howItWorksTitle')}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {(
+              [
+                { Icon: Search, titleKey: 'home.step1Title', bodyKey: 'home.step1Body' },
+                { Icon: Users2, titleKey: 'home.step2Title', bodyKey: 'home.step2Body' },
+                { Icon: ShieldCheck, titleKey: 'home.step3Title', bodyKey: 'home.step3Body' },
+              ] satisfies { Icon: typeof Search; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+            ).map(({ Icon, titleKey, bodyKey }, i) => (
+              <div key={i} className="text-center">
+                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                  <Icon size={20} />
+                </div>
+                <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Why TurPoint - real product mechanics only (group pricing,
+          verified-buyer-only reviews, operators who own their listings),
+          nothing fabricated like award badges or made-up guest counts. */}
+      <div className="px-4 sm:px-6 py-10 md:py-14 max-w-[1600px] mx-auto">
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-8" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          {t('home.whyUsTitle')}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-5xl mx-auto">
+          {(
+            [
+              { Icon: Wallet, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
+              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
+              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
+            ] satisfies { Icon: typeof Wallet; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+          ).map(({ Icon, titleKey, bodyKey }, i) => (
+            <div key={i} className="bg-card border border-border/60 rounded-2xl shadow-sm p-5">
+              <Icon size={20} className="text-accent mb-2.5" />
+              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+            </div>
+          ))}
         </div>
       </div>
 

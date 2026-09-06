@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg pointer-events-auto ${
-              t.type === 'success' ? 'bg-foreground text-background' : 'bg-red-600 text-white'
+              t.type === 'success' ? 'bg-success text-success-foreground' : 'bg-danger text-danger-foreground'
             }`}
           >
             {t.type === 'success' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}

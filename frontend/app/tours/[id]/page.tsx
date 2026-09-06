@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { TranslationKey } from '../../lib/translations';
+import { TOUR_FEATURES, parseFeatures } from '../../lib/tourFeatures';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -42,6 +43,7 @@ interface Tour {
   max_participants: number;
   discounted_price?: number;
   active_deal?: { discount_percent: number; expires_at: string };
+  features?: string | null;
 }
 
 interface Operator {
@@ -86,7 +88,7 @@ function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
         <Star
           key={n}
           size={size}
-          className={n <= Math.round(rating) ? 'fill-primary text-primary' : 'text-border'}
+          className={n <= Math.round(rating) ? 'fill-rating text-rating' : 'text-border'}
         />
       ))}
     </div>
@@ -305,9 +307,12 @@ export default function TourDetail() {
     ? Math.min(100, Math.round((group.current_participants / group.min_participants) * 100))
     : 0;
 
+  const effectivePrice = group?.price_per_person ?? tour?.discounted_price ?? tour?.price;
+  const tourFeatures = parseFeatures(tour?.features);
+
   return (
     <div className="min-h-full">
-      <div className="px-4 sm:px-6 pt-4 max-w-2xl mx-auto">
+      <div className="px-4 sm:px-6 pt-4 max-w-6xl mx-auto">
         <button
           onClick={() => router.push('/')}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -317,24 +322,29 @@ export default function TourDetail() {
       </div>
 
       {loadingTour && (
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
           <Loader2 size={24} className="animate-spin mx-auto mb-2" />
           <p className="text-sm">{t('tourDetail.loadingTour')}</p>
         </div>
       )}
 
       {!loadingTour && !tour && (
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
           <p className="text-sm">{t('tourDetail.tourNotFound')}</p>
         </div>
       )}
 
       {!loadingTour && tour && (
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-32">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-32 lg:pb-16 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
+        <div className="min-w-0">
           {/* Hero */}
           <div
-            className={`relative h-48 sm:h-56 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center mb-5 overflow-hidden`}
+            className={`relative h-48 sm:h-64 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center mb-5 overflow-hidden`}
           >
+            <div
+              className="absolute inset-0 opacity-[0.1]"
+              style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
+            />
             <Icon size={64} className="text-white/60" />
             {hasDeal && (
               <span className="absolute top-3 left-3 flex items-center gap-1 bg-accent text-accent-foreground text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -366,6 +376,14 @@ export default function TourDetail() {
             <span className="flex items-center gap-1">
               <Users size={14} /> {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
             </span>
+            {reviews.length > 0 && (
+              <span className="flex items-center gap-1 font-semibold text-foreground">
+                <Star size={14} className="fill-rating text-rating" /> {avgRating.toFixed(1)}
+                <span className="font-normal text-muted-foreground">
+                  ({t('tourDetail.reviewCount', { count: reviews.length })})
+                </span>
+              </span>
+            )}
           </div>
 
           {/* Operator */}
@@ -412,6 +430,25 @@ export default function TourDetail() {
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.aboutTour')}</h2>
               <p className="text-sm text-foreground/80 leading-relaxed">{tour.description}</p>
+            </div>
+          )}
+
+          {/* What's included - the tour's own feature tags (breakfast, guide,
+              etc.), previously only used to power the homepage filter chips
+              and never actually shown to someone deciding whether to book. */}
+          {tourFeatures.length > 0 && (
+            <div className="mb-5">
+              <h2 className="text-sm font-semibold text-foreground mb-2">{t('tourDetail.whatsIncluded')}</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {TOUR_FEATURES.filter((f) => tourFeatures.includes(f.slug)).map((f) => (
+                  <span
+                    key={f.slug}
+                    className="flex items-center gap-2 text-sm text-foreground/80 bg-muted/60 rounded-lg px-2.5 py-2"
+                  >
+                    <f.Icon size={15} className="text-primary shrink-0" /> {t(f.labelKey)}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
@@ -582,7 +619,7 @@ export default function TourDetail() {
                     <button key={n} type="button" onClick={() => setReviewRating(n)}>
                       <Star
                         size={20}
-                        className={n <= reviewRating ? 'fill-primary text-primary' : 'text-border'}
+                        className={n <= reviewRating ? 'fill-rating text-rating' : 'text-border'}
                       />
                     </button>
                   ))}
@@ -629,7 +666,7 @@ export default function TourDetail() {
                               <button key={n} type="button" onClick={() => setEditRating(n)}>
                                 <Star
                                   size={18}
-                                  className={n <= editRating ? 'fill-primary text-primary' : 'text-border'}
+                                  className={n <= editRating ? 'fill-rating text-rating' : 'text-border'}
                                 />
                               </button>
                             ))}
@@ -684,7 +721,7 @@ export default function TourDetail() {
                                     onClick={() => handleDeleteReview(r.id)}
                                     disabled={deletingReviewId === r.id}
                                     title={t('tourDetail.deleteReview')}
-                                    className="text-muted-foreground hover:text-red-600 disabled:opacity-40 p-0.5"
+                                    className="text-muted-foreground hover:text-danger disabled:opacity-40 p-0.5"
                                   >
                                     <Trash2 size={12} />
                                   </button>
@@ -702,33 +739,67 @@ export default function TourDetail() {
             )}
           </div>
         </div>
+
+        {/* Desktop booking sidebar - sticky alongside the content instead
+            of a mobile-style bottom bar, which on a wide screen wasted
+            most of the page's width. Mirrors the same price/CTA logic as
+            the mobile bar below so the two never disagree. */}
+        <aside className="hidden lg:block sticky top-24 bg-card border border-border rounded-2xl shadow-sm p-5">
+          <p className="text-xs text-muted-foreground mb-0.5">{t('tourDetail.perPerson')}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            {hasDeal && <span className="text-sm text-muted-foreground line-through">AZN {tour.price}</span>}
+            <span className="text-2xl font-bold text-primary">AZN {effectivePrice}</span>
+          </div>
+
+          <div className="space-y-2 text-sm text-foreground/80 mb-4 pb-4 border-b border-border">
+            {tour.location && (
+              <p className="flex items-center gap-2">
+                <MapPin size={14} className="text-muted-foreground shrink-0" /> {tour.location}
+              </p>
+            )}
+            <p className="flex items-center gap-2">
+              <Calendar size={14} className="text-muted-foreground shrink-0" /> {formatDate(tour.date)} ·{' '}
+              {t('tourDetail.duration', { count: tour.duration_days })}
+            </p>
+            <p className="flex items-center gap-2">
+              <Users size={14} className="text-muted-foreground shrink-0" />{' '}
+              {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
+            </p>
+          </div>
+
+          <Link
+            href={`/tours/${tour.id}/book`}
+            className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+          >
+            {group && (group.status === 'waiting' || group.status === 'forming')
+              ? t('tourDetail.joinGroupCta')
+              : t('tourDetail.bookNow')}
+          </Link>
+
+          {group && (group.status === 'waiting' || group.status === 'forming') && (
+            <p className="text-[11px] text-muted-foreground text-center mt-3">{t('booking.notChargedYet')}</p>
+          )}
+        </aside>
+        </div>
       )}
 
-      {/* Sticky bottom price / CTA bar */}
+      {/* Sticky bottom price / CTA bar - mobile and tablet only; lg screens
+          get the sidebar above instead. */}
       {!loadingTour && tour && (
-        <div className="fixed bottom-16 md:bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
+        <div className="fixed bottom-16 md:bottom-0 lg:hidden inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] text-muted-foreground">{t('tourDetail.perPerson')}</p>
-              <p className="text-lg font-bold text-primary">
-                AZN{group?.price_per_person ?? tour.discounted_price ?? tour.price}
-              </p>
+              <p className="text-lg font-bold text-primary">AZN {effectivePrice}</p>
             </div>
-            {group && (group.status === 'waiting' || group.status === 'forming') ? (
-              <Link
-                href={`/tours/${tour.id}/book`}
-                className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-              >
-                {t('tourDetail.joinGroupCta')}
-              </Link>
-            ) : (
-               <Link
+            <Link
               href={`/tours/${tour.id}/book`}
               className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
             >
-              {t('tourDetail.bookNow')}
+              {group && (group.status === 'waiting' || group.status === 'forming')
+                ? t('tourDetail.joinGroupCta')
+                : t('tourDetail.bookNow')}
             </Link>
-            )}
           </div>
         </div>
       )}

@@ -69,7 +69,7 @@ export default function AccountMenu({
       <div className="mt-1 pt-1 px-1.5 border-t border-border">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-sm font-semibold text-danger bg-danger/10 hover:bg-danger/15 transition-colors text-left"
         >
           <LogOut size={15} className="shrink-0" />
           {t('nav.logOut')}

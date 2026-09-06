@@ -253,7 +253,7 @@ export default function NewTourPage() {
           </div>
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
 
         <button
           type="submit"
