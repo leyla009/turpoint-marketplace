@@ -296,12 +296,6 @@ export default function Home() {
         <HeroSlideshow />
         <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto relative pt-24 md:pt-28 pb-10 md:pb-16">
           <Greeting />
-          <h1
-            className="text-3xl sm:text-4xl md:text-5xl font-bold text-white"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {t('home.whereToNext')}
-          </h1>
           <p className="mt-2 text-sm sm:text-base text-white/90">{t('home.whereToNextSubtitle')}</p>
         </div>
       </div>

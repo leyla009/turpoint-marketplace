@@ -24,6 +24,7 @@ import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { TranslationKey } from '../../lib/translations';
 import { TOUR_FEATURES, parseFeatures } from '../../lib/tourFeatures';
+import OperatorProfileModal from '../../components/OperatorProfileModal';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -53,6 +54,9 @@ interface Operator {
   description?: string;
   languages?: string;
   vehicle_features?: string;
+  photo_url?: string | null;
+  phone?: string | null;
+  instagram?: string | null;
 }
 
 interface GroupFormation {
@@ -104,6 +108,7 @@ export default function TourDetail() {
 
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
+  const [showOperatorModal, setShowOperatorModal] = useState(false);
   const [group, setGroup] = useState<GroupFormation | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
 
@@ -386,10 +391,20 @@ export default function TourDetail() {
             )}
           </div>
 
-          {/* Operator */}
-          <div className="flex items-start gap-3 bg-card border border-border rounded-xl p-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
-              {(operator?.name ?? 'T').charAt(0).toUpperCase()}
+          {/* Operator - a compact summary; the full profile (photo,
+              description, languages, phone, Instagram) opens in
+              OperatorProfileModal when clicked. */}
+          <button
+            onClick={() => operator && setShowOperatorModal(true)}
+            disabled={!operator}
+            className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-3 mb-5 text-left hover:border-primary/40 transition-colors disabled:hover:border-border"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-primary font-bold shrink-0">
+              {operator?.photo_url ? (
+                <img src={`${API_URL}${operator.photo_url}`} alt={operator.name} className="w-full h-full object-cover" />
+              ) : (
+                (operator?.name ?? 'T').charAt(0).toUpperCase()
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground truncate">
@@ -403,27 +418,12 @@ export default function TourDetail() {
               ) : (
                 <p className="text-xs text-muted-foreground">{t('tourDetail.noRatingsYet')}</p>
               )}
-              {operator?.description && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{operator.description}</p>
-              )}
-              {operator?.languages && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {operator.languages
-                    .split(',')
-                    .map((l) => l.trim())
-                    .filter(Boolean)
-                    .map((lang) => (
-                      <span
-                        key={lang}
-                        className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full"
-                      >
-                        {lang}
-                      </span>
-                    ))}
-                </div>
-              )}
             </div>
-          </div>
+          </button>
+
+          {showOperatorModal && operator && (
+            <OperatorProfileModal operator={operator} onClose={() => setShowOperatorModal(false)} />
+          )}
 
           {/* Description */}
           {tour.description && (

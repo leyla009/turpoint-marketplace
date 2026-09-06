@@ -43,16 +43,18 @@ export default function Greeting() {
     );
   }, []);
 
-  if (!mounted) {
-    return <p className="text-white/90 text-sm font-medium mb-1 h-5" />;
-  }
-
-  const greeting = t('greeting.hello');
+  const question = t('home.whereToNext');
   const firstName = user?.name?.split(' ')[0];
+  const text = firstName
+    ? `${t('greeting.hello')} ${firstName}, ${question.charAt(0).toLowerCase()}${question.slice(1)}`
+    : question;
 
   return (
-    <p className="text-white/90 text-sm font-medium mb-1 tracking-wide">
-      {greeting}{firstName ? `, ${firstName}` : ''} {emoji}
-    </p>
+    <h1
+      className="text-3xl sm:text-4xl md:text-5xl font-bold text-white"
+      style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+    >
+      {text} {mounted ? emoji : ''}
+    </h1>
   );
 }

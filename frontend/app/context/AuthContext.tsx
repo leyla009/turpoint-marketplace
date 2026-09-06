@@ -22,6 +22,8 @@ export interface OperatorProfile {
   languages?: string | null;
   photo_url?: string | null;
   vehicle_features?: string | null;
+  phone?: string | null;
+  instagram?: string | null;
   rating?: number | null;
 }
  

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Home, User, Send,
-  LayoutDashboard, PlusCircle, ClipboardList, Settings,
+  LayoutDashboard, ClipboardList, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -27,9 +27,10 @@ const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
 ];
 
+// "Tur əlavə et" isn't listed here - it already lives inside the panel
+// page itself (its own "+ Tur əlavə et" button, which opens as a popup).
 const OPERATOR_ITEMS = [
   { href: '/dashboard', labelKey: 'nav.dashboard' as const, Icon: LayoutDashboard },
-  { href: '/dashboard/new-tour', labelKey: 'nav.addTour' as const, Icon: PlusCircle },
   { href: '/dashboard/bookings', labelKey: 'nav.operatorBookings' as const, Icon: ClipboardList },
   { href: '/dashboard/profile', labelKey: 'nav.profile' as const, Icon: Settings },
 ];
@@ -86,35 +87,37 @@ export default function Nav() {
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
               <Send size={17} className="text-white -rotate-45" />
             </span>
-            <span className="flex flex-col leading-none">
-              <span
-                className="text-lg font-bold text-white"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                TurPoint
-              </span>
-              <span className="text-[10px] text-white/70 tracking-wide">{t('nav.tagline')}</span>
+            <span
+              className="text-lg font-bold text-white leading-none"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              TurPoint
             </span>
           </Link>
 
-          <nav className="flex items-center gap-6">
-            {navItems.map(({ href, labelKey }) => {
-              const active = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`text-sm font-semibold pb-0.5 border-b-2 transition-colors ${
-                    active
-                      ? 'text-white border-white'
-                      : 'text-white/80 border-transparent hover:text-white'
-                  }`}
-                >
-                  {t(labelKey)}
-                </Link>
-              );
-            })}
-          </nav>
+          {/* A lone "Ana səhifə" link would be meaningless here - the logo
+              already goes home, and travelers only have one page. Only
+              show this row once there's more than one link (operator mode). */}
+          {navItems.length > 1 && (
+            <nav className="flex items-center gap-6">
+              {navItems.map(({ href, labelKey }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`text-sm font-semibold pb-0.5 border-b-2 transition-colors ${
+                      active
+                        ? 'text-white border-white'
+                        : 'text-white/80 border-transparent hover:text-white'
+                    }`}
+                  >
+                    {t(labelKey)}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
 
           <div className="flex items-center gap-3 shrink-0">
             {!loading && operatorProfile && (
