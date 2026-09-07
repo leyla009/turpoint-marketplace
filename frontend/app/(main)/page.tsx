@@ -36,9 +36,58 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function Home() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [tours, setTours] = useState<ApiTour[]>([]);
+  // Heart icon on tour cards - saved tours also show up in the account
+  // menu's "Sevimlilər" section. Loaded once per login; toggling updates
+  // this set optimistically so the heart flips instantly, then confirms
+  // (or reverts) against the backend.
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!token) {
+      setFavoriteIds(new Set());
+      return;
+    }
+    fetch(`${API_URL}/api/favorites`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setFavoriteIds(new Set(Array.isArray(data) ? data.map((f: any) => f.id) : [])))
+      .catch(() => {});
+  }, [token]);
+
+  function toggleFavorite(tourId: number) {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    const alreadyFavorited = favoriteIds.has(tourId);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (alreadyFavorited) next.delete(tourId);
+      else next.add(tourId);
+      return next;
+    });
+    const request = alreadyFavorited
+      ? fetch(`${API_URL}/api/favorites/${tourId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      : fetch(`${API_URL}/api/favorites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ tour_id: tourId }),
+        });
+    request.catch(() => {
+      // Revert the optimistic update if the request itself failed (e.g.
+      // backend unreachable) - a non-ok response still leaves the toggle
+      // as the user intended, since the failure modes there (already
+      // favorited, tour not found) don't warrant flipping it back.
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (alreadyFavorited) next.add(tourId);
+        else next.delete(tourId);
+        return next;
+      });
+    });
+  }
   const [operators, setOperators] = useState<Record<number, string>>({});
   // Operator vehicle_features (raw comma-separated string), keyed by
   // operator id - drives the "Vehicle filters" section below, which
@@ -68,12 +117,11 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
 
-  // Hero search card state. fromCity is decorative only (see
-  // HeroSearchCard's comment - tours have no origin-city field to filter
-  // by). departDate/returnDate are a date-range filter, not a literal
-  // round trip - both default to today, set client-side after mount to
-  // avoid a server/client render mismatch on the initial date.
-  const [fromCity, setFromCity] = useState('Bakı');
+  // Hero search card state. "Haradan?" is a static "Bakı" with no state of
+  // its own (see HeroSearchCard's comment - tours have no origin-city
+  // field to filter by). departDate/returnDate are a date-range filter,
+  // not a literal round trip - both default to today, set client-side
+  // after mount to avoid a server/client render mismatch on the initial date.
   const [departDate, setDepartDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [travelers, setTravelers] = useState('');
@@ -309,8 +357,6 @@ export default function Home() {
           touches the screen edges. */}
       <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative z-20 -mt-8 md:-mt-10">
         <HeroSearchCard
-          fromCity={fromCity}
-          onFromCityChange={setFromCity}
           toLocation={locationFilter}
           onToLocationChange={setLocationFilter}
           departDate={departDate}
@@ -383,6 +429,8 @@ export default function Home() {
                   tour={tour}
                   operatorName={operators[tour.operator_id]}
                   onClick={() => router.push(`/tours/${tour.id}`)}
+                  isFavorited={favoriteIds.has(tour.id)}
+                  onToggleFavorite={() => toggleFavorite(tour.id)}
                 />
               </div>
             ))}
@@ -642,6 +690,8 @@ export default function Home() {
                     compareSelected={compareSelectedIds.includes(tour.id)}
                     compareDisabled={!compareSelectedIds.includes(tour.id) && compareSelectedIds.length >= 3}
                     onToggleCompare={() => toggleCompareSelect(tour.id)}
+                    isFavorited={favoriteIds.has(tour.id)}
+                    onToggleFavorite={() => toggleFavorite(tour.id)}
                   />
                 ))}
               </div>

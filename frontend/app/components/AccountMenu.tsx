@@ -1,21 +1,19 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { User as UserIcon, Ticket, History, LogOut, FileText } from 'lucide-react';
+import { User as UserIcon, Heart, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
-export type AccountSection = 'info' | 'documents' | 'bookings' | 'history';
+export type AccountSection = 'info' | 'favorites';
 
 const ITEMS: { id: AccountSection; labelKey: TranslationKey; Icon: any }[] = [
   { id: 'info', labelKey: 'account.personalInfo', Icon: UserIcon },
-  { id: 'documents', labelKey: 'account.myDocuments', Icon: FileText },
-  { id: 'bookings', labelKey: 'account.myBookings', Icon: Ticket },
-  { id: 'history', labelKey: 'account.history', Icon: History },
+  { id: 'favorites', labelKey: 'account.favorites', Icon: Heart },
 ];
 
 // Small anchored dropdown ("pocket") that appears right under the avatar
-// when it's clicked - just a 3-row menu, not a container for the actual
+// when it's clicked - just a row menu, not a container for the actual
 // content. Picking a row closes this and opens that section's own
 // focused modal (AccountDetailModal). Not portaled - it's small and lives
 // right next to its trigger, so it doesn't need to escape any stacking

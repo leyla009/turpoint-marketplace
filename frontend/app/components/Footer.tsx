@@ -40,9 +40,6 @@ export default function Footer() {
             <Link href="/" className="text-sm text-white/85 hover:text-white transition-colors">
               {t('nav.home')}
             </Link>
-            <Link href="/bookings" className="text-sm text-white/85 hover:text-white transition-colors">
-              {t('nav.bookings')}
-            </Link>
           </nav>
         </div>
 

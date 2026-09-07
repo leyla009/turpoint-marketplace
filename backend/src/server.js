@@ -19,6 +19,7 @@ import bookingsRouter from './routes/bookings.js';
 import reviewsRouter from './routes/reviews.js';
 import dealsRouter from './routes/deals.js';
 import plannerRouter from './routes/planner.js';
+import favoritesRouter from './routes/favorites.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json'), 'utf-8'));
@@ -93,6 +94,7 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/deals', dealsRouter);
 app.use('/api/planner', plannerRouter);
+app.use('/api/favorites', favoritesRouter);
 
 // Mərhələ 4: frontend-only work from here - no more backend routers to mount.
 

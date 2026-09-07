@@ -12,8 +12,10 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Clock,
   MessageSquare,
+  MessageCircle,
+  AtSign,
+  Heart,
   Send,
   Pencil,
   Trash2,
@@ -56,17 +58,8 @@ interface Operator {
   vehicle_features?: string;
   photo_url?: string | null;
   phone?: string | null;
+  phone_verified?: number | null;
   instagram?: string | null;
-}
-
-interface GroupFormation {
-  id: number;
-  tour_id: number;
-  total_cost: number;
-  min_participants: number;
-  current_participants: number;
-  price_per_person: number;
-  status: 'waiting' | 'forming' | 'confirmed' | 'cancelled';
 }
 
 interface Review {
@@ -109,12 +102,10 @@ export default function TourDetail() {
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
   const [showOperatorModal, setShowOperatorModal] = useState(false);
-  const [group, setGroup] = useState<GroupFormation | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   const [loadingTour, setLoadingTour] = useState(true);
-  const [loadingGroup, setLoadingGroup] = useState(true);
-  const [groupError, setGroupError] = useState<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -129,15 +120,10 @@ export default function TourDetail() {
   const [editError, setEditError] = useState<string | null>(null);
   const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
 
-  // Reviews are gated on the backend to travelers with a *confirmed*
-  // booking on this specific tour (Sprint 4 hardening - see reviews.js).
-  // The old form here predated that and just took a free-text name/email,
-  // which the backend no longer accepts at all - so this checks eligibility
-  // up front and reflects it in the UI, instead of letting someone fill out
-  // a form that's guaranteed to fail.
-  const [eligibility, setEligibility] = useState<'loading' | 'eligible' | 'not-eligible' | 'not-logged-in'>(
-    'loading'
-  );
+  // Any logged-in traveler can review a tour now (the old "confirmed
+  // booking" requirement was removed along with in-app booking - see
+  // reviews.js). This just tracks whether someone's logged in at all.
+  const [eligibility, setEligibility] = useState<'loading' | 'eligible' | 'not-logged-in'>('loading');
 
   const fetchReviews = useCallback(() => {
     if (!id) return;
@@ -148,24 +134,38 @@ export default function TourDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
-    if (!token) {
-      setEligibility('not-logged-in');
-      return;
-    }
-    setEligibility('loading');
-    fetch(`${API_URL}/api/bookings/my-trips`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((bookings) => {
-        const hasConfirmed = Array.isArray(bookings)
-          ? bookings.some((b: any) => b.tour_id === Number(id) && b.status === 'confirmed')
-          : false;
-        setEligibility(hasConfirmed ? 'eligible' : 'not-eligible');
-      })
-      .catch(() => setEligibility('not-eligible'));
-  }, [id, token]);
+    setEligibility(token ? 'eligible' : 'not-logged-in');
+  }, [token]);
 
   const alreadyReviewed = user ? reviews.some((r) => r.user_id === user.id) : false;
+
+  useEffect(() => {
+    if (!id || !token) {
+      setIsFavorited(false);
+      return;
+    }
+    fetch(`${API_URL}/api/favorites`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setIsFavorited(Array.isArray(data) ? data.some((f: any) => f.id === Number(id)) : false))
+      .catch(() => {});
+  }, [id, token]);
+
+  function toggleFavorite() {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    const wasFavorited = isFavorited;
+    setIsFavorited(!wasFavorited);
+    const request = wasFavorited
+      ? fetch(`${API_URL}/api/favorites/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      : fetch(`${API_URL}/api/favorites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ tour_id: Number(id) }),
+        });
+    request.catch(() => setIsFavorited(wasFavorited));
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -189,23 +189,6 @@ export default function TourDetail() {
       })
       .catch(() => !cancelled && setTour(null))
       .finally(() => !cancelled && setLoadingTour(false));
-
-    setLoadingGroup(true);
-    setGroupError(null);
-    setGroup(null);
-    // GET /api/group-formations?tour_id=... returns a single group object
-    // (or null) for that tour, never an array - the endpoint doesn't
-    // support an unfiltered "list every group" call. Passing tour_id here
-    // mirrors the same fix already applied on the booking checkout page.
-    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((currentGroup) => {
-        if (cancelled) return;
-        if (currentGroup) setGroup(currentGroup);
-        else setGroupError('none');
-      })
-      .catch(() => !cancelled && setGroupError('error'))
-      .finally(() => !cancelled && setLoadingGroup(false));
 
     fetchReviews();
 
@@ -305,12 +288,11 @@ export default function TourDetail() {
 
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
   const starCounts = [5, 4, 3, 2, 1].map((star) => reviews.filter((r) => r.rating === star).length);
-  const progressPct = group
-    ? Math.min(100, Math.round((group.current_participants / group.min_participants) * 100))
-    : 0;
 
-  const effectivePrice = group?.price_per_person ?? tour?.discounted_price ?? tour?.price;
+  const effectivePrice = tour?.discounted_price ?? tour?.price;
   const tourFeatures = parseFeatures(tour?.features);
+  const whatsappUrl = operator?.phone_verified && operator.phone ? `https://wa.me/${operator.phone.replace(/\D/g, '')}` : null;
+  const instagramUrl = operator?.instagram ? `https://instagram.com/${operator.instagram}` : null;
 
   return (
     <div className="min-h-full">
@@ -367,12 +349,21 @@ export default function TourDetail() {
           </div>
 
           {/* Title & meta */}
-          <h1
-            className="text-2xl sm:text-3xl font-bold text-foreground mb-2"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {tour.title}
-          </h1>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h1
+              className="text-2xl sm:text-3xl font-bold text-foreground"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {tour.title}
+            </h1>
+            <button
+              onClick={toggleFavorite}
+              title={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
+              className="shrink-0 w-10 h-10 mt-1 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/40 transition-colors"
+            >
+              <Heart size={18} className={isFavorited ? 'fill-danger text-danger' : 'text-muted-foreground'} />
+            </button>
+          </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4">
             {tour.location && (
@@ -457,75 +448,42 @@ export default function TourDetail() {
             </div>
           )}
 
-          {/* Join a group — the core differentiator, given visual weight */}
+          {/* Contact the operator - replaces the old in-app group-booking
+              flow entirely. Instagram is always shown if the operator set
+              a handle; WhatsApp only shows once the operator's phone has
+              actually been verified (see the profile page's send/verify
+              flow), so this never points travelers at an unconfirmed number. */}
           <div className="mb-6 rounded-2xl border-2 border-primary/25 bg-primary/[0.04] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <Users size={15} className="text-primary" /> {t('tourDetail.joinGroup')}
-              </h2>
-              {group && (
-                <span
-                  className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    group.status === 'confirmed'
-                      ? 'bg-accent/15 text-accent'
-                      : group.status === 'cancelled'
-                      ? 'bg-muted text-muted-foreground'
-                      : 'bg-primary/15 text-primary'
-                  }`}
-                >
-                  {group.status === 'confirmed' && <CheckCircle2 size={10} />}
-                  {(group.status === 'waiting' || group.status === 'forming') && <Clock size={10} />}
-                  {t(`tourDetail.groupStatus.${group.status}` as TranslationKey)}
-                </span>
-              )}
-            </div>
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-1">
+              <MessageCircle size={15} className="text-primary" /> {t('tourDetail.contactUs')}
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">{t('tourDetail.contactHint')}</p>
 
-            {loadingGroup && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 size={12} className="animate-spin" /> {t('tourDetail.checkingGroupStatus')}
-              </p>
-            )}
-
-            {!loadingGroup && groupError && !group && (
-              <p className="text-xs text-muted-foreground">
-                {groupError === 'error' ? t('home.couldntReachBackend') : t('tourDetail.noGroupYet')}
-              </p>
-            )}
-
-            {group && (
-              <>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-2">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      group.status === 'confirmed' ? 'bg-accent' : 'bg-primary'
-                    }`}
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-muted-foreground">
-                    {t('tourDetail.joinedToConfirm', { current: group.current_participants, min: group.min_participants })}
-                  </p>
-                  <p className="text-sm font-bold text-primary">
-                    AZN{group.price_per_person}
-                    <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
-                  </p>
-                </div>
-
-                {(group.status === 'waiting' || group.status === 'forming') && (
-                  <p className="text-xs text-muted-foreground">{t('tourDetail.bookSeatsHelp')}</p>
+            {whatsappUrl || instagramUrl ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                {whatsappUrl && (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    <MessageCircle size={15} /> {t('tourDetail.messageOnWhatsapp')}
+                  </a>
                 )}
-
-                {group.status === 'confirmed' && (
-                  <p className="text-xs text-accent font-medium flex items-center gap-1.5">
-                    <CheckCircle2 size={13} /> {t('tourDetail.minimumReached')}
-                  </p>
+                {instagramUrl && (
+                  <a
+                    href={instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-card border border-border text-foreground text-sm font-semibold py-2.5 rounded-xl hover:border-primary/40 transition-colors"
+                  >
+                    <AtSign size={15} /> {t('tourDetail.viewInstagram')}
+                  </a>
                 )}
-
-                {group.status === 'cancelled' && (
-                  <p className="text-xs text-muted-foreground">{t('tourDetail.groupCancelled')}</p>
-                )}
-              </>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('tourDetail.noContactYet')}</p>
             )}
           </div>
 
@@ -580,11 +538,6 @@ export default function TourDetail() {
                   {t('nav.logIn')}
                 </Link>
                 {t('tourDetail.loginToReview')}
-              </p>
-            )}
-            {eligibility === 'not-eligible' && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                {t('tourDetail.notEligible')}
               </p>
             )}
             {eligibility === 'eligible' && alreadyReviewed && (
@@ -751,18 +704,31 @@ export default function TourDetail() {
             </p>
           </div>
 
-          <Link
-            href={`/tours/${tour.id}/book`}
-            className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
-          >
-            {group && (group.status === 'waiting' || group.status === 'forming')
-              ? t('tourDetail.joinGroupCta')
-              : t('tourDetail.bookNow')}
-          </Link>
-
-          {group && (group.status === 'waiting' || group.status === 'forming') && (
-            <p className="text-[11px] text-muted-foreground text-center mt-3">{t('booking.notChargedYet')}</p>
-          )}
+          <div className="space-y-2">
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+              >
+                <MessageCircle size={16} /> {t('tourDetail.messageOnWhatsapp')}
+              </a>
+            )}
+            {instagramUrl && (
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold py-3 rounded-xl hover:border-primary/40 transition-colors"
+              >
+                <AtSign size={16} /> {t('tourDetail.viewInstagram')}
+              </a>
+            )}
+            {!whatsappUrl && !instagramUrl && (
+              <p className="text-xs text-muted-foreground text-center">{t('tourDetail.noContactYet')}</p>
+            )}
+          </div>
         </aside>
         </div>
       )}
@@ -776,14 +742,31 @@ export default function TourDetail() {
               <p className="text-[10px] text-muted-foreground">{t('tourDetail.perPerson')}</p>
               <p className="text-lg font-bold text-primary">AZN {effectivePrice}</p>
             </div>
-            <Link
-              href={`/tours/${tour.id}/book`}
-              className="flex-1 max-w-[220px] bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-            >
-              {group && (group.status === 'waiting' || group.status === 'forming')
-                ? t('tourDetail.joinGroupCta')
-                : t('tourDetail.bookNow')}
-            </Link>
+            <div className="flex items-center gap-2 flex-1 max-w-[260px]">
+              {whatsappUrl && (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={15} /> {t('tourDetail.messageOnWhatsapp')}
+                </a>
+              )}
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={t('tourDetail.viewInstagram')}
+                  className={`${
+                    whatsappUrl ? 'shrink-0 w-11 h-11' : 'flex-1'
+                  } bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center`}
+                >
+                  <AtSign size={16} />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

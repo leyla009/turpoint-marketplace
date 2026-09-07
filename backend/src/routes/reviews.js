@@ -2,9 +2,15 @@
 // Identity derived strictly from verified JWT (removed guest account / client-supplied user_id fallback).
 //
 // Sprint 4:
-// - Verified buyers only: Requires a 'confirmed' booking on the target tour.
 // - Edit/Delete support: Added ownership-gated PUT/DELETE /api/reviews/:id with rating rollup recalculation.
 // - Rate limiting: Added rolling-window rate limit on new review creation to prevent burst reviews.
+//
+// The "verified buyer" (confirmed booking) gate that used to live here was
+// removed once booking-through-the-app was replaced by contacting the
+// operator directly (see tours/[id] page) - there's no more "confirmed
+// booking" for a traveler to ever have, so any logged-in traveler can
+// review a tour now. The one-review-per-tour and rate-limit checks below
+// still apply.
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
@@ -44,18 +50,7 @@ router.post('/', requireAuth, (req, res) => {
  
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
- 
-  // Verified-buyer gate: you can only review a tour you actually have a
-  // confirmed (settled) booking on. A 'pending' booking - still waiting on
-  // its group to hit minimum - doesn't count, and neither does a
-  // 'cancelled' one.
-  const verifiedBooking = db
-    .prepare("SELECT id FROM bookings WHERE tour_id = ? AND user_id = ? AND status = 'confirmed'")
-    .get(tour_id, req.user.userId);
-  if (!verifiedBooking) {
-    return res.status(403).json({ error: 'you can only review tours you have a confirmed booking for' });
-  }
- 
+
   // One review per user per tour - prevents a single account from
   // stacking ratings on the same tour to skew the operator average.
   const existing = db

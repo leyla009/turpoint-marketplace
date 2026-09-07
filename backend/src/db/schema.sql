@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS last_minute_deals (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Traveler-saved tours ("Sevimlilər" in the account menu, and the heart
+-- icon on tour cards) - a plain many-to-many with no extra state per save.
+CREATE TABLE IF NOT EXISTS favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  tour_id INTEGER NOT NULL REFERENCES tours(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, tour_id)
+);
+
 -- Sprint 3: indexes for the query patterns the routes actually use (search
 -- filters, ownership lookups, and the per-tour joins on bookings/reviews/
 -- deals/group_formations). IF NOT EXISTS makes these safe to re-run on
@@ -109,4 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_group_formations_tour_id ON group_formations(tour
 
 CREATE INDEX IF NOT EXISTS idx_deals_tour_id ON last_minute_deals(tour_id);
 CREATE INDEX IF NOT EXISTS idx_deals_expires_at ON last_minute_deals(expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_tour_id ON favorites(tour_id);
  

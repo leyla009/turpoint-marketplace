@@ -6,8 +6,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { AZERBAIJAN_CITIES } from '../lib/azerbaijanCities';
 
 interface HeroSearchCardProps {
-  fromCity: string;
-  onFromCityChange: (value: string) => void;
   toLocation: string;
   onToLocationChange: (value: string) => void;
   departDate: string;
@@ -22,17 +20,17 @@ interface HeroSearchCardProps {
 // Floating hero search card, styled after a flights-style search bar but
 // scoped to what a tour marketplace actually has: one destination and one
 // date per tour, not an origin airport or a round trip.
-// - "Haradan?" is decorative only, by product decision - there's no origin
-//   city in the tour data, so it can't filter anything real yet.
+// - "Haradan?" is a static "Bakı", not editable - by product decision,
+//   every tour departs from Baku, there's no origin-city field in the
+//   tour data to filter by anyway.
 // - "Hara?" drives the same locationFilter state as the location dropdown
 //   further down the page - both stay in sync from one source of truth.
 // - "Gediş"/"Qayıdış" are a date RANGE filter (backend's fromDate/toDate),
 //   not a literal round-trip - relabeled to fit this layout.
-// - "Sərnişin sayı" filters out tours whose max_participants is below the
+// - "Nəqliyyatın tutumu" (vehicle capacity) filters out tours whose
+//   max_participants (== the "Yer sayı" set on the tour) is below the
 //   requested count.
 export default function HeroSearchCard({
-  fromCity,
-  onFromCityChange,
   toLocation,
   onToLocationChange,
   departDate,
@@ -49,17 +47,7 @@ export default function HeroSearchCard({
     <div className="bg-accent rounded-2xl shadow-xl p-1.5">
       <div className="flex flex-col md:flex-row gap-1.5 md:items-stretch">
         <Field label={t('search.from')} icon={<Navigation size={15} className="text-muted-foreground shrink-0" />}>
-          <select
-            value={fromCity}
-            onChange={(e) => onFromCityChange(e.target.value)}
-            className="w-full bg-transparent outline-none text-sm font-medium text-foreground appearance-none cursor-pointer"
-          >
-            {AZERBAIJAN_CITIES.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
+          <span className="text-sm font-medium text-foreground truncate">Bakı</span>
         </Field>
 
         <DestinationField label={t('search.to')} value={toLocation} onChange={onToLocationChange} />

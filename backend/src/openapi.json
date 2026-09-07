@@ -815,7 +815,7 @@
     },
     "/reviews": {
       "post": {
-        "summary": "Post a review - requires login and a confirmed booking on the tour (verified buyers only); identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
+        "summary": "Post a review - requires login; identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
         "security": [
           {
             "bearerAuth": []
@@ -841,9 +841,6 @@
           },
           "401": {
             "description": "Missing/invalid token"
-          },
-          "403": {
-            "description": "No confirmed booking on this tour by this user - reviews are restricted to verified buyers"
           },
           "404": {
             "description": "Tour not found"
@@ -1020,6 +1017,86 @@
         "responses": {
           "200": {
             "description": "Selected tours with reasons, total_price, remaining_budget"
+          }
+        }
+      }
+    },
+    "/favorites": {
+      "get": {
+        "summary": "List the logged-in traveler's favorited tours (full tour rows, newest favorited first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of favorited tours"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          }
+        }
+      },
+      "post": {
+        "summary": "Favorite a tour - idempotent, favoriting an already-favorited tour just returns the existing row",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tour_id": 5
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Favorited"
+          },
+          "200": {
+            "description": "Already favorited - returned as-is"
+          },
+          "400": {
+            "description": "Missing tour_id"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "Tour not found"
+          }
+        }
+      }
+    },
+    "/favorites/{tourId}": {
+      "delete": {
+        "summary": "Un-favorite a tour - succeeds even if it wasn't favorited",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tourId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing/invalid token"
           }
         }
       }

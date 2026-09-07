@@ -1,6 +1,6 @@
 'use client';
 
-import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock, ChevronRight } from 'lucide-react';
+import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock, ChevronRight, Heart } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
@@ -40,6 +40,8 @@ export default function TourCard({
   compareSelected = false,
   compareDisabled = false,
   onToggleCompare,
+  isFavorited = false,
+  onToggleFavorite,
 }: {
   tour: ApiTour;
   operatorName?: string;
@@ -50,6 +52,11 @@ export default function TourCard({
   /** True once the compare cap (3) is hit and this card isn't already selected. */
   compareDisabled?: boolean;
   onToggleCompare?: () => void;
+  /** Heart icon overlay - shares the same corner as the compare checkbox,
+   * so it only shows when compareMode is off. Omit onToggleFavorite to
+   * hide the heart entirely (e.g. while auth state is still loading). */
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
 }) {
   const { t } = useLanguage();
   const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
@@ -99,7 +106,7 @@ export default function TourCard({
           ) : (
             <span />
           )}
-          {compareMode && (
+          {compareMode ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -117,6 +124,19 @@ export default function TourCard({
             >
               {compareSelected && <Check size={14} className="text-white" />}
             </button>
+          ) : (
+            onToggleFavorite && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite();
+                }}
+                title={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
+                className="w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center transition-colors shrink-0"
+              >
+                <Heart size={14} className={isFavorited ? 'fill-danger text-danger' : 'text-foreground/60'} />
+              </button>
+            )
           )}
         </div>
 
