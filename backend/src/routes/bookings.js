@@ -49,30 +49,36 @@ router.post('/', requireAuth, (req, res) => {
       .prepare("SELECT * FROM group_formations WHERE tour_id = ? AND status IN ('waiting','forming')")
       .get(tour_id);
  
+    // Price is always the tour's flat listed price - no more "total cost
+    // pool divided by however many have joined so far" math, which used to
+    // show an early/solo booker the FULL group's cost until enough people
+    // joined. min_participants/max_participants still gate when a group
+    // is considered "confirmed" (a social/logistics threshold), they just
+    // no longer affect what anyone actually pays. Operators wanting a
+    // different price for early bookers should use the manual "create
+    // deal" feature instead.
+    const flatPrice = tour.price;
+
     if (openGroup) {
       const newCount = openGroup.current_participants + seats;
       if (newCount > tour.max_participants) {
         throw new Error(`only ${tour.max_participants - openGroup.current_participants} spot(s) left in this group`);
       }
-      const finalPricePerPerson = Math.round((openGroup.total_cost / newCount) * 100) / 100;
       const nowConfirmed = newCount >= openGroup.min_participants;
- 
+
       db.prepare('UPDATE group_formations SET current_participants = ?, price_per_person = ?, status = ? WHERE id = ?')
-        .run(newCount, finalPricePerPerson, nowConfirmed ? 'confirmed' : 'forming', openGroup.id);
- 
+        .run(newCount, flatPrice, nowConfirmed ? 'confirmed' : 'forming', openGroup.id);
+
       if (nowConfirmed) {
-        // This booking tipped the group over - settle every earlier pending
-        // booking on it at the SAME final price, so nobody pays more just
-        // for having booked first.
+        // This booking tipped the group over - every earlier pending
+        // booking on it was already priced flat, so just flip their status.
         const pendingBookings = db
-          .prepare("SELECT * FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
+          .prepare("SELECT id FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
           .all(openGroup.id);
-        const settlePending = db.prepare('UPDATE bookings SET total_price = ?, status = ? WHERE id = ?');
-        pendingBookings.forEach((b) => {
-          settlePending.run(Math.round(finalPricePerPerson * b.seats * 100) / 100, 'confirmed', b.id);
-        });
- 
-        const totalPrice = Math.round(finalPricePerPerson * seats * 100) / 100;
+        const settlePending = db.prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?");
+        pendingBookings.forEach((b) => settlePending.run(b.id));
+
+        const totalPrice = Math.round(flatPrice * seats * 100) / 100;
         const result = db
           .prepare(
             `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
@@ -81,9 +87,9 @@ router.post('/', requireAuth, (req, res) => {
           .run(tour_id, resolvedUser.id, openGroup.id, seats, totalPrice, ticketCode);
         return { bookingId: result.lastInsertRowid };
       }
- 
+
       // Still short of the minimum - held as pending until the group settles.
-      const estimatedTotal = Math.round(finalPricePerPerson * seats * 100) / 100;
+      const estimatedTotal = Math.round(flatPrice * seats * 100) / 100;
       const result = db
         .prepare(
           `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
@@ -92,11 +98,11 @@ router.post('/', requireAuth, (req, res) => {
         .run(tour_id, resolvedUser.id, openGroup.id, seats, estimatedTotal, ticketCode);
       return { bookingId: result.lastInsertRowid };
     }
- 
+
     const confirmedGroup = db
       .prepare("SELECT * FROM group_formations WHERE tour_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1")
       .get(tour_id);
- 
+
     if (confirmedGroup) {
       // Fixed: this path never checked remaining capacity, unlike the
       // waiting/forming path above - a confirmed group could be
@@ -104,37 +110,36 @@ router.post('/', requireAuth, (req, res) => {
       if (confirmedGroup.current_participants + seats > tour.max_participants) {
         throw new Error(`only ${tour.max_participants - confirmedGroup.current_participants} spot(s) left on this tour`);
       }
- 
-      const totalPrice = Math.round(confirmedGroup.price_per_person * seats * 100) / 100;
+
+      const totalPrice = Math.round(flatPrice * seats * 100) / 100;
       const result = db
         .prepare(
           `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)
            VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
         )
         .run(tour_id, resolvedUser.id, confirmedGroup.id, seats, totalPrice, ticketCode);
- 
+
       // Keep current_participants in sync so the capacity check above stays
       // accurate for the NEXT booking too, not just this one.
       db.prepare('UPDATE group_formations SET current_participants = current_participants + ? WHERE id = ?')
         .run(seats, confirmedGroup.id);
- 
+
       return { bookingId: result.lastInsertRowid };
     }
- 
+
     // No group exists for this tour yet - this booking starts one.
     const totalCost = tour.price * tour.min_participants;
-    const finalPricePerPerson = Math.round((totalCost / seats) * 100) / 100;
     const nowConfirmed = seats >= tour.min_participants;
     const newStatus = nowConfirmed ? 'confirmed' : 'forming';
- 
+
     const groupResult = db
       .prepare(
         `INSERT INTO group_formations (tour_id, total_cost, min_participants, current_participants, price_per_person, status)
          VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(tour_id, totalCost, tour.min_participants, seats, finalPricePerPerson, newStatus);
- 
-    const totalPrice = Math.round(finalPricePerPerson * seats * 100) / 100;
+      .run(tour_id, totalCost, tour.min_participants, seats, flatPrice, newStatus);
+
+    const totalPrice = Math.round(flatPrice * seats * 100) / 100;
     const bookingResult = db
       .prepare(
         `INSERT INTO bookings (tour_id, user_id, group_formation_id, seats, total_price, status, ticket_code)

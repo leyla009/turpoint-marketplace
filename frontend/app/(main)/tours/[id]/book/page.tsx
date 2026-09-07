@@ -46,21 +46,13 @@ export default function BookTour() {
       .catch(() => setGroup(null));
   }, [id]);
 
-  const previewPricePerPerson = (() => {
-    if (!tour) return 0;
-    if (group && (group.status === 'waiting' || group.status === 'forming')) {
-      const projectedCount = group.current_participants + seats;
-      return Math.round((group.total_cost / projectedCount) * 100) / 100;
-    }
-    if (group && group.status === 'confirmed') {
-      return group.price_per_person;
-    }
-    if (!group) {
-      const totalCost = tour.price * tour.min_participants;
-      return Math.round((totalCost / seats) * 100) / 100;
-    }
-    return tour.discounted_price ?? tour.price;
-  })();
+  // Price is always the tour's flat listed price - matches bookings.js,
+  // which no longer divides a "total group cost" pool by however many
+  // people have joined so far (that used to show a solo/early booker the
+  // FULL group's cost until enough people joined). min_participants still
+  // gates when the group counts as "confirmed" below, it just no longer
+  // affects what anyone pays.
+  const previewPricePerPerson = tour ? tour.discounted_price ?? tour.price : 0;
 
   const total = previewPricePerPerson * seats;
 

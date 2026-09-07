@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Loader2 } from 'lucide-react';
-import { useAuth, useRequireAuth } from '../../../context/AuthContext';
-import { useLanguage } from '../../../context/LanguageContext';
-import NewTourContent, { type ExistingTour } from '../../../components/NewTourContent';
+import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import NewTourContent, { type ExistingTour } from '@/app/components/NewTourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 

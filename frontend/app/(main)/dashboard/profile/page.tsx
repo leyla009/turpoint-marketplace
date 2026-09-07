@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Store, Camera, AtSign, Phone, CheckCircle2 } from 'lucide-react';
-import { useAuth, useRequireAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { useLanguage } from '../../context/LanguageContext';
+import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
+import { useToast } from '@/app/context/ToastContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const PHONE_PREFIX = '+994';
