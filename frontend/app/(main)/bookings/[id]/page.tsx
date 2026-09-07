@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-react';
-import { useAuth, useRequireAuth } from '../../context/AuthContext';
-import { useLanguage } from '../../context/LanguageContext';
-import PageContainer from '../../components/PageContainer';
+import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import PageContainer from '@/app/components/PageContainer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 

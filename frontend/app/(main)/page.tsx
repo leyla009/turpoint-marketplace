@@ -5,24 +5,27 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
-  Users2, ShieldCheck, Wallet, ChevronDown, MapPin,
+  Users2, ShieldCheck, Wallet, ChevronDown, MapPin, LogIn,
 } from 'lucide-react';
-import TourCard, { ApiTour, CATEGORY_STYLE } from './components/TourCard';
-import Greeting from './components/Greeting';
-import HeroSlideshow from './components/HeroSlideshow';
-import HeroSearchCard from './components/HeroSearchCard';
-import PriceRangeSlider from './components/PriceRangeSlider';
-import CompareModal from './components/CompareModal';
-import PlannerModal from './components/PlannerModal';
-import { TOUR_FEATURES, parseFeatures } from './lib/tourFeatures';
-import { VEHICLE_FEATURES, parseVehicleFeatures } from './lib/vehicleFeatures';
-import { todayLocalISODate } from './lib/date';
-import { useLanguage } from './context/LanguageContext';
-import type { TranslationKey } from './lib/translations';
+import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
+import Greeting from '@/app/components/Greeting';
+import HeroSlideshow from '@/app/components/HeroSlideshow';
+import HeroSearchCard from '@/app/components/HeroSearchCard';
+import HorizontalScroller from '@/app/components/HorizontalScroller';
+import PriceRangeSlider from '@/app/components/PriceRangeSlider';
+import CompareModal from '@/app/components/CompareModal';
+import PlannerModal from '@/app/components/PlannerModal';
+import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
+import { VEHICLE_FEATURES, parseVehicleFeatures } from '@/app/lib/vehicleFeatures';
+import { todayLocalISODate } from '@/app/lib/date';
+import { useAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import type { TranslationKey } from '@/app/lib/translations';
+import Link from 'next/link';
 
 // Leaflet touches `window` at import time, so it can only run in the
 // browser — ssr: false keeps Next from trying to render it server-side.
-const DestinationMap = dynamic(() => import('./components/DestinationMap'), {
+const DestinationMap = dynamic(() => import('@/app/components/DestinationMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-64 sm:h-80 rounded-xl border border-border bg-card animate-pulse" />
@@ -33,6 +36,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function Home() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [tours, setTours] = useState<ApiTour[]>([]);
   const [operators, setOperators] = useState<Record<number, string>>({});
@@ -372,9 +376,9 @@ export default function Home() {
           <h2 className="flex items-center gap-1.5 text-base font-bold text-foreground mb-3">
             <Zap size={16} className="text-accent" /> {t('home.lastMinuteDeals')}
           </h2>
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+          <HorizontalScroller>
             {dealTours.map((tour) => (
-              <div key={tour.id} className="w-64 shrink-0">
+              <div key={tour.id} className="w-64 shrink-0 snap-start">
                 <TourCard
                   tour={tour}
                   operatorName={operators[tour.operator_id]}
@@ -382,7 +386,7 @@ export default function Home() {
                 />
               </div>
             ))}
-          </div>
+          </HorizontalScroller>
         </div>
       )}
 
@@ -392,7 +396,7 @@ export default function Home() {
       {!loading && destinations.length > 0 && (
         <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
           <h2 className="text-base font-bold text-foreground mb-3">{t('home.popularDestinations')}</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <HorizontalScroller>
             {destinations.map((d) => {
               const style = CATEGORY_STYLE[d.category ?? ''] ?? CATEGORY_STYLE.history;
               const DIcon = style.Icon;
@@ -400,12 +404,18 @@ export default function Home() {
                 <button
                   key={d.location}
                   onClick={() => selectDestination(d.location)}
-                  className={`text-left rounded-xl border overflow-hidden bg-card hover:shadow-md transition-all group ${
+                  className={`text-left rounded-xl border overflow-hidden bg-card hover:shadow-md transition-all group w-36 sm:w-44 shrink-0 snap-start ${
                     locationFilter === d.location ? 'border-accent ring-2 ring-accent/30' : 'border-border'
                   }`}
                 >
-                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
-                    <DIcon size={22} className="text-white/80 group-hover:scale-110 transition-transform" />
+                  <div
+                    className={`relative h-24 sm:h-28 bg-gradient-to-br ${style.gradient} flex items-center justify-center overflow-hidden`}
+                  >
+                    <div
+                      className="absolute inset-0 opacity-[0.12]"
+                      style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
+                    />
+                    <DIcon size={26} className="text-white/80 group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="p-2.5">
                     <p className="text-sm font-semibold text-foreground truncate">{d.location}</p>
@@ -419,6 +429,32 @@ export default function Home() {
                 </button>
               );
             })}
+          </HorizontalScroller>
+        </div>
+      )}
+
+      {/* Sign-in prompt - only for logged-out visitors, and only ever
+          points at real functionality (managing bookings, faster
+          checkout) - no fabricated "member discounts" like a booking
+          site's loyalty program would claim, since we don't have one. */}
+      {!authLoading && !user && (
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
+          <div className="bg-primary rounded-2xl px-5 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                <LogIn size={18} className="text-white" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-white">{t('home.signInBannerTitle')}</p>
+                <p className="text-xs text-white/80 mt-0.5">{t('home.signInBannerBody')}</p>
+              </div>
+            </div>
+            <Link
+              href="/login"
+              className="shrink-0 bg-white text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              {t('nav.signIn')}
+            </Link>
           </div>
         </div>
       )}

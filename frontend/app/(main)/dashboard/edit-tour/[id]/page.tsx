@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Loader2 } from 'lucide-react';
-import { useAuth, useRequireAuth } from '../../../context/AuthContext';
-import { useToast } from '../../../context/ToastContext';
-import { TOUR_FEATURES, parseFeatures } from '../../../lib/tourFeatures';
-import { useLanguage } from '../../../context/LanguageContext';
-import type { TranslationKey } from '../../../lib/translations';
+import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
+import { useToast } from '@/app/context/ToastContext';
+import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
+import { useLanguage } from '@/app/context/LanguageContext';
+import type { TranslationKey } from '@/app/lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];

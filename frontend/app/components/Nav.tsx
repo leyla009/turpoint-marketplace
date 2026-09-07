@@ -17,11 +17,11 @@ import AccountDetailModal from './AccountDetailModal';
 // hero nav switches to its solid background - roughly the hero's height.
 const HERO_SCROLL_THRESHOLD = 260;
 
-const LANGUAGES: { locale: Locale; flag: string }[] = [
-  { locale: 'az', flag: '🇦🇿' },
-  { locale: 'en', flag: '🇬🇧' },
-  { locale: 'ru', flag: '🇷🇺' },
-];
+// Plain language codes, not flag emoji - a flag maps to a country, not a
+// language (and English in particular has no single flag for it), and
+// flag emoji render as bare two-letter fallback text on systems without
+// full color-emoji fonts anyway, which was showing "GB" for English.
+const LANGUAGES: Locale[] = ['az', 'en', 'ru'];
 
 const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
@@ -79,7 +79,7 @@ export default function Nav() {
         className={`hidden md:block sticky top-0 z-40 transition-colors duration-300 ${
           transparent
             ? 'bg-gradient-to-b from-black/45 via-black/15 to-transparent'
-            : 'bg-gradient-to-r from-primary to-[#2E5B47] shadow-md'
+            : 'bg-primary shadow-sm'
         }`}
       >
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
@@ -160,17 +160,17 @@ export default function Nav() {
                 every t()-driven string on the site re-renders in the new
                 language immediately, no page reload needed. */}
             <div className="flex items-center gap-0.5 bg-white/15 rounded-full p-1">
-              {LANGUAGES.map(({ locale: l, flag }) => (
+              {LANGUAGES.map((l) => (
                 <button
                   key={l}
                   onClick={() => setLocale(l)}
                   title={l.toUpperCase()}
                   aria-label={l.toUpperCase()}
-                  className={`w-7 h-7 flex items-center justify-center rounded-full text-sm leading-none transition-all ${
-                    locale === l ? 'bg-white shadow-sm' : 'opacity-70 hover:opacity-100'
+                  className={`h-7 px-2.5 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
+                    locale === l ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white'
                   }`}
                 >
-                  {flag}
+                  {l.toUpperCase()}
                 </button>
               ))}
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock } from 'lucide-react';
+import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
@@ -139,21 +139,27 @@ export default function TourCard({
               <Users size={10} /> {t('tourCard.minToConfirm', { count: tour.min_participants })}
             </p>
           </div>
-          <div className="text-right shrink-0">
-            {hasDeal ? (
-              <>
-                <p className="text-[10px] text-muted-foreground line-through">AZN {tour.price}</p>
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="text-right">
+              {hasDeal ? (
+                <>
+                  <p className="text-[10px] text-muted-foreground line-through">AZN {tour.price}</p>
+                  <p className="text-sm font-bold text-primary">
+                    AZN {tour.discounted_price}
+                    <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
+                  </p>
+                </>
+              ) : (
                 <p className="text-sm font-bold text-primary">
-                  AZN {tour.discounted_price}
+                  AZN {tour.price}
                   <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
                 </p>
-              </>
-            ) : (
-              <p className="text-sm font-bold text-primary">
-                AZN {tour.price}
-                <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
-              </p>
-            )}
+              )}
+            </div>
+            <ChevronRight
+              size={16}
+              className="text-muted-foreground/40 -mr-1 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
+            />
           </div>
         </div>
       </div>

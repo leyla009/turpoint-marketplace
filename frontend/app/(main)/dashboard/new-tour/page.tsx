@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import { useRequireAuth } from '../../context/AuthContext';
-import { useLanguage } from '../../context/LanguageContext';
-import NewTourContent from '../../components/NewTourContent';
+import { useRequireAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import NewTourContent from '@/app/components/NewTourContent';
 
 // Standalone route so the form is still reachable via direct link,
 // bookmark, or refresh. From the panel page, "+ Tur əlavə et" instead

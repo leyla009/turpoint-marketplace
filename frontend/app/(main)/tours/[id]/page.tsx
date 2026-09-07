@@ -18,13 +18,13 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { CATEGORY_STYLE } from '../../components/TourCard';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { useLanguage } from '../../context/LanguageContext';
-import type { TranslationKey } from '../../lib/translations';
-import { TOUR_FEATURES, parseFeatures } from '../../lib/tourFeatures';
-import OperatorProfileModal from '../../components/OperatorProfileModal';
+import { CATEGORY_STYLE } from '@/app/components/TourCard';
+import { useAuth } from '@/app/context/AuthContext';
+import { useToast } from '@/app/context/ToastContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import type { TranslationKey } from '@/app/lib/translations';
+import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
+import OperatorProfileModal from '@/app/components/OperatorProfileModal';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';

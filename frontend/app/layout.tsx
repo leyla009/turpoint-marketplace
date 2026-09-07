@@ -1,8 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import Nav from './components/Nav';
-import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -30,22 +28,20 @@ export const metadata: Metadata = {
   },
 };
 
+// Deliberately just the providers + document shell here - Nav/Footer live
+// in (main)/layout.tsx instead of here, so a route group like (auth) can
+// opt out of the full site chrome without a pathname check hiding it at
+// runtime. See (main)/layout.tsx and (auth)/layout.tsx.
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="az">
       <body className="bg-background text-foreground">
         <LanguageProvider>
           <ToastProvider>
-            <AuthProvider>
-              <div className="min-h-screen flex flex-col">
-                <Nav />
-                <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
-                <Footer />
-              </div>
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </ToastProvider>
         </LanguageProvider>
       </body>
     </html>
   );
-}   
+}

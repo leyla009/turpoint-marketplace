@@ -152,11 +152,16 @@ export function useAuth() {
 // Drop this into any page that should require login — e.g. the booking
 // flow in Task 19. Redirects to /login if the session check finishes
 // and there's no user; renders nothing while the check is in flight.
+// Carries the page the traveler was actually trying to reach as ?next=,
+// so /login can send them back to (say) the booking they were mid-flow on
+// instead of dumping them on the homepage after signing in - see
+// login/page.tsx's read of that param.
 export function useRequireAuth() {
   const { user, loading } = useAuth();
   useEffect(() => {
     if (!loading && !user && typeof window !== 'undefined') {
-      window.location.href = '/login';
+      const next = window.location.pathname + window.location.search;
+      window.location.href = `/login?next=${encodeURIComponent(next)}`;
     }
   }, [loading, user]);
   return { user, loading };

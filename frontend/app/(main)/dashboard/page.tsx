@@ -1,7 +1,7 @@
 'use client';
 
-import { useRequireAuth } from '../context/AuthContext';
-import OperatorPanelContent from '../components/OperatorPanelContent';
+import { useRequireAuth } from '@/app/context/AuthContext';
+import OperatorPanelContent from '@/app/components/OperatorPanelContent';
 
 // Standalone route so the panel is still reachable via direct link,
 // bookmark, or refresh. From the nav, "Panel" instead opens this same
