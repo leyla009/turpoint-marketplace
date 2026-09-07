@@ -145,9 +145,9 @@ http://localhost:4000/api-docs
 
 Created as a Holberton School Final Portfolio Project:
 
-- **Leyla Khaspoladova** — Product Manager / Software Engineer
-- **Ramil Mammadov** — Backend Engineer / Lead Architecture
-- **Huseyn Sadatkhanov**
-- **Aytakin Imanova** — Frontend Engineer / Design System
+- **Leyla Khaspoladova** — 
+- **Ramil Mammadov** — Computer Science
+- **Huseyn Sadatkhanov** - Computer Science
+- **Aytakin Imanova** — 
 
 ---
