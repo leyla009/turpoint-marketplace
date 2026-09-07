@@ -2,13 +2,30 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Store, Camera, AtSign, Phone } from 'lucide-react';
-import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
-import { useToast } from '@/app/context/ToastContext';
-import { useLanguage } from '@/app/context/LanguageContext';
+import { ChevronLeft, Store, Camera, AtSign, Phone, CheckCircle2 } from 'lucide-react';
+import { useAuth, useRequireAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const PHONE_PREFIX = '+994';
+
+const PHONE_DIGIT_COUNT = 9;
+
+// Live-formats the digits after +994 as 2-3-2-2 (e.g. "50 123 45 67"),
+// matching Azerbaijan's standard 9-digit mobile number layout - purely
+// cosmetic, the raw unspaced digits are what's actually stored/sent.
+function formatPhoneDigits(digits: string): string {
+  const groupSizes = [2, 3, 2, 2];
+  const groups: string[] = [];
+  let i = 0;
+  for (const size of groupSizes) {
+    if (i >= digits.length) break;
+    groups.push(digits.slice(i, i + size));
+    i += size;
+  }
+  return groups.join(' ');
+}
 
 export default function OperatorProfilePage() {
   const router = useRouter();
@@ -31,6 +48,16 @@ export default function OperatorProfilePage() {
   const [photoError, setPhotoError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Phone verification is mocked (no SMS provider wired up yet) - sending
+  // a code always issues the fixed dev code 123456 server-side. See
+  // backend/src/routes/operators.js for where a real provider would plug
+  // in later.
+  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [phoneCode, setPhoneCode] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [phoneVerifyError, setPhoneVerifyError] = useState('');
+
   useEffect(() => {
     if (operatorProfile) {
       setName(operatorProfile.name ?? '');
@@ -39,6 +66,74 @@ export default function OperatorProfilePage() {
       setInstagram(operatorProfile.instagram ?? '');
     }
   }, [operatorProfile]);
+
+  const fullPhone = `${PHONE_PREFIX}${phoneDigits.trim()}`;
+  const isPhoneVerified = Boolean(operatorProfile?.phone_verified) && operatorProfile?.phone === fullPhone;
+
+  function handlePhoneDigitsChange(value: string) {
+    setPhoneDigits(value.replace(/\D/g, '').slice(0, PHONE_DIGIT_COUNT));
+    // A pending code was issued for whatever number was last sent - once
+    // the field is edited again that's stale, so make the user re-send
+    // rather than letting them verify a number they've since changed.
+    if (phoneCodeSent) {
+      setPhoneCodeSent(false);
+      setPhoneCode('');
+    }
+  }
+
+  async function handleSendCode() {
+    setPhoneVerifyError('');
+    if (!phoneDigits.trim() || !/^\+994\d{9}$/.test(fullPhone)) {
+      setPhoneVerifyError(t('profile.phoneInvalid'));
+      return;
+    }
+    setSendingCode(true);
+    try {
+      const res = await fetch(`${API_URL}/api/operators/me/phone/send-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ phone: fullPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPhoneVerifyError(data.error ?? t('profile.somethingWrong'));
+        return;
+      }
+      setPhoneCodeSent(true);
+      setPhoneCode('');
+      showToast(t('profile.codeSentDevHint'));
+    } catch {
+      setPhoneVerifyError(t('profile.couldntReachBackend'));
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleVerifyCode() {
+    setPhoneVerifyError('');
+    if (!phoneCode.trim()) return;
+    setVerifyingCode(true);
+    try {
+      const res = await fetch(`${API_URL}/api/operators/me/phone/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: phoneCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPhoneVerifyError(data.error ?? t('profile.somethingWrong'));
+        return;
+      }
+      await refreshOperatorProfile();
+      setPhoneCodeSent(false);
+      setPhoneCode('');
+      showToast(t('profile.verified'));
+    } catch {
+      setPhoneVerifyError(t('profile.couldntReachBackend'));
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,8 +147,7 @@ export default function OperatorProfilePage() {
       setError(t('profile.phoneRequired'));
       return;
     }
-    const phone = `${PHONE_PREFIX}${phoneDigits.trim()}`;
-    if (!/^\+994\d{7,12}$/.test(phone)) {
+    if (!/^\+994\d{9}$/.test(fullPhone)) {
       setError(t('profile.phoneInvalid'));
       return;
     }
@@ -64,7 +158,7 @@ export default function OperatorProfilePage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, description, phone, instagram: instagram.trim() || null }),
+        body: JSON.stringify({ name, description, phone: fullPhone, instagram: instagram.trim() || null }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -192,19 +286,69 @@ export default function OperatorProfilePage() {
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.phone')}</label>
+          <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
+            {t('profile.phone')}
+            {isPhoneVerified && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent">
+                <CheckCircle2 size={11} /> {t('profile.verified')}
+              </span>
+            )}
+          </label>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1 text-sm font-semibold text-muted-foreground bg-background border border-border rounded-lg px-3 py-2.5 shrink-0">
               <Phone size={13} /> {PHONE_PREFIX}
             </span>
             <input
               type="tel"
-              value={phoneDigits}
-              onChange={(e) => setPhoneDigits(e.target.value.replace(/[^\d]/g, ''))}
+              value={formatPhoneDigits(phoneDigits)}
+              onChange={(e) => handlePhoneDigitsChange(e.target.value)}
               placeholder={t('profile.phonePlaceholder')}
               className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
             />
           </div>
+
+          {isEditing && !isPhoneVerified && (
+            <div className="mt-2">
+              {!phoneCodeSent ? (
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || phoneDigits.length !== PHONE_DIGIT_COUNT}
+                  className="text-xs font-semibold text-primary disabled:opacity-50"
+                >
+                  {sendingCode ? t('profile.sendingCode') : t('profile.sendCode')}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={phoneCode}
+                    onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t('profile.verificationCode')}
+                    className="w-28 text-sm bg-background border border-border rounded-lg px-2.5 py-1.5 outline-none focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={verifyingCode || !phoneCode.trim()}
+                    className="text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  >
+                    {verifyingCode ? t('profile.verifying') : t('profile.verifyCode')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendCode}
+                    disabled={sendingCode}
+                    className="text-xs font-semibold text-primary disabled:opacity-50"
+                  >
+                    {sendingCode ? t('profile.sendingCode') : t('profile.resendCode')}
+                  </button>
+                </div>
+              )}
+              {phoneVerifyError && <p className="text-[11px] text-danger mt-1">{phoneVerifyError}</p>}
+            </div>
+          )}
         </div>
         <div>
           <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.instagram')}</label>

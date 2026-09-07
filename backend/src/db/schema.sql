@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS operators (
   photo_url TEXT,
   vehicle_features TEXT,      -- e.g. "wifi,ac,charging,luggage"
   phone TEXT,                 -- always starts with +994
+  phone_verified INTEGER DEFAULT 0,
+  phone_verification_code TEXT,          -- pending code from POST /me/phone/send-code
+  phone_verification_phone TEXT,         -- the number that code was issued for
+  phone_verification_expires_at TEXT,
   instagram TEXT,             -- handle, without the leading @
   rating REAL DEFAULT 0,
   completed_tours_count INTEGER DEFAULT 0,
@@ -40,6 +44,8 @@ CREATE TABLE IF NOT EXISTS tours (
   max_participants INTEGER DEFAULT 10,
   interest_score TEXT,        -- JSON: {"nature":0.8,"history":0.2}
   features TEXT,               -- comma-separated slugs: breakfast,evening_tea,guide,road_games,hotel_stay
+  vehicle_features TEXT,       -- comma-separated slugs: ac,wifi,luggage,charging - set per tour, not per operator
+  photo_url TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
  

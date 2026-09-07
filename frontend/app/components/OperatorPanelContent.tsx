@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import NewTourModal from './NewTourModal';
+import EditTourModal from './EditTourModal';
+import type { ExistingTour } from './NewTourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,6 +23,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
   const { t } = useLanguage();
 
   const [showNewTourModal, setShowNewTourModal] = useState(false);
+  const [editingTour, setEditingTour] = useState<ExistingTour | null>(null);
 
   const [myTours, setMyTours] = useState<any[]>([]);
   const [bookingCount, setBookingCount] = useState<number | null>(null);
@@ -236,13 +239,13 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   <span className="text-[10px] font-semibold text-muted-foreground">
                     {t('dashboard.minMax', { min: tour.min_participants, max: tour.max_participants })}
                   </span>
-                  <Link
-                    href={`/dashboard/edit-tour/${tour.id}`}
+                  <button
+                    onClick={() => setEditingTour(tour)}
                     title={t('dashboard.editTour')}
                     className="text-muted-foreground hover:text-foreground p-1"
                   >
                     <Pencil size={14} />
-                  </Link>
+                  </button>
                   <button
                     onClick={() => openDealForm(tour.id)}
                     title={t('dashboard.createDeal')}
@@ -313,6 +316,17 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           onClose={() => setShowNewTourModal(false)}
           onCreated={() => {
             setShowNewTourModal(false);
+            loadTours();
+          }}
+        />
+      )}
+
+      {editingTour && (
+        <EditTourModal
+          tour={editingTour}
+          onClose={() => setEditingTour(null)}
+          onUpdated={() => {
+            setEditingTour(null);
             loadTours();
           }}
         />

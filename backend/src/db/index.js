@@ -63,6 +63,35 @@ if (!operatorContactColumns.includes('phone')) {
   console.log('Migration applied: operators.phone and operators.instagram added.');
 }
 
+// Vehicle features move from being set once on the operator profile to
+// being set per tour (the add-tour form) - a tour matches the homepage's
+// vehicle filter using its own value if set, falling back to its
+// operator's for tours created before this column existed.
+const tourVehicleColumns = db.prepare('PRAGMA table_info(tours)').all().map((c) => c.name);
+if (!tourVehicleColumns.includes('vehicle_features')) {
+  db.exec('ALTER TABLE tours ADD COLUMN vehicle_features TEXT');
+  console.log('Migration applied: tours.vehicle_features added.');
+}
+
+// Tour photo upload (see POST /api/tours/:id/photo) - same defensive
+// add-if-missing pattern as above.
+if (!tourVehicleColumns.includes('photo_url')) {
+  db.exec('ALTER TABLE tours ADD COLUMN photo_url TEXT');
+  console.log('Migration applied: tours.photo_url added.');
+}
+
+// Phone verification (mocked - see routes/operators.js for the fixed dev
+// code): tracks a pending code/expiry against the operator, separate from
+// the phone column itself, so a number isn't marked verified until its
+// code is actually confirmed.
+if (!operatorContactColumns.includes('phone_verified')) {
+  db.exec('ALTER TABLE operators ADD COLUMN phone_verified INTEGER DEFAULT 0');
+  db.exec('ALTER TABLE operators ADD COLUMN phone_verification_code TEXT');
+  db.exec('ALTER TABLE operators ADD COLUMN phone_verification_phone TEXT');
+  db.exec('ALTER TABLE operators ADD COLUMN phone_verification_expires_at TEXT');
+  console.log('Migration applied: operators phone verification columns added.');
+}
+
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Schema applied to ${dbPath}`);

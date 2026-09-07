@@ -240,6 +240,72 @@
         }
       }
     },
+    "/operators/me/phone/send-code": {
+      "post": {
+        "summary": "Send a verification code for a phone number, ahead of it being saved. MOCKED - no SMS provider is wired up yet, so this always issues the fixed code 123456 (logged server-side) instead of texting one. Swap in a real provider + random code later without changing the request/response shape.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "phone": "+994501234567"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code issued (mocked)"
+          },
+          "400": {
+            "description": "Missing/invalid phone (must start with +994)"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "No operator profile yet - create one first"
+          }
+        }
+      }
+    },
+    "/operators/me/phone/verify-code": {
+      "post": {
+        "summary": "Confirm the code from send-code. On success, the pending phone number becomes the operator's actual phone and phone_verified is set to true - this is the only place that happens.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Phone verified - updated operator"
+          },
+          "400": {
+            "description": "Missing code, no pending verification, expired code, or incorrect code"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "No operator profile yet - create one first"
+          }
+        }
+      }
+    },
     "/operators/{id}": {
       "get": {
         "summary": "Get one operator",
@@ -310,7 +376,7 @@
     },
     "/tours": {
       "post": {
-        "summary": "Create a tour - requires login as an operator; operator_id is derived from the token and is not accepted in the request body. `features` is an optional comma-separated list of slugs from: breakfast, evening_tea, guide, road_games, hotel_stay - drives the homepage's feature-tag filter chips.",
+        "summary": "Create a tour - requires login as an operator; operator_id is derived from the token and is not accepted in the request body. `features` is an optional comma-separated list of slugs from: breakfast, evening_tea, guide, road_games, hotel_stay - drives the homepage's feature-tag filter chips. `vehicle_features` is an optional comma-separated list from: ac, wifi, luggage, charging - drives the homepage's vehicle-filter chips (falls back to the operator's own vehicle_features, if any, when a tour doesn't set its own).",
         "security": [
           {
             "bearerAuth": []
@@ -323,7 +389,8 @@
                 "title": "Quba Tebiet Turu",
                 "price": 50,
                 "date": "2026-09-10",
-                "features": "breakfast,guide"
+                "features": "breakfast,guide",
+                "vehicle_features": "ac,wifi"
               }
             }
           }
@@ -522,6 +589,58 @@
           },
           "409": {
             "description": "Tour has existing bookings - pass ?force=true to delete anyway"
+          }
+        }
+      }
+    },
+    "/tours/{id}/photo": {
+      "post": {
+        "summary": "Upload/replace a tour's photo - multipart/form-data with a single 'photo' image file field (max 5MB). Must be the owning operator; the tour must already exist (create it first via POST /tours).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated tour, with the new photo_url"
+          },
+          "400": {
+            "description": "No file uploaded, or the file isn't an image"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "Not the owning operator"
+          },
+          "404": {
+            "description": "Tour not found"
           }
         }
       }

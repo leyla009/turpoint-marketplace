@@ -33,11 +33,22 @@ const upload = multer({
   },
 });
 
-// Always starts with +994 - the profile form fixes that prefix and only
-// lets the operator type the digits after it.
+// Azerbaijan mobile numbers are always +994 followed by exactly 9 digits
+// (e.g. +994 50 123 45 67) - the profile form fixes the +994 prefix and
+// caps the rest at 9 digits to match.
 function isValidPhone(phone) {
-  return /^\+994\d{7,12}$/.test(phone);
+  return /^\+994\d{9}$/.test(phone);
 }
+
+// Phone verification is mocked for now - there's no SMS provider wired up
+// (would need a paid/free-tier account like Twilio or Vonage), so instead
+// of generating and texting a real random code, "sending" a code just
+// stores this fixed one. Swap this out for a real provider + a random
+// per-request code once one is chosen; everything else (the pending-code
+// columns, the expiry check, the reset-on-phone-change logic below) is
+// already shaped to support that without further changes.
+const DEV_VERIFICATION_CODE = '123456';
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
 
 router.post('/', requireAuth, (req, res) => {
   const { name, description, languages, photo_url, phone, instagram } = req.body;
@@ -84,6 +95,55 @@ router.post('/me/photo', requireAuth, upload.single('photo'), (req, res) => {
   res.json(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id));
 });
 
+// Sends (mocked - see DEV_VERIFICATION_CODE above) a verification code for
+// a phone number, ahead of it being saved as the operator's real phone -
+// so the number can be confirmed before it's committed to the profile.
+router.post('/me/phone/send-code', requireAuth, (req, res) => {
+  const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+
+  const { phone } = req.body;
+  if (!phone || !isValidPhone(phone)) {
+    return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
+  }
+
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+  db.prepare(
+    'UPDATE operators SET phone_verification_code = ?, phone_verification_phone = ?, phone_verification_expires_at = ? WHERE id = ?'
+  ).run(DEV_VERIFICATION_CODE, phone, expiresAt, operator.id);
+
+  console.log(`[dev] verification code for ${phone}: ${DEV_VERIFICATION_CODE}`);
+  res.json({ ok: true });
+});
+
+// Confirms the code from send-code above. On success, the pending phone
+// number becomes the operator's actual phone and is marked verified -
+// this is the only place phone_verified is ever set to true.
+router.post('/me/phone/verify-code', requireAuth, (req, res) => {
+  const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'a code is required' });
+  if (!operator.phone_verification_code || !operator.phone_verification_phone) {
+    return res.status(400).json({ error: 'no pending verification - send a code first' });
+  }
+  if (new Date(operator.phone_verification_expires_at) < new Date()) {
+    return res.status(400).json({ error: 'this code has expired - send a new one' });
+  }
+  if (code !== operator.phone_verification_code) {
+    return res.status(400).json({ error: 'incorrect code' });
+  }
+
+  db.prepare(
+    `UPDATE operators SET phone = ?, phone_verified = 1,
+       phone_verification_code = NULL, phone_verification_phone = NULL, phone_verification_expires_at = NULL
+     WHERE id = ?`
+  ).run(operator.phone_verification_phone, operator.id);
+
+  res.json(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id));
+});
+
 router.get('/', (req, res) => {
   res.json(db.prepare('SELECT * FROM operators ORDER BY rating DESC').all());
 });
@@ -105,8 +165,13 @@ router.put('/:id', requireAuth, (req, res) => {
   if (!updated.phone || !isValidPhone(updated.phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
+  // Changing the phone number through the regular profile save (rather
+  // than the verify-code flow) means it's no longer confirmed - only
+  // POST /me/phone/verify-code is allowed to set this back to true.
+  const phoneVerified = updated.phone === existing.phone ? existing.phone_verified : 0;
+
   db.prepare(
-    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, instagram=? WHERE id=?`
+    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, phone_verified=?, instagram=? WHERE id=?`
   ).run(
     updated.name,
     updated.description,
@@ -114,6 +179,7 @@ router.put('/:id', requireAuth, (req, res) => {
     updated.photo_url,
     updated.vehicle_features,
     updated.phone,
+    phoneVerified,
     updated.instagram,
     req.params.id
   );

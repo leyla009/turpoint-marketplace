@@ -23,6 +23,7 @@ export interface OperatorProfile {
   photo_url?: string | null;
   vehicle_features?: string | null;
   phone?: string | null;
+  phone_verified?: number | null;
   instagram?: string | null;
   rating?: number | null;
 }

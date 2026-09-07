@@ -36,7 +36,6 @@ interface Tour {
   description: string | null;
   location: string | null;
   category: string | null;
-  route: string | null;
   price: number;
   date: string;
   duration_days: number;
@@ -45,6 +44,7 @@ interface Tour {
   discounted_price?: number;
   active_deal?: { discount_percent: number; expires_at: string };
   features?: string | null;
+  photo_url?: string | null;
 }
 
 interface Operator {
@@ -302,9 +302,6 @@ export default function TourDetail() {
   const style = CATEGORY_STYLE[tour?.category ?? ''] ?? CATEGORY_STYLE.history;
   const Icon = style.Icon;
   const hasDeal = typeof tour?.discounted_price === 'number';
-  const routeSteps = tour?.route
-    ? tour.route.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
-    : [];
 
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
   const starCounts = [5, 4, 3, 2, 1].map((star) => reviews.filter((r) => r.rating === star).length);
@@ -344,13 +341,21 @@ export default function TourDetail() {
         <div className="min-w-0">
           {/* Hero */}
           <div
-            className={`relative h-48 sm:h-64 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center mb-5 overflow-hidden`}
+            className={`relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden ${
+              tour.photo_url ? 'bg-muted' : `bg-gradient-to-br ${style.gradient}`
+            }`}
           >
-            <div
-              className="absolute inset-0 opacity-[0.1]"
-              style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
-            />
-            <Icon size={64} className="text-white/60" />
+            {tour.photo_url ? (
+              <img src={`${API_URL}${tour.photo_url}`} alt={tour.title} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <>
+                <div
+                  className="absolute inset-0 opacity-[0.1]"
+                  style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
+                />
+                <Icon size={64} className="text-white/60" />
+              </>
+            )}
             {hasDeal && (
               <span className="absolute top-3 left-3 flex items-center gap-1 bg-accent text-accent-foreground text-xs font-semibold px-2.5 py-1 rounded-full">
                 <Zap size={11} /> {t('tourCard.lastMinuteDeal')}
@@ -449,27 +454,6 @@ export default function TourDetail() {
                   </span>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Route / itinerary */}
-          {routeSteps.length > 0 && (
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.routeItinerary')}</h2>
-              {routeSteps.length > 1 ? (
-                <ol className="space-y-1.5">
-                  {routeSteps.map((step, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                      <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-accent/15 text-accent text-[10px] font-bold flex items-center justify-center">
-                        {i + 1}
-                      </span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-sm text-foreground/80 leading-relaxed">{routeSteps[0]}</p>
-              )}
             </div>
           )}
 

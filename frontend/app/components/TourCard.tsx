@@ -4,6 +4,8 @@ import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; labelKey: TranslationKey }> = {
   nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, labelKey: 'category.nature' },
   history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, labelKey: 'category.history' },
@@ -24,6 +26,8 @@ export interface ApiTour {
   max_participants: number;
   discounted_price?: number;
   features?: string | null;
+  vehicle_features?: string | null;
+  photo_url?: string | null;
   rating?: number | null;
   review_count?: number;
 }
@@ -61,19 +65,31 @@ export default function TourCard({
       }`}
     >
       <div
-        className={`relative h-36 sm:h-40 bg-gradient-to-br ${style.gradient} flex items-center justify-center overflow-hidden`}
+        className={`relative h-36 sm:h-40 flex items-center justify-center overflow-hidden ${
+          tour.photo_url ? 'bg-muted' : `bg-gradient-to-br ${style.gradient}`
+        }`}
       >
-        {/* Subtle diagonal-weave texture instead of a flat gradient - a nod
-            to Azerbaijani carpet motifs without literally illustrating a
-            carpet, since there's no real tour photography to show yet. */}
-        <div
-          className="absolute inset-0 opacity-[0.12]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)',
-          }}
-        />
-        <Icon size={40} className="text-white/70 transition-transform duration-300 group-hover:scale-110" />
+        {tour.photo_url ? (
+          <img
+            src={`${API_URL}${tour.photo_url}`}
+            alt={tour.title}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <>
+            {/* Subtle diagonal-weave texture instead of a flat gradient - a
+                nod to Azerbaijani carpet motifs without literally
+                illustrating a carpet, since there's no real tour photo. */}
+            <div
+              className="absolute inset-0 opacity-[0.12]"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)',
+              }}
+            />
+            <Icon size={40} className="text-white/70 transition-transform duration-300 group-hover:scale-110" />
+          </>
+        )}
 
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
           {hasDeal ? (

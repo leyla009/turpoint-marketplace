@@ -147,9 +147,13 @@ export default function Nav() {
               </div>
             )}
 
-            {!loading && user && !operatorProfile && (
+            {/* Visible whether or not you're logged in - a logged-out
+                visitor just needs to sign in/sign up first (the login page
+                itself offers "Become an operator" once that's done),
+                since creating a profile requires an account. */}
+            {!loading && !operatorProfile && (
               <Link
-                href="/dashboard/profile"
+                href={user ? '/dashboard/profile' : '/login'}
                 className="hidden lg:inline-block text-[11px] font-semibold text-white/80 hover:text-white"
               >
                 {t('nav.becomeOperator')}

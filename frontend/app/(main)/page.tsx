@@ -163,7 +163,7 @@ export default function Home() {
     return tours.filter((t) => {
       const tourFeatures = parseFeatures(t.features);
       const matchFeatures = activeFeatures.every((f) => tourFeatures.includes(f));
-      const vehicleFeatures = parseVehicleFeatures(operatorVehicleFeatures[t.operator_id]);
+      const vehicleFeatures = parseVehicleFeatures(t.vehicle_features || operatorVehicleFeatures[t.operator_id]);
       const matchVehicleFeatures = activeVehicleFeatures.every((f) => vehicleFeatures.includes(f));
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
       const matchCategory = categoryFilter === 'all' || t.category === categoryFilter;
@@ -286,7 +286,7 @@ export default function Home() {
     const counts: Record<string, number> = {};
     VEHICLE_FEATURES.forEach((f) => {
       counts[f.slug] = tours.filter((t) =>
-        parseVehicleFeatures(operatorVehicleFeatures[t.operator_id]).includes(f.slug)
+        parseVehicleFeatures(t.vehicle_features || operatorVehicleFeatures[t.operator_id]).includes(f.slug)
       ).length;
     });
     return counts;

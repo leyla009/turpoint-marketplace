@@ -6,10 +6,32 @@
 // that profile server-side - never trusted from the request body.
  
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
- 
+
 const router = Router();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadsDir = path.join(__dirname, '../../uploads/tours');
+fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: uploadsDir,
+  filename: (req, file, cb) => {
+    cb(null, `${req.user.userId}-${Date.now()}${path.extname(file.originalname)}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    cb(null, file.mimetype.startsWith('image/'));
+  },
+});
 
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
@@ -98,8 +120,8 @@ function attachReviewStats(tours) {
 
 router.post('/', requireAuth, (req, res) => {
   const {
-    title, description, location, category, route,
-    price, date, duration_days, min_participants, max_participants, interest_score, features,
+    title, description, location, category,
+    price, date, duration_days, min_participants, max_participants, interest_score, features, vehicle_features,
   } = req.body;
 
   if (!title || !price || !date) {
@@ -130,20 +152,41 @@ router.post('/', requireAuth, (req, res) => {
   const result = db
     .prepare(
       `INSERT INTO tours
-        (operator_id, title, description, location, category, route, price, date,
-         duration_days, min_participants, max_participants, interest_score, features)
+        (operator_id, title, description, location, category, price, date,
+         duration_days, min_participants, max_participants, interest_score, features, vehicle_features)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       operator.id, title, description ?? null, location ?? null, category ?? null,
-      route ?? null, price, date, duration_days ?? 1, min_participants ?? 1,
+      price, date, duration_days ?? 1, min_participants ?? 1,
       max_participants ?? 10, interest_score ? JSON.stringify(interest_score) : null,
-      features ?? null
+      features ?? null, vehicle_features ?? null
     );
- 
+
   res.status(201).json(db.prepare('SELECT * FROM tours WHERE id = ?').get(result.lastInsertRowid));
 });
- 
+
+// Tour photo upload - separate from PUT /:id since that route takes a
+// plain JSON body, not multipart. Requires the tour to already exist
+// (create it first via POST /, then add a photo) - same pattern as
+// POST /api/operators/me/photo.
+router.post('/:id/photo', requireAuth, upload.single('photo'), (req, res) => {
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+
+  const ownsIt = db
+    .prepare('SELECT id FROM operators WHERE id = ? AND user_id = ?')
+    .get(tour.operator_id, req.user.userId);
+  if (!ownsIt) {
+    return res.status(403).json({ error: 'you can only edit your own tours' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'a valid image file is required' });
+
+  const photoUrl = `/uploads/tours/${req.file.filename}`;
+  db.prepare('UPDATE tours SET photo_url = ? WHERE id = ?').run(photoUrl, tour.id);
+  res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));
+});
+
 // Task 8: GET /api/tours?location=Quba&maxPrice=100&category=nature&fromDate=2026-09-01
 router.get('/', (req, res) => {
   const { location, category, minPrice, maxPrice, fromDate, toDate } = req.query;
@@ -196,8 +239,8 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 
   const {
-    title, description, location, category, route,
-    price, date, duration_days, min_participants, max_participants, interest_score, features,
+    title, description, location, category,
+    price, date, duration_days, min_participants, max_participants, interest_score, features, vehicle_features,
   } = req.body;
 
   if (title !== undefined && !title) {
@@ -228,7 +271,6 @@ router.put('/:id', requireAuth, (req, res) => {
     description: description !== undefined ? description : tour.description,
     location: location !== undefined ? location : tour.location,
     category: category !== undefined ? category : tour.category,
-    route: route !== undefined ? route : tour.route,
     price: price !== undefined ? price : tour.price,
     date: date !== undefined ? date : tour.date,
     duration_days: duration_days !== undefined ? duration_days : tour.duration_days,
@@ -241,17 +283,18 @@ router.put('/:id', requireAuth, (req, res) => {
         ? JSON.stringify(buildInterestScore(category))
         : tour.interest_score,
     features: features !== undefined ? features : tour.features,
+    vehicle_features: vehicle_features !== undefined ? vehicle_features : tour.vehicle_features,
   };
 
   db.prepare(
-    `UPDATE tours SET title = ?, description = ?, location = ?, category = ?, route = ?,
+    `UPDATE tours SET title = ?, description = ?, location = ?, category = ?,
        price = ?, date = ?, duration_days = ?, min_participants = ?, max_participants = ?, interest_score = ?,
-       features = ?
+       features = ?, vehicle_features = ?
      WHERE id = ?`
   ).run(
-    updated.title, updated.description, updated.location, updated.category, updated.route,
+    updated.title, updated.description, updated.location, updated.category,
     updated.price, updated.date, updated.duration_days, updated.min_participants,
-    updated.max_participants, updated.interest_score, updated.features, tour.id
+    updated.max_participants, updated.interest_score, updated.features, updated.vehicle_features, tour.id
   );
 
   res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));
