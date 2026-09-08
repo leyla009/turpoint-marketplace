@@ -216,9 +216,36 @@ router.get('/compare', (req, res) => {
   res.json(attachReviewStats(attachActiveDeals(tours)));
 });
 
+// "Populyar turlar" (homepage) - ranked by a simple popularity score
+// (times favorited + times viewed), not just grouped by destination city
+// like the old section was, since that duplicated the "Hara?" city filter.
+// Must be declared before GET /:id, or Express would match "popular" as
+// an :id - same reasoning as GET /compare above.
+router.get('/popular', (req, res) => {
+  const limit = Math.min(12, Math.max(1, Number(req.query.limit) || 6));
+  const tours = db
+    .prepare(
+      `SELECT t.*, COUNT(f.id) as favorite_count
+       FROM tours t
+       LEFT JOIN favorites f ON f.tour_id = t.id
+       GROUP BY t.id
+       ORDER BY (COUNT(f.id) + t.click_count) DESC, t.id DESC
+       LIMIT ?`
+    )
+    .all(limit);
+  res.json(attachReviewStats(attachActiveDeals(tours)));
+});
+
 router.get('/:id', (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
+
+  // Feeds "Populyar turlar"'s popularity score - counts every detail-page
+  // view, including an operator checking their own tour, which is an
+  // acceptable amount of noise for a "popular" ranking (not precise
+  // analytics).
+  db.prepare('UPDATE tours SET click_count = click_count + 1 WHERE id = ?').run(tour.id);
+  tour.click_count += 1;
 
   // Task 15: attach discounted_price if an active last-minute deal exists.
   res.json(attachReviewStats(attachActiveDeals(tour)));

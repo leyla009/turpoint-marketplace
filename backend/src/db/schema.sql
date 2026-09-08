@@ -46,9 +46,10 @@ CREATE TABLE IF NOT EXISTS tours (
   features TEXT,               -- comma-separated slugs: breakfast,evening_tea,guide,road_games,hotel_stay
   vehicle_features TEXT,       -- comma-separated slugs: ac,wifi,luggage,charging - set per tour, not per operator
   photo_url TEXT,
+  click_count INTEGER DEFAULT 0,   -- bumped every time GET /api/tours/:id is viewed - feeds "Populyar turlar"
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
- 
+
 CREATE TABLE IF NOT EXISTS group_formations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),

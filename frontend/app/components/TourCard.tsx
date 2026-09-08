@@ -20,6 +20,32 @@ export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; label
   food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, labelKey: 'category.food' },
 };
 
+// Same muted mountain-silhouette motif the "Populyar istiqamətlər"/
+// "Populyar turlar" cards use for a photo-less destination, just
+// recolored per category instead of picked randomly from a seed - green
+// for nature (like Qəbələ's card), brown for history (like Quba's), and
+// two more in the same family for the remaining categories. One shared
+// ridge/crest shape keeps every photo-less card visually consistent.
+const CATEGORY_MOTIF: Record<string, { base: string; ridge: string; crest: string }> = {
+  nature: { base: '#1B3D2F', ridge: '#234A39', crest: '#2C5A46' },
+  history: { base: '#5C4630', ridge: '#6C563C', crest: '#7C6448' },
+  entertainment: { base: '#3B2F52', ridge: '#493C62', crest: '#584A73' },
+  food: { base: '#5C2A1F', ridge: '#6C362A', crest: '#7C4436' },
+};
+const MOTIF_RIDGE = 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z';
+const MOTIF_CREST = 'M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z';
+
+function CategoryMotif({ category }: { category: string | null }) {
+  const colors = CATEGORY_MOTIF[category ?? ''] ?? CATEGORY_MOTIF.history;
+  return (
+    <svg viewBox="0 0 200 140" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+      <rect width="200" height="140" fill={colors.base} />
+      <path d={MOTIF_RIDGE} fill={colors.ridge} />
+      <path d={MOTIF_CREST} fill={colors.crest} />
+    </svg>
+  );
+}
+
 // Photography is meant to be the card's whole visual argument - a tour
 // without a real photo yet shouldn't compete for attention with a colorful
 // (or even a muted-but-still-bold) painted panel of its own. This falls
@@ -94,7 +120,10 @@ export default function TourCard({
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <Icon size={26} className="text-muted-foreground/35" />
+          <>
+            <CategoryMotif category={tour.category} />
+            <Icon size={24} className="relative text-white/55" />
+          </>
         )}
 
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">

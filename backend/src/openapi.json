@@ -487,6 +487,27 @@
         }
       }
     },
+    "/tours/popular": {
+      "get": {
+        "summary": "\"Populyar turlar\" for the homepage - tours ranked by (times favorited + times viewed), most popular first. Must be requested before /tours/{id} in routing terms, but that's an implementation detail.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Max results, 1-12 (default 6)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of tours, most popular first"
+          }
+        }
+      }
+    },
     "/tours/{id}": {
       "get": {
         "summary": "Get one tour (includes discounted_price if an active deal exists)",

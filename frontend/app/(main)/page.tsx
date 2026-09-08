@@ -33,51 +33,23 @@ const DestinationMap = dynamic(() => import('@/app/components/DestinationMap'), 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-function normalizeDestination(location: string): string {
-  return location.trim().toLowerCase();
-}
-
-// Real photography exists (see HeroSlideshow.tsx) only for Baku - matching
-// any other real tour location to one of those photos would misrepresent
-// what the photo actually shows, so every other destination card falls
-// back to DestinationMotif below instead of a mismatched image.
-const DESTINATION_PHOTOS: Record<string, { src: string; alt: string }> = {
-  bakı: { src: '/pictures/1.webp', alt: 'Baku Old City at sunset, with the Flame Towers in the background' },
-  baki: { src: '/pictures/1.webp', alt: 'Baku Old City at sunset, with the Flame Towers in the background' },
-};
-
-// Stand-in for a destination card with no real photo on file yet - a
-// generic layered mountain-ridge silhouette rather than a category-colored
-// icon block, so a card without a photo still reads as "a place", not as
-// a placeholder UI component. Four ridge-line/tone combinations, picked
-// deterministically from the destination's own name, so a row of several
-// photo-less cards doesn't repeat one identical graphic.
-const MOTIF_VARIANTS = [
-  { base: '#1B3D2F', ridge: '#234A39', crest: '#2C5A46', points: 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z|M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z' },
-  { base: '#2F4A3E', ridge: '#3A5B4C', crest: '#456C5C', points: 'M0 90 L40 100 L70 50 L100 95 L140 65 L170 100 L200 85 L200 140 L0 140 Z|M0 115 L45 95 L80 120 L115 90 L150 118 L200 100 L200 140 L0 140 Z' },
-  { base: '#4A4032', ridge: '#5A4E3E', crest: '#6A5C4A', points: 'M0 105 L30 70 L65 100 L90 60 L125 100 L155 75 L200 105 L200 140 L0 140 Z|M0 125 L55 100 L90 122 L125 100 L160 122 L200 105 L200 140 L0 140 Z' },
-  { base: '#5C4630', ridge: '#6C563C', crest: '#7C6448', points: 'M0 95 L45 60 L75 95 L110 55 L145 95 L175 70 L200 95 L200 140 L0 140 Z|M0 118 L40 90 L80 115 L115 80 L150 112 L200 92 L200 140 L0 140 Z' },
-] as const;
-
-function DestinationMotif({ seed }: { seed: string }) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  const variant = MOTIF_VARIANTS[hash % MOTIF_VARIANTS.length];
-  const [ridgePath, crestPath] = variant.points.split('|');
-  return (
-    <svg viewBox="0 0 200 140" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-      <rect width="200" height="140" fill={variant.base} />
-      <path d={ridgePath} fill={variant.ridge} />
-      <path d={crestPath} fill={variant.crest} />
-    </svg>
-  );
-}
 
 export default function Home() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [tours, setTours] = useState<ApiTour[]>([]);
+  // "Populyar turlar" - actual tours ranked by popularity (favorites +
+  // views), not tours grouped by destination city like the old section
+  // was (that just duplicated the "Hara?" filter). Fetched once,
+  // separately from the main tour list/search results.
+  const [popularTours, setPopularTours] = useState<ApiTour[]>([]);
+  useEffect(() => {
+    fetch(`${API_URL}/api/tours/popular?limit=8`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setPopularTours(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
   // Heart icon on tour cards - saved tours also show up in the account
   // menu's "Sevimlilər" section. Loaded once per login; toggling updates
   // this set optimistically so the heart flips instantly, then confirms
@@ -159,7 +131,10 @@ export default function Home() {
   // the button's corner position, so it never needs this there.
   const [scrolledPastSearch, setScrolledPastSearch] = useState(false);
   const [locationFilter, setLocationFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  // Kateqoriyalar - multi-select like the feature/vehicle checklists below
+  // it (a tour matches if its category is ANY of the checked ones; empty
+  // means no filter applied), replacing the old single-select tab row.
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
@@ -199,7 +174,7 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const category = params.get('category');
     const location = params.get('location');
-    if (category) setCategoryFilter(category);
+    if (category) setActiveCategories([category]);
     if (location) setLocationFilter(location);
     if (category || location) {
       setTimeout(() => document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
@@ -215,6 +190,9 @@ export default function Home() {
     setDatesTouched(true);
   };
 
+  const toggleCategory = (cat: string) => {
+    setActiveCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
+  };
   const toggleFeature = (slug: string) => {
     setActiveFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
   };
@@ -268,7 +246,7 @@ export default function Home() {
       const vehicleFeatures = parseVehicleFeatures(t.vehicle_features || operatorVehicleFeatures[t.operator_id]);
       const matchVehicleFeatures = activeVehicleFeatures.every((f) => vehicleFeatures.includes(f));
       const matchLocation = locationFilter === 'all' || t.location === locationFilter;
-      const matchCategory = categoryFilter === 'all' || t.category === categoryFilter;
+      const matchCategory = activeCategories.length === 0 || (!!t.category && activeCategories.includes(t.category));
       const effectivePrice = t.discounted_price ?? t.price;
       const matchMin = min === null || effectivePrice >= min;
       const matchMax = max === null || effectivePrice <= max;
@@ -296,7 +274,7 @@ export default function Home() {
     activeVehicleFeatures,
     operatorVehicleFeatures,
     locationFilter,
-    categoryFilter,
+    activeCategories,
     minPrice,
     maxPrice,
     departDate,
@@ -333,34 +311,7 @@ export default function Home() {
     return counts;
   }, [tours]);
 
-  // Popular destinations - grouped straight from each tour's own `location`
-  // field, not a separate hardcoded list, so it only ever shows places that
-  // actually have a bookable tour right now.
-  const destinations = useMemo(() => {
-    const byLocation: Record<string, { count: number; minPrice: number; category: string | null }> = {};
-    tours.forEach((t) => {
-      if (!t.location) return;
-      const price = t.discounted_price ?? t.price;
-      const existing = byLocation[t.location];
-      if (!existing) {
-        byLocation[t.location] = { count: 1, minPrice: price, category: t.category };
-      } else {
-        existing.count += 1;
-        existing.minPrice = Math.min(existing.minPrice, price);
-      }
-    });
-    return Object.entries(byLocation)
-      .map(([location, info]) => ({ location, ...info }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-  }, [tours]);
-
   const dealTours = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number'), [tours]);
-
-  const selectDestination = (location: string) => {
-    setLocationFilter(location);
-    scrollToResults();
-  };
 
   const scrollToResults = () => {
     document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -428,51 +379,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Category quick filters - the tour's `category` field drove only
-          the card's color/icon before; this is the first place a visitor
-          can actually filter by it. Redesigned as quiet underline tabs
-          rather than a row of colorful pill buttons, so it reads as part
-          of the page's own typography instead of a UI-kit component.
-          Only categories with at least one real tour show up, so an
-          empty category never dead-ends the browse. */}
-      {!loading && tours.length > 0 && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-10 md:mt-14 border-b border-border">
-          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setCategoryFilter('all')}
-              className={`flex items-center gap-2 shrink-0 text-sm font-semibold pb-3.5 pt-1 border-b-2 transition-colors ${
-                categoryFilter === 'all'
-                  ? 'text-foreground border-accent'
-                  : 'text-muted-foreground border-transparent hover:text-foreground'
-              }`}
-            >
-              <LayoutGrid size={14} /> {t('home.allCategories')}
-            </button>
-            {Object.keys(CATEGORY_STYLE)
-              .filter((cat) => categoryCounts[cat] > 0)
-              .map((cat) => {
-                const style = CATEGORY_STYLE[cat];
-                const CatIcon = style.Icon;
-                const active = categoryFilter === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setCategoryFilter(active ? 'all' : cat)}
-                    className={`flex items-center gap-2 shrink-0 text-sm font-semibold pb-3.5 pt-1 border-b-2 transition-colors ${
-                      active
-                        ? 'text-foreground border-accent'
-                        : 'text-muted-foreground border-transparent hover:text-foreground'
-                    }`}
-                  >
-                    <CatIcon size={14} /> {t(style.labelKey)}
-                    <span className="text-xs text-muted-foreground/70">{categoryCounts[cat]}</span>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
       {/* Last-minute deals - surfaces tours that already have an active
           last_minute_deals row (real discount data, same discounted_price
           the cards below already show) as their own dedicated strip instead
@@ -501,12 +407,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Popular destinations - grouped straight from tours' real `location`
-          values (see `destinations` above), so this only ever lists places
-          that currently have a bookable tour. Sits on its own soft sand
-          band so the photography reads as a deliberate "moment" rather
-          than more cards on the same white canvas as everything else. */}
-      {!loading && destinations.length > 0 && (
+      {/* Popular tours - ranked by real popularity (favorites + views),
+          not grouped by destination city like the old section was (that
+          just duplicated the "Hara?" filter above). Sits on its own soft
+          sand band so it reads as a deliberate "moment" rather than more
+          cards on the same white canvas as everything else. */}
+      {popularTours.length > 0 && (
         <div className="bg-surface-sand mt-12 md:mt-16 py-10 md:py-14">
           <div className="px-4 sm:px-6 max-w-[1600px] mx-auto">
             <p className="text-xs font-bold tracking-[0.2em] uppercase text-accent mb-2">
@@ -516,48 +422,20 @@ export default function Home() {
               className="text-xl sm:text-2xl font-bold text-foreground mb-6"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              {t('home.popularDestinations')}
+              {t('home.popularTours')}
             </h2>
             <HorizontalScroller>
-              {destinations.map((d) => {
-                const photo = DESTINATION_PHOTOS[normalizeDestination(d.location)];
-                return (
-                  <button
-                    key={d.location}
-                    onClick={() => selectDestination(d.location)}
-                    className={`text-left rounded-2xl overflow-hidden bg-card transition-all group w-52 sm:w-60 shrink-0 snap-start ring-1 ${
-                      locationFilter === d.location ? 'ring-accent' : 'ring-black/[0.06] hover:ring-black/[0.12]'
-                    }`}
-                  >
-                    <div className="relative h-36 sm:h-40 overflow-hidden bg-primary">
-                      {photo ? (
-                        <img
-                          src={photo.src}
-                          alt={photo.alt}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <DestinationMotif seed={d.location} />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                      <p
-                        className="absolute bottom-2.5 left-3.5 right-3.5 text-base font-bold text-white truncate"
-                        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                      >
-                        {d.location}
-                      </p>
-                    </div>
-                    <div className="px-3.5 py-2.5 flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        {t('home.toursAvailable', { count: d.count })}
-                      </p>
-                      <p className="text-xs font-semibold text-primary">
-                        {t('home.fromPrice', { price: d.minPrice })}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
+              {popularTours.map((tour) => (
+                <div key={tour.id} className="w-64 shrink-0 snap-start">
+                  <TourCard
+                    tour={tour}
+                    operatorName={operators[tour.operator_id]}
+                    onClick={() => router.push(`/tours/${tour.id}`)}
+                    isFavorited={favoriteIds.has(tour.id)}
+                    onToggleFavorite={() => toggleFavorite(tour.id)}
+                  />
+                </div>
+              ))}
             </HorizontalScroller>
           </div>
         </div>
@@ -596,7 +474,7 @@ export default function Home() {
       <div className="px-4 sm:px-6 pt-8 md:pt-10 pb-12 max-w-[1600px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* Sidebar */}
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto scrollbar-hide">
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             {!loading && tours.length > 0 && (
               <div>
                 <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
@@ -638,6 +516,32 @@ export default function Home() {
                 onChangeMin={(v) => setMinPrice(String(v))}
                 onChangeMax={(v) => setMaxPrice(String(v))}
               />
+
+              <div className="h-px bg-border my-4" />
+
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+                <LayoutGrid size={14} /> {t('home.categories')}
+              </h3>
+              <div className="space-y-2">
+                {Object.keys(CATEGORY_STYLE).map((cat) => {
+                  const style = CATEGORY_STYLE[cat];
+                  const CatIcon = style.Icon;
+                  const active = activeCategories.includes(cat);
+                  return (
+                    <label key={cat} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleCategory(cat)}
+                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                      />
+                      <CatIcon size={14} className="text-muted-foreground shrink-0" />
+                      <span className="flex-1">{t(style.labelKey)}</span>
+                      <span className="text-xs text-muted-foreground">{categoryCounts[cat] ?? 0}</span>
+                    </label>
+                  );
+                })}
+              </div>
 
               <div className="h-px bg-border my-4" />
 
@@ -691,12 +595,14 @@ export default function Home() {
                 })}
               </div>
 
-              {(activeFeatures.length > 0 ||
+              {(activeCategories.length > 0 ||
+                activeFeatures.length > 0 ||
                 activeVehicleFeatures.length > 0 ||
                 minPrice !== '' ||
                 maxPrice !== '') && (
                 <button
                   onClick={() => {
+                    setActiveCategories([]);
                     setActiveFeatures([]);
                     setActiveVehicleFeatures([]);
                     setMinPrice('');

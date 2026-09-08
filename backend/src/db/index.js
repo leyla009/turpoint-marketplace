@@ -92,6 +92,13 @@ if (!operatorContactColumns.includes('phone_verified')) {
   console.log('Migration applied: operators phone verification columns added.');
 }
 
+// Click tracking for "Populyar turlar" (bumped on every GET /api/tours/:id
+// - see routes/tours.js) - same defensive add-if-missing pattern as above.
+if (!tourVehicleColumns.includes('click_count')) {
+  db.exec('ALTER TABLE tours ADD COLUMN click_count INTEGER DEFAULT 0');
+  console.log('Migration applied: tours.click_count added.');
+}
+
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Schema applied to ${dbPath}`);
