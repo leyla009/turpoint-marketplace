@@ -20,7 +20,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { CATEGORY_STYLE } from '@/app/components/TourCard';
+import { CATEGORY_STYLE, CategoryMotif } from '@/app/components/TourCard';
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from '@/app/context/ToastContext';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -283,7 +283,6 @@ export default function TourDetail() {
   };
 
   const style = CATEGORY_STYLE[tour?.category ?? ''] ?? CATEGORY_STYLE.history;
-  const Icon = style.Icon;
   const hasDeal = typeof tour?.discounted_price === 'number';
 
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
@@ -322,21 +321,11 @@ export default function TourDetail() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-32 lg:pb-16 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
         <div className="min-w-0">
           {/* Hero */}
-          <div
-            className={`relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden ${
-              tour.photo_url ? 'bg-muted' : `bg-gradient-to-br ${style.gradient}`
-            }`}
-          >
+          <div className="relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden bg-muted">
             {tour.photo_url ? (
               <img src={`${API_URL}${tour.photo_url}`} alt={tour.title} className="absolute inset-0 w-full h-full object-cover" />
             ) : (
-              <>
-                <div
-                  className="absolute inset-0 opacity-[0.1]"
-                  style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
-                />
-                <Icon size={64} className="text-white/60" />
-              </>
+              <CategoryMotif category={tour.category} />
             )}
             {hasDeal && (
               <span className="absolute top-3 left-3 flex items-center gap-1 bg-accent text-accent-foreground text-xs font-semibold px-2.5 py-1 rounded-full">

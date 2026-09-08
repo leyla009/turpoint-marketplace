@@ -52,16 +52,28 @@ function createTourMap(
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const L = require('leaflet');
 
+  // Fixed center/zoom (not fitBounds) - this is a deliberately hand-picked
+  // framing of mainland Azerbaijan that always renders the same way
+  // regardless of container size or how many tours have coordinates,
+  // rather than a computed fit that can vary with those inputs.
   const map = L.map(container, {
     center: [40.4, 47.8],
     zoom: 7,
     scrollWheelZoom,
   });
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 18,
-  }).addTo(map);
+  // Esri's neutral "Light Gray Canvas" instead of stock OSM - CARTO's free
+  // anonymous tiles (tried first) now require a signed-up API key and just
+  // render a "API key required" watermark without one. This one needs no
+  // key, and its muted grays/whites blend into the site's warm cream
+  // background instead of fighting it with saturated pink/yellow roads.
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution: '&copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors',
+      maxZoom: 16,
+    }
+  ).addTo(map);
 
   const pinIcon = L.divIcon({
     className: '',

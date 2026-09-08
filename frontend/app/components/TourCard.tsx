@@ -35,7 +35,9 @@ const CATEGORY_MOTIF: Record<string, { base: string; ridge: string; crest: strin
 const MOTIF_RIDGE = 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z';
 const MOTIF_CREST = 'M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z';
 
-function CategoryMotif({ category }: { category: string | null }) {
+// Exported so the tour detail page's larger hero uses the exact same
+// photo-less treatment instead of its own separate gradient+icon design.
+export function CategoryMotif({ category }: { category: string | null }) {
   const colors = CATEGORY_MOTIF[category ?? ''] ?? CATEGORY_MOTIF.history;
   return (
     <svg viewBox="0 0 200 140" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
@@ -101,14 +103,13 @@ export default function TourCard({
 }) {
   const { t } = useLanguage();
   const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
-  const Icon = style.Icon;
   const hasDeal = typeof tour.discounted_price === 'number';
   const hasRating = typeof tour.rating === 'number' && tour.rating > 0;
 
   return (
     <div
       onClick={onClick}
-      className={`bg-card rounded-xl overflow-hidden ring-1 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group ${
+      className={`bg-card rounded-xl overflow-hidden ring-1 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
         compareSelected ? 'ring-accent ring-2' : 'ring-black/[0.06] hover:ring-black/[0.12]'
       }`}
     >
@@ -120,10 +121,7 @@ export default function TourCard({
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <>
-            <CategoryMotif category={tour.category} />
-            <Icon size={24} className="relative text-white/55" />
-          </>
+          <CategoryMotif category={tour.category} />
         )}
 
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">

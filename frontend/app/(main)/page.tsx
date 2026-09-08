@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
-  Users2, ShieldCheck, Wallet, ChevronDown, MapPin, LogIn,
+  Users2, ShieldCheck, Wallet, ChevronDown, MapPin, LogIn, X,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
+import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchCard from '@/app/components/HeroSearchCard';
 import HorizontalScroller from '@/app/components/HorizontalScroller';
 import PriceRangeSlider from '@/app/components/PriceRangeSlider';
 import CompareModal from '@/app/components/CompareModal';
 import PlannerModal from '@/app/components/PlannerModal';
+import CityMarquee from '@/app/components/CityMarquee';
 import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
 import { VEHICLE_FEATURES, parseVehicleFeatures } from '@/app/lib/vehicleFeatures';
 import { todayLocalISODate } from '@/app/lib/date';
@@ -347,23 +349,17 @@ export default function Home() {
 
   return (
     <div className="min-h-full">
-      {/* Hero - deliberately not a photograph. TurPoint's photography
-          belongs to the tours and destinations a visitor is actually
-          discovering (see the cards below); the hero's job is just to
-          state what the product is and get a search started, so it's a
-          single calm sand surface carrying nothing but type and the
-          search card itself - no image, no gradient, no motion. */}
-      <div className="bg-surface-sand">
-        <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-12 pb-10 md:pt-16 md:pb-14">
-          <p className="text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase text-accent mb-3">
-            {t('nav.tagline')}
-          </p>
+      {/* Hero - a background photo slideshow (5 photos, 5s each) with the
+          heading/search card overlaid at the bottom, readable over any
+          photo thanks to the dark gradient scrim. bg-surface-sand stays as
+          the fallback color underneath while the first photo loads. */}
+      <div className="relative overflow-hidden min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
+        <HeroSlideshow />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+        <div className="relative w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-10 pb-6 md:pt-12 md:pb-8">
           <Greeting />
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-md leading-relaxed">
-            {t('home.whereToNextSubtitle')}
-          </p>
 
-          <div className="mt-7 md:mt-9">
+          <div className="mt-5 md:mt-6">
             <HeroSearchCard
               toLocation={locationFilter}
               onToLocationChange={setLocationFilter}
@@ -378,6 +374,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <CityMarquee />
 
       {/* Last-minute deals - surfaces tours that already have an active
           last_minute_deals row (real discount data, same discounted_price
@@ -413,7 +411,11 @@ export default function Home() {
           sand band so it reads as a deliberate "moment" rather than more
           cards on the same white canvas as everything else. */}
       {popularTours.length > 0 && (
-        <div className="bg-surface-sand mt-12 md:mt-16 py-10 md:py-14">
+        <div
+          className={`bg-surface-sand py-10 md:py-14 ${
+            !loading && dealTours.length > 0 ? 'mt-12 md:mt-16' : ''
+          }`}
+        >
           <div className="px-4 sm:px-6 max-w-[1600px] mx-auto">
             <p className="text-xs font-bold tracking-[0.2em] uppercase text-accent mb-2">
               {t('home.discoverEyebrow')}
@@ -441,6 +443,25 @@ export default function Home() {
         </div>
       )}
 
+      {/* Warm textured backdrop for the sign-in banner + filters/listing
+          section below - a gradient from the sand tone the Popular Tours
+          band already ends on, through a soft moss tint, into the page's
+          base cream, with a faint topographic-line texture over it so the
+          area doesn't read as a flat, empty off-white void. Purely a
+          background layer (absolute, behind everything at z-0); the actual
+          content keeps its existing layout untouched inside the relative
+          wrapper. */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-surface-sand via-surface-moss/50 to-background" />
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cpath d='M0 40 Q50 20 100 40 T200 40' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 90 Q50 70 100 90 T200 90' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 140 Q50 120 100 140 T200 140' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 180 Q50 165 100 180 T200 180' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
+            backgroundSize: '260px 260px',
+          }}
+        />
+        <div className="relative">
       {/* Sign-in prompt - only for logged-out visitors, and only ever
           points at real functionality (managing bookings, faster
           checkout) - no fabricated "member discounts" like a booking
@@ -477,8 +498,8 @@ export default function Home() {
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             {!loading && tours.length > 0 && (
               <div>
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
-                  <MapPinned size={15} /> {t('home.exploreOnMap')}
+                <h2 className="flex items-center gap-1.5 text-xs font-bold tracking-[0.12em] uppercase text-accent mb-2">
+                  <MapPinned size={13} /> {t('home.exploreOnMap')}
                 </h2>
                 <DestinationMap tours={tours} heightClassName="h-48" />
               </div>
@@ -618,8 +639,11 @@ export default function Home() {
 
           {/* Results */}
           <div id="tour-results" className="scroll-mt-20">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h2 className="text-sm font-semibold text-foreground">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2
+                className="text-lg sm:text-xl font-bold text-foreground"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
                 {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: sortedFiltered.length })}
               </h2>
               {!loading && sortedFiltered.length > 0 && (
@@ -628,7 +652,7 @@ export default function Home() {
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                     aria-label={t('home.sortBy')}
-                    className="appearance-none text-xs font-semibold bg-card border border-border rounded-full pl-3 pr-7 py-1.5 outline-none cursor-pointer hover:border-primary/40"
+                    className="appearance-none text-xs font-semibold bg-card border border-border rounded-full pl-3.5 pr-7 py-2 shadow-sm outline-none cursor-pointer hover:border-primary/40"
                   >
                     <option value="recommended">{t('home.sortRecommended')}</option>
                     <option value="price-asc">{t('home.sortPriceAsc')}</option>
@@ -639,6 +663,66 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* Active-filter chips - a quick-glance confirmation of what's
+                currently narrowing the grid, each removable on its own
+                without opening the sidebar. Mirrors the same filter state
+                the sidebar checkboxes/slider already control, so clicking a
+                chip's × is just calling the exact same toggle/setter. */}
+            {(activeCategories.length > 0 ||
+              activeFeatures.length > 0 ||
+              activeVehicleFeatures.length > 0 ||
+              minPrice !== '' ||
+              maxPrice !== '') && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {activeCategories.map((cat) => (
+                  <button
+                    key={`cat-${cat}`}
+                    onClick={() => toggleCategory(cat)}
+                    className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
+                  >
+                    {t(CATEGORY_STYLE[cat]?.labelKey ?? 'category.history')} <X size={12} />
+                  </button>
+                ))}
+                {activeFeatures.map((slug) => {
+                  const feature = TOUR_FEATURES.find((f) => f.slug === slug);
+                  if (!feature) return null;
+                  return (
+                    <button
+                      key={`feat-${slug}`}
+                      onClick={() => toggleFeature(slug)}
+                      className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
+                    >
+                      {t(feature.labelKey)} <X size={12} />
+                    </button>
+                  );
+                })}
+                {activeVehicleFeatures.map((slug) => {
+                  const feature = VEHICLE_FEATURES.find((f) => f.slug === slug);
+                  if (!feature) return null;
+                  return (
+                    <button
+                      key={`vfeat-${slug}`}
+                      onClick={() => toggleVehicleFeature(slug)}
+                      className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
+                    >
+                      {t(feature.labelKey)} <X size={12} />
+                    </button>
+                  );
+                })}
+                {(minPrice !== '' || maxPrice !== '') && (
+                  <button
+                    onClick={() => {
+                      setMinPrice('');
+                      setMaxPrice('');
+                    }}
+                    className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
+                  >
+                    AZN {minPrice === '' ? 0 : minPrice}–{maxPrice === '' ? priceSliderMax : maxPrice} <X size={12} />
+                  </button>
+                )}
+              </div>
+            )}
 
             {error && (
               <div className="text-center py-14 text-muted-foreground">
@@ -687,6 +771,8 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
+      </div>
         </div>
       </div>
 

@@ -31,7 +31,7 @@ export default function PriceRangeSlider({
     <div className="relative h-5 flex items-center">
       <div className="absolute inset-x-0 h-1.5 bg-border rounded-full" />
       <div
-        className="absolute h-1.5 bg-primary rounded-full"
+        className="absolute h-1.5 bg-gradient-to-r from-primary to-accent rounded-full"
         style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }}
       />
       <input
