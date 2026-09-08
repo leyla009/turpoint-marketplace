@@ -51,7 +51,7 @@ export default function Greeting() {
 
   return (
     <h1
-      className="text-3xl sm:text-4xl md:text-5xl font-bold text-white"
+      className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground"
       style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
     >
       {text} {mounted ? emoji : ''}

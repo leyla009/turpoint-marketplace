@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Home, User, Send,
   LayoutDashboard, ClipboardList, Settings,
@@ -12,10 +12,6 @@ import { useLanguage } from '../context/LanguageContext';
 import type { Locale } from '../lib/translations';
 import AccountMenu, { type AccountSection } from './AccountMenu';
 import AccountDetailModal from './AccountDetailModal';
-
-// How far (px) you can scroll down the homepage before the transparent
-// hero nav switches to its solid background - roughly the hero's height.
-const HERO_SCROLL_THRESHOLD = 260;
 
 // Plain language codes, not flag emoji - a flag maps to a country, not a
 // language (and English in particular has no single flag for it), and
@@ -43,22 +39,6 @@ export default function Nav() {
 
   const navItems = mode === 'operator' ? OPERATOR_ITEMS : TRAVELER_ITEMS;
 
-  // The homepage hero is a full-bleed photo slideshow the nav floats over
-  // transparently (see page.tsx's -mt-16 overlap); every other page, and
-  // the homepage itself once scrolled past the hero, gets the solid bar.
-  const isHome = pathname === '/';
-  const [scrolledPastHero, setScrolledPastHero] = useState(false);
-
-  useEffect(() => {
-    if (!isHome) return;
-    const onScroll = () => setScrolledPastHero(window.scrollY > HERO_SCROLL_THRESHOLD);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [isHome]);
-
-  const transparent = isHome && !scrolledPastHero;
-
   // Clicking the avatar/name opens a small anchored dropdown ("pocket")
   // with 3 rows; picking one closes the dropdown and opens that section's
   // own focused modal. accountMenuOpen tracks WHICH trigger opened it
@@ -74,14 +54,10 @@ export default function Nav() {
 
   return (
     <>
-      {/* Desktop top bar */}
-      <header
-        className={`hidden md:block sticky top-0 z-40 transition-colors duration-300 ${
-          transparent
-            ? 'bg-gradient-to-b from-black/45 via-black/15 to-transparent'
-            : 'bg-primary shadow-sm'
-        }`}
-      >
+      {/* Desktop top bar - solid on every page, including the homepage:
+          the hero is a flat sand surface now, not a photo, so there's no
+          reason for the header to float transparently over it. */}
+      <header className="hidden md:block sticky top-0 z-40 bg-primary shadow-sm">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
@@ -154,7 +130,7 @@ export default function Nav() {
             {!loading && !operatorProfile && (
               <Link
                 href={user ? '/dashboard/profile' : '/login'}
-                className="hidden lg:inline-block text-[11px] font-semibold text-white/80 hover:text-white"
+                className="hidden lg:inline-flex items-center text-xs font-semibold text-white/90 hover:text-white border-b border-white/30 hover:border-white/70 pb-0.5 transition-colors"
               >
                 {t('nav.becomeOperator')}
               </Link>
@@ -217,6 +193,41 @@ export default function Nav() {
           </div>
         </div>
       </header>
+
+      {/* Mobile top bar - logo + language only. Mobile previously had no
+          top header at all (only the homepage's own hero text stood in
+          for it), which meant two real gaps: no brand mark on any inner
+          page (tour detail, bookings, dashboard), and no way to change
+          language at all on mobile - the language switcher only ever
+          existed in the desktop-only header above. */}
+      <div className="md:hidden sticky top-0 z-40 bg-primary flex items-center justify-between px-4 h-12">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/15 shrink-0">
+            <Send size={13} className="text-white -rotate-45" />
+          </span>
+          <span
+            className="text-sm font-bold text-white leading-none"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            TurPoint
+          </span>
+        </Link>
+        <div className="flex items-center gap-0.5 bg-white/15 rounded-full p-1">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l}
+              onClick={() => setLocale(l)}
+              title={l.toUpperCase()}
+              aria-label={l.toUpperCase()}
+              className={`h-9 px-3 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
+                locale === l ? 'bg-white text-primary shadow-sm' : 'text-white/80'
+              }`}
+            >
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Mobile bottom nav — mirrors whatever mode is set on desktop /
           the account page; no room for the pill switcher itself here. */}

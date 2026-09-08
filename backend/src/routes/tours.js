@@ -55,7 +55,7 @@ function buildInterestScore(category) {
 // list view (e.g. the homepage price filter). One query for all active
 // deals, keyed by tour_id, so list endpoints stay O(1) queries instead of
 // N+1.
-function attachActiveDeals(tours) {
+export function attachActiveDeals(tours) {
   const list = Array.isArray(tours) ? tours : [tours];
   if (list.length === 0) return tours;
  
@@ -90,7 +90,7 @@ function attachActiveDeals(tours) {
 // so tour cards and search results can show real review data instead of
 // requiring a separate per-tour request. Same one-query-for-the-whole-list
 // shape as attachActiveDeals, for the same reason (avoid N+1 on a list).
-function attachReviewStats(tours) {
+export function attachReviewStats(tours) {
   const list = Array.isArray(tours) ? tours : [tours];
   if (list.length === 0) return tours;
 

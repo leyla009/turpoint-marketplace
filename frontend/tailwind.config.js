@@ -34,6 +34,8 @@ module.exports = {
           DEFAULT: 'var(--danger)',
           foreground: 'var(--danger-foreground)',
         },
+        'surface-sand': 'var(--surface-sand)',
+        'surface-moss': 'var(--surface-moss)',
       },
     },
   },

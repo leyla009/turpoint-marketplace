@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -49,6 +49,11 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [nextPath, setNextPath] = useState<string | null>(null);
+  // Tracks whether advancing to the "details" step pushed an extra
+  // history entry that hasn't been consumed yet (by the user pressing
+  // back, or by us stepping back to email ourselves) - see the popstate
+  // effect and backToEmail/switchMode below.
+  const pushedHistoryRef = useRef(false);
 
   // Read once on mount, client-side only (see sanitizeNext) - matches the
   // same window.location-based pattern the homepage uses for its own
@@ -58,6 +63,22 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     setNextPath(sanitizeNext(params.get('next')));
     if (params.get('mode') === 'signup') setMode('signup');
+  }, []);
+
+  // Without this, pressing the browser back button while on the
+  // "password" step navigated straight off /login (probably to whatever
+  // sent the user here, or out of the app entirely) instead of just
+  // returning to the "email" step it visually followed from. Advancing to
+  // "details" pushes one extra same-page history entry (see handleSubmit),
+  // so a back-press there only pops that entry and fires popstate here
+  // rather than actually leaving the page.
+  useEffect(() => {
+    function onPopState() {
+      pushedHistoryRef.current = false;
+      setStep('email');
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const wantsBooking = !!nextPath && /\/tours\/.+\/book/.test(nextPath);
@@ -115,7 +136,11 @@ export default function LoginPage() {
     if (step === 'email') {
       const error = validateField('email', email);
       setFieldErrors((p) => ({ ...p, email: error }));
-      if (!error) setStep('details');
+      if (!error) {
+        window.history.pushState({ turpointAuthStep: 'details' }, '');
+        pushedHistoryRef.current = true;
+        setStep('details');
+      }
       return;
     }
 
@@ -155,15 +180,29 @@ export default function LoginPage() {
     }
   }
 
+  // Consumes the history entry pushed when advancing to "details" (see
+  // handleSubmit) by actually navigating back through it, rather than just
+  // setting state directly - otherwise that entry is left dangling, and
+  // the next back-press would have to fire twice before it actually left
+  // the page. The popstate listener above is what sets step back to
+  // 'email' once this resolves.
+  function stepBackToEmail() {
+    if (pushedHistoryRef.current) {
+      window.history.back();
+    } else {
+      setStep('email');
+    }
+  }
+
   function switchMode(next: Mode) {
     setMode(next);
-    setStep('email');
+    stepBackToEmail();
     setFieldErrors({});
     setAuthError('');
   }
 
   function backToEmail() {
-    setStep('email');
+    stepBackToEmail();
     setAuthError('');
     setFieldErrors((p) => ({ ...p, password: undefined, name: undefined }));
   }

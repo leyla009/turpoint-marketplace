@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
-import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchCard from '@/app/components/HeroSearchCard';
 import HorizontalScroller from '@/app/components/HorizontalScroller';
 import PriceRangeSlider from '@/app/components/PriceRangeSlider';
@@ -33,6 +32,46 @@ const DestinationMap = dynamic(() => import('@/app/components/DestinationMap'), 
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function normalizeDestination(location: string): string {
+  return location.trim().toLowerCase();
+}
+
+// Real photography exists (see HeroSlideshow.tsx) only for Baku - matching
+// any other real tour location to one of those photos would misrepresent
+// what the photo actually shows, so every other destination card falls
+// back to DestinationMotif below instead of a mismatched image.
+const DESTINATION_PHOTOS: Record<string, { src: string; alt: string }> = {
+  bakı: { src: '/pictures/1.webp', alt: 'Baku Old City at sunset, with the Flame Towers in the background' },
+  baki: { src: '/pictures/1.webp', alt: 'Baku Old City at sunset, with the Flame Towers in the background' },
+};
+
+// Stand-in for a destination card with no real photo on file yet - a
+// generic layered mountain-ridge silhouette rather than a category-colored
+// icon block, so a card without a photo still reads as "a place", not as
+// a placeholder UI component. Four ridge-line/tone combinations, picked
+// deterministically from the destination's own name, so a row of several
+// photo-less cards doesn't repeat one identical graphic.
+const MOTIF_VARIANTS = [
+  { base: '#1B3D2F', ridge: '#234A39', crest: '#2C5A46', points: 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z|M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z' },
+  { base: '#2F4A3E', ridge: '#3A5B4C', crest: '#456C5C', points: 'M0 90 L40 100 L70 50 L100 95 L140 65 L170 100 L200 85 L200 140 L0 140 Z|M0 115 L45 95 L80 120 L115 90 L150 118 L200 100 L200 140 L0 140 Z' },
+  { base: '#4A4032', ridge: '#5A4E3E', crest: '#6A5C4A', points: 'M0 105 L30 70 L65 100 L90 60 L125 100 L155 75 L200 105 L200 140 L0 140 Z|M0 125 L55 100 L90 122 L125 100 L160 122 L200 105 L200 140 L0 140 Z' },
+  { base: '#5C4630', ridge: '#6C563C', crest: '#7C6448', points: 'M0 95 L45 60 L75 95 L110 55 L145 95 L175 70 L200 95 L200 140 L0 140 Z|M0 118 L40 90 L80 115 L115 80 L150 112 L200 92 L200 140 L0 140 Z' },
+] as const;
+
+function DestinationMotif({ seed }: { seed: string }) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const variant = MOTIF_VARIANTS[hash % MOTIF_VARIANTS.length];
+  const [ridgePath, crestPath] = variant.points.split('|');
+  return (
+    <svg viewBox="0 0 200 140" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+      <rect width="200" height="140" fill={variant.base} />
+      <path d={ridgePath} fill={variant.ridge} />
+      <path d={crestPath} fill={variant.crest} />
+    </svg>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
@@ -111,6 +150,14 @@ export default function Home() {
   // persistent corner button opens it as a floating modal from anywhere
   // on the homepage.
   const [showPlannerModal, setShowPlannerModal] = useState(false);
+  // The floating Planner button sits at a fixed viewport position, so on a
+  // phone it would otherwise sit permanently on top of whatever the
+  // (now taller, more spacious) hero + search card happens to render at
+  // that exact spot before the visitor has scrolled at all - covering the
+  // search card's own capacity field and Search button. Hidden on mobile
+  // until the page has scrolled a bit; desktop's hero is short relative to
+  // the button's corner position, so it never needs this there.
+  const [scrolledPastSearch, setScrolledPastSearch] = useState(false);
   const [locationFilter, setLocationFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [minPrice, setMinPrice] = useState('');
@@ -134,6 +181,13 @@ export default function Home() {
     const today = todayLocalISODate();
     setDepartDate(today);
     setReturnDate(today);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolledPastSearch(window.scrollY > 420);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   // Deep-linking for the footer's category links and any shared/bookmarked
@@ -342,46 +396,54 @@ export default function Home() {
 
   return (
     <div className="min-h-full">
-      {/* Header - photo slideshow hero, pulled up under the transparent
-          desktop nav (see Nav.tsx) so the images show through behind it. */}
-      <div className="relative md:-mt-16 min-h-[340px] md:min-h-[420px] flex flex-col justify-end overflow-hidden">
-        <HeroSlideshow />
-        <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto relative pt-24 md:pt-28 pb-10 md:pb-16">
+      {/* Hero - deliberately not a photograph. TurPoint's photography
+          belongs to the tours and destinations a visitor is actually
+          discovering (see the cards below); the hero's job is just to
+          state what the product is and get a search started, so it's a
+          single calm sand surface carrying nothing but type and the
+          search card itself - no image, no gradient, no motion. */}
+      <div className="bg-surface-sand">
+        <div className="w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-12 pb-10 md:pt-16 md:pb-14">
+          <p className="text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase text-accent mb-3">
+            {t('nav.tagline')}
+          </p>
           <Greeting />
-          <p className="mt-2 text-sm sm:text-base text-white/90">{t('home.whereToNextSubtitle')}</p>
-        </div>
-      </div>
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-md leading-relaxed">
+            {t('home.whereToNextSubtitle')}
+          </p>
 
-      {/* Floating search card - straddles the hero/content boundary, with
-          the same left/right page margins as everything else so it never
-          touches the screen edges. */}
-      <div className="px-4 sm:px-6 max-w-[1600px] mx-auto relative z-20 -mt-8 md:-mt-10">
-        <HeroSearchCard
-          toLocation={locationFilter}
-          onToLocationChange={setLocationFilter}
-          departDate={departDate}
-          onDepartDateChange={handleDepartDateChange}
-          returnDate={returnDate}
-          onReturnDateChange={handleReturnDateChange}
-          travelers={travelers}
-          onTravelersChange={setTravelers}
-          onSearch={scrollToResults}
-        />
+          <div className="mt-7 md:mt-9">
+            <HeroSearchCard
+              toLocation={locationFilter}
+              onToLocationChange={setLocationFilter}
+              departDate={departDate}
+              onDepartDateChange={handleDepartDateChange}
+              returnDate={returnDate}
+              onReturnDateChange={handleReturnDateChange}
+              travelers={travelers}
+              onTravelersChange={setTravelers}
+              onSearch={scrollToResults}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Category quick filters - the tour's `category` field drove only
           the card's color/icon before; this is the first place a visitor
-          can actually filter by it. Only categories with at least one real
-          tour show up, so an empty category never dead-ends the browse. */}
+          can actually filter by it. Redesigned as quiet underline tabs
+          rather than a row of colorful pill buttons, so it reads as part
+          of the page's own typography instead of a UI-kit component.
+          Only categories with at least one real tour show up, so an
+          empty category never dead-ends the browse. */}
       {!loading && tours.length > 0 && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-10 md:mt-14 border-b border-border">
+          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setCategoryFilter('all')}
-              className={`flex items-center gap-1.5 shrink-0 text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${
+              className={`flex items-center gap-2 shrink-0 text-sm font-semibold pb-3.5 pt-1 border-b-2 transition-colors ${
                 categoryFilter === 'all'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card text-foreground border-border hover:border-primary/40'
+                  ? 'text-foreground border-accent'
+                  : 'text-muted-foreground border-transparent hover:text-foreground'
               }`}
             >
               <LayoutGrid size={14} /> {t('home.allCategories')}
@@ -396,16 +458,14 @@ export default function Home() {
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(active ? 'all' : cat)}
-                    className={`flex items-center gap-1.5 shrink-0 text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${
+                    className={`flex items-center gap-2 shrink-0 text-sm font-semibold pb-3.5 pt-1 border-b-2 transition-colors ${
                       active
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-foreground border-border hover:border-primary/40'
+                        ? 'text-foreground border-accent'
+                        : 'text-muted-foreground border-transparent hover:text-foreground'
                     }`}
                   >
                     <CatIcon size={14} /> {t(style.labelKey)}
-                    <span className={active ? 'text-primary-foreground/70' : 'text-muted-foreground'}>
-                      {categoryCounts[cat]}
-                    </span>
+                    <span className="text-xs text-muted-foreground/70">{categoryCounts[cat]}</span>
                   </button>
                 );
               })}
@@ -418,9 +478,12 @@ export default function Home() {
           the cards below already show) as their own dedicated strip instead
           of leaving them to blend into the general grid. */}
       {!loading && dealTours.length > 0 && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
-          <h2 className="flex items-center gap-1.5 text-base font-bold text-foreground mb-3">
-            <Zap size={16} className="text-accent" /> {t('home.lastMinuteDeals')}
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-12 md:mt-16">
+          <h2
+            className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-foreground mb-5"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            <Zap size={18} className="text-accent" /> {t('home.lastMinuteDeals')}
           </h2>
           <HorizontalScroller>
             {dealTours.map((tour) => (
@@ -440,66 +503,87 @@ export default function Home() {
 
       {/* Popular destinations - grouped straight from tours' real `location`
           values (see `destinations` above), so this only ever lists places
-          that currently have a bookable tour. */}
+          that currently have a bookable tour. Sits on its own soft sand
+          band so the photography reads as a deliberate "moment" rather
+          than more cards on the same white canvas as everything else. */}
       {!loading && destinations.length > 0 && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
-          <h2 className="text-base font-bold text-foreground mb-3">{t('home.popularDestinations')}</h2>
-          <HorizontalScroller>
-            {destinations.map((d) => {
-              const style = CATEGORY_STYLE[d.category ?? ''] ?? CATEGORY_STYLE.history;
-              const DIcon = style.Icon;
-              return (
-                <button
-                  key={d.location}
-                  onClick={() => selectDestination(d.location)}
-                  className={`text-left rounded-xl border overflow-hidden bg-card hover:shadow-md transition-all group w-36 sm:w-44 shrink-0 snap-start ${
-                    locationFilter === d.location ? 'border-accent ring-2 ring-accent/30' : 'border-border'
-                  }`}
-                >
-                  <div
-                    className={`relative h-24 sm:h-28 bg-gradient-to-br ${style.gradient} flex items-center justify-center overflow-hidden`}
+        <div className="bg-surface-sand mt-12 md:mt-16 py-10 md:py-14">
+          <div className="px-4 sm:px-6 max-w-[1600px] mx-auto">
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-accent mb-2">
+              {t('home.discoverEyebrow')}
+            </p>
+            <h2
+              className="text-xl sm:text-2xl font-bold text-foreground mb-6"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {t('home.popularDestinations')}
+            </h2>
+            <HorizontalScroller>
+              {destinations.map((d) => {
+                const photo = DESTINATION_PHOTOS[normalizeDestination(d.location)];
+                return (
+                  <button
+                    key={d.location}
+                    onClick={() => selectDestination(d.location)}
+                    className={`text-left rounded-2xl overflow-hidden bg-card transition-all group w-52 sm:w-60 shrink-0 snap-start ring-1 ${
+                      locationFilter === d.location ? 'ring-accent' : 'ring-black/[0.06] hover:ring-black/[0.12]'
+                    }`}
                   >
-                    <div
-                      className="absolute inset-0 opacity-[0.12]"
-                      style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)' }}
-                    />
-                    <DIcon size={26} className="text-white/80 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-sm font-semibold text-foreground truncate">{d.location}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('home.toursAvailable', { count: d.count })}
-                    </p>
-                    <p className="text-[11px] font-semibold text-primary mt-0.5">
-                      {t('home.fromPrice', { price: d.minPrice })}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </HorizontalScroller>
+                    <div className="relative h-36 sm:h-40 overflow-hidden bg-primary">
+                      {photo ? (
+                        <img
+                          src={photo.src}
+                          alt={photo.alt}
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <DestinationMotif seed={d.location} />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                      <p
+                        className="absolute bottom-2.5 left-3.5 right-3.5 text-base font-bold text-white truncate"
+                        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                      >
+                        {d.location}
+                      </p>
+                    </div>
+                    <div className="px-3.5 py-2.5 flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        {t('home.toursAvailable', { count: d.count })}
+                      </p>
+                      <p className="text-xs font-semibold text-primary">
+                        {t('home.fromPrice', { price: d.minPrice })}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </HorizontalScroller>
+          </div>
         </div>
       )}
 
       {/* Sign-in prompt - only for logged-out visitors, and only ever
           points at real functionality (managing bookings, faster
           checkout) - no fabricated "member discounts" like a booking
-          site's loyalty program would claim, since we don't have one. */}
+          site's loyalty program would claim, since we don't have one.
+          A quiet card with an accent rule rather than a solid green
+          block, so it reads as a gentle nudge, not another banner. */}
       {!authLoading && !user && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-8 md:mt-10">
-          <div className="bg-primary rounded-2xl px-5 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-                <LogIn size={18} className="text-white" />
+        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-10 md:mt-12">
+          <div className="bg-card border-l-4 border-accent rounded-r-xl px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <span className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <LogIn size={16} className="text-primary" />
               </span>
               <div>
-                <p className="text-sm font-bold text-white">{t('home.signInBannerTitle')}</p>
-                <p className="text-xs text-white/80 mt-0.5">{t('home.signInBannerBody')}</p>
+                <p className="text-sm font-bold text-foreground">{t('home.signInBannerTitle')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('home.signInBannerBody')}</p>
               </div>
             </div>
             <Link
               href="/login"
-              className="shrink-0 bg-white text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+              className="shrink-0 bg-primary text-primary-foreground text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
             >
               {t('nav.signIn')}
             </Link>
@@ -509,7 +593,7 @@ export default function Home() {
 
       {/* Main Content - left sidebar (map + filters) alongside the results
           grid on the right, matching a standard listing-site layout. */}
-      <div className="px-4 sm:px-6 pt-6 md:pt-8 pb-10 max-w-[1600px] mx-auto">
+      <div className="px-4 sm:px-6 pt-8 md:pt-10 pb-12 max-w-[1600px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* Sidebar */}
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto scrollbar-hide">
@@ -522,7 +606,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="bg-card border border-border/60 rounded-2xl shadow-sm p-4 flex items-center justify-between">
+            <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">{t('home.compareProperties')}</span>
               <button
                 type="button"
@@ -541,7 +625,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="bg-card border border-border/60 rounded-2xl shadow-sm p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-1">{t('home.budget')}</h3>
               <p className="text-xs text-muted-foreground mb-3">
                 AZN {sliderMinValue} – AZN {sliderMaxValue}
@@ -702,13 +786,20 @@ export default function Home() {
 
       {/* How it works - explains the group-buying mechanic (price drops as
           more travelers join, confirmed once the tour's minimum is hit),
-          which isn't obvious from a first glance at a tour card. */}
-      <div className="bg-muted/40 border-y border-border">
-        <div className="px-4 sm:px-6 py-10 md:py-14 max-w-[1600px] mx-auto">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-8" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          which isn't obvious from a first glance at a tour card. A subtle
+          green-tinted band (--surface-moss) rather than plain white or
+          another beige block, so the page's third act reads as its own
+          calm beat rather than a continuation of the sand-toned discovery
+          section above it. */}
+      <div className="bg-surface-moss">
+        <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
+          <h2
+            className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             {t('home.howItWorksTitle')}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 max-w-4xl mx-auto">
             {(
               [
                 { Icon: Search, titleKey: 'home.step1Title', bodyKey: 'home.step1Body' },
@@ -717,25 +808,85 @@ export default function Home() {
               ] satisfies { Icon: typeof Search; titleKey: TranslationKey; bodyKey: TranslationKey }[]
             ).map(({ Icon, titleKey, bodyKey }, i) => (
               <div key={i} className="text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
-                  <Icon size={20} />
+                <div className="w-11 h-11 rounded-full bg-card text-primary flex items-center justify-center mx-auto mb-4">
+                  <Icon size={18} />
                 </div>
-                <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+                <h3 className="text-sm font-bold text-foreground mb-1.5">{t(titleKey)}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px] mx-auto">{t(bodyKey)}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* Operator story - a full-bleed photographic band (a real image
+          from the same pool the hero draws from, not a new asset), so the
+          operator pitch reads as part of the brand's own visual world
+          instead of a bolted-on advertisement banner. Only describes
+          capabilities that actually exist: the public marketplace listing,
+          the operator dashboard's bookings view, and real photo uploads
+          on a tour listing. */}
+      <div className="relative overflow-hidden">
+        <img
+          src="/pictures/4.jpeg"
+          alt="Green mountain valley in the Caucasus"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0f1f17]/92 via-[#0f1f17]/75 to-[#0f1f17]/45" />
+        <div className="relative px-4 sm:px-6 py-16 md:py-24 max-w-[1600px] mx-auto">
+          <div className="max-w-lg">
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/70 mb-3">
+              {t('home.operatorEyebrow')}
+            </p>
+            <h2
+              className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {t('home.operatorTitle')}
+            </h2>
+            <p className="text-sm sm:text-base text-white/80 mb-8 leading-relaxed">{t('home.operatorBody')}</p>
+
+            <div className="space-y-5 mb-9">
+              {(
+                [
+                  { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
+                  { titleKey: 'home.operatorBenefit2Title', bodyKey: 'home.operatorBenefit2Body' },
+                  { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
+                ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
+              ).map(({ titleKey, bodyKey }, i) => (
+                <div key={i} className="flex gap-3.5">
+                  <span className="mt-1 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-white">{t(titleKey)}</p>
+                    <p className="text-xs text-white/70 mt-0.5 leading-relaxed">{t(bodyKey)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Link
+              href="/dashboard/profile"
+              className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
+            >
+              {t('dashboard.becomeOperator')}
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Why TurPoint - real product mechanics only (group pricing,
           verified-buyer-only reviews, operators who own their listings),
-          nothing fabricated like award badges or made-up guest counts. */}
-      <div className="px-4 sm:px-6 py-10 md:py-14 max-w-[1600px] mx-auto">
-        <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-8" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          nothing fabricated like award badges or made-up guest counts.
+          A plain list rather than three bordered/shadowed boxes, closing
+          the page on a quiet, editorial note before the footer. */}
+      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
+        <h2
+          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
           {t('home.whyUsTitle')}
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {(
             [
               { Icon: Wallet, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
@@ -743,8 +894,8 @@ export default function Home() {
               { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
             ] satisfies { Icon: typeof Wallet; titleKey: TranslationKey; bodyKey: TranslationKey }[]
           ).map(({ Icon, titleKey, bodyKey }, i) => (
-            <div key={i} className="bg-card border border-border/60 rounded-2xl shadow-sm p-5">
-              <Icon size={20} className="text-accent mb-2.5" />
+            <div key={i} className="text-center sm:text-left">
+              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
               <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
             </div>
@@ -782,10 +933,18 @@ export default function Home() {
 
       {/* Persistent Smart Planner button - replaces the old separate
           /planner page with a floating modal, opened from anywhere on
-          the homepage. */}
+          the homepage. Hidden on mobile while the compare tray above is
+          showing (both are fixed-bottom pills that would otherwise
+          collide), and until the page has scrolled a little (see
+          scrolledPastSearch - otherwise it sits fixed on top of the
+          search card's own capacity field and Search button before the
+          visitor has scrolled at all). Desktop's shorter hero doesn't
+          have either problem, so it stays visible there regardless. */}
       <button
         onClick={() => setShowPlannerModal(true)}
-        className="fixed bottom-20 md:bottom-4 right-4 z-40 flex items-center gap-2 bg-accent text-accent-foreground rounded-full shadow-lg px-4 py-3 hover:opacity-90 transition-opacity"
+        className={`fixed bottom-20 md:bottom-4 right-4 z-40 items-center gap-2 bg-accent text-accent-foreground rounded-full shadow-lg px-4 py-3 hover:opacity-90 transition-opacity md:flex ${
+          (compareMode && compareSelectedIds.length > 0) || !scrolledPastSearch ? 'hidden' : 'flex'
+        }`}
       >
         <Calendar size={16} />
         <span className="text-sm font-semibold">{t('nav.planner')}</span>

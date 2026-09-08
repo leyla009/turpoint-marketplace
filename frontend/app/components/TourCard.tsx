@@ -6,12 +6,27 @@ import type { TranslationKey } from '../lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Categories no longer carry their own saturated gradient - a card without
+// a real photo now falls back to one shared, muted brand treatment (see
+// PLACEHOLDER_VARIANTS) instead of a category-colored block, so the grid
+// reads as "real listings, some without a photo yet" rather than "four
+// kinds of colored icon tiles". The Icon here is used only as a small
+// corner mark on that fallback, and CATEGORY_STYLE itself still drives the
+// category tabs/labels elsewhere on the homepage.
 export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; labelKey: TranslationKey }> = {
   nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, labelKey: 'category.nature' },
   history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, labelKey: 'category.history' },
   entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: Music, labelKey: 'category.entertainment' },
   food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, labelKey: 'category.food' },
 };
+
+// Photography is meant to be the card's whole visual argument - a tour
+// without a real photo yet shouldn't compete for attention with a colorful
+// (or even a muted-but-still-bold) painted panel of its own. This falls
+// back to the same quiet neutral surface the rest of the page's own empty
+// states use, with only a small line icon - it recedes instead of trying
+// to manufacture visual interest a listing without a photo doesn't
+// actually have yet.
 
 export interface ApiTour {
   id: number;
@@ -67,15 +82,11 @@ export default function TourCard({
   return (
     <div
       onClick={onClick}
-      className={`bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group ${
-        compareSelected ? 'border-accent ring-2 ring-accent/30' : 'border-border'
+      className={`bg-card rounded-xl overflow-hidden ring-1 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group ${
+        compareSelected ? 'ring-accent ring-2' : 'ring-black/[0.06] hover:ring-black/[0.12]'
       }`}
     >
-      <div
-        className={`relative h-36 sm:h-40 flex items-center justify-center overflow-hidden ${
-          tour.photo_url ? 'bg-muted' : `bg-gradient-to-br ${style.gradient}`
-        }`}
-      >
+      <div className="relative h-36 sm:h-40 flex items-center justify-center overflow-hidden bg-muted">
         {tour.photo_url ? (
           <img
             src={`${API_URL}${tour.photo_url}`}
@@ -83,19 +94,7 @@ export default function TourCard({
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <>
-            {/* Subtle diagonal-weave texture instead of a flat gradient - a
-                nod to Azerbaijani carpet motifs without literally
-                illustrating a carpet, since there's no real tour photo. */}
-            <div
-              className="absolute inset-0 opacity-[0.12]"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)',
-              }}
-            />
-            <Icon size={40} className="text-white/70 transition-transform duration-300 group-hover:scale-110" />
-          </>
+          <Icon size={26} className="text-muted-foreground/35" />
         )}
 
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">

@@ -40,7 +40,7 @@ export function AuthHeader() {
             onClick={() => setLocale(l)}
             title={l.toUpperCase()}
             aria-label={l.toUpperCase()}
-            className={`h-7 px-2.5 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
+            className={`h-9 px-3 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
               locale === l ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >

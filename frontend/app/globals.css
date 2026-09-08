@@ -5,25 +5,39 @@
 @tailwind utilities;
  
 :root {
-  --background: #FFFFFF;
-  --foreground: #1F2A24;
+  /* Warm ivory rather than pure white - a page-wide white canvas is what
+     made the site read as an unstyled prototype rather than a place with
+     an actual visual identity. Content surfaces (--card) stay white so
+     they still lift gently off this ground. */
+  --background: #FBF7EF;
+  --foreground: #23281F;
   --card: #FFFFFF;
-  --card-foreground: #1F2A24;
+  --card-foreground: #23281F;
   --primary: #1B3D2F;
   --primary-foreground: #FFFFFF;
-  --muted: #E7DDCC;
-  --muted-foreground: #7A7266;
-  --border: #DDD2BE;
-  --accent: #C95E18;
+  --muted: #F1E9D8;
+  --muted-foreground: #7C7364;
+  --border: #E4DBC7;
+  /* Muted terracotta rather than a saturated construction-orange clay -
+     same brand hue, pulled back so it reads as a considered accent
+     instead of a loud call-out block. */
+  --accent: #B15A2A;
   --accent-foreground: #FFFFFF;
-  /* Rating stars use a warm gold rather than the brand green/orange - it
-     reads as "review score" at a glance, matching the convention every
-     booking site trains users on. */
-  --rating: #E3A008;
-  --success: #1E7A4C;
+  /* Rating stars use a muted warm gold rather than the brand green/orange
+     or a neon amber - it reads as "review score" at a glance, matching
+     the convention every booking site trains users on, without adding a
+     fourth saturated color to the palette. */
+  --rating: #C79A3C;
+  --success: #3D6B4F;
   --success-foreground: #FFFFFF;
-  --danger: #B3261E;
+  --danger: #A3382F;
   --danger-foreground: #FFFFFF;
+  /* Two additional section-band tones (not swapped in on every section -
+     see page.tsx's rhythm of ivory -> sand -> ivory -> moss -> primary)
+     so the page reads as one warm, layered surface instead of either a
+     flat white canvas or a patchwork of differently-colored blocks. */
+  --surface-sand: #F3ECDC;
+  --surface-moss: #EBEEE1;
 }
 
 body {

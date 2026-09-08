@@ -121,6 +121,9 @@ export default function DestinationMap({
   const mapRef = useRef<any>(null);
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const modalMapRef = useRef<any>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { locale, t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
 
@@ -154,18 +157,51 @@ export default function DestinationMap({
     };
   }, [expanded, tours, locale]);
 
-  // Lock page scroll while the modal is open, and let Escape close it.
+  // Lock page scroll while the modal is open, let Escape close it, and
+  // trap Tab/Shift+Tab inside it - without this, a keyboard or
+  // screen-reader user could tab straight past the close button into the
+  // nav/header sitting behind what's visually a fullscreen overlay.
+  // Focusable elements are re-queried on every Tab press rather than
+  // captured once, because Leaflet adds its own focusable zoom controls
+  // (and a "View tour" link inside any open marker popup) dynamically,
+  // after this effect has already run.
   useEffect(() => {
     if (!expanded) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpanded(false);
+      if (e.key === 'Escape') {
+        setExpanded(false);
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
+      // Return focus to whatever opened the modal (normally the expand
+      // button) rather than leaving it on a now-removed close button.
+      (previouslyFocused ?? expandButtonRef.current)?.focus();
     };
   }, [expanded]);
 
@@ -177,6 +213,7 @@ export default function DestinationMap({
           className={`w-full ${heightClassName} rounded-xl overflow-hidden border border-border`}
         />
         <button
+          ref={expandButtonRef}
           onClick={() => setExpanded(true)}
           title={t('map.expand')}
           aria-label={t('map.expand')}
@@ -200,10 +237,15 @@ export default function DestinationMap({
             onClick={() => setExpanded(false)}
           >
             <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('map.expand')}
               className="bg-card rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] relative shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                ref={closeButtonRef}
                 onClick={() => setExpanded(false)}
                 title={t('map.close')}
                 aria-label={t('map.close')}

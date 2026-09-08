@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
 import { translations, type Locale, type TranslationKey } from '../lib/translations';
 
 const LOCALE_KEY = 'turpoint_locale';
@@ -16,11 +16,21 @@ const LanguageContext = createContext<LanguageContextValue | undefined>(undefine
 export function LanguageProvider({ children }: { children: ReactNode }) {
   // Defaults to 'az' to match the app's existing default content; the
   // stored preference (if any) overrides this right after mount. Kept as
-  // a plain useState + effect (not lazy-init from localStorage) so server
-  // and first client render agree, avoiding a hydration mismatch.
+  // a plain useState (not lazy-init from localStorage) so server and first
+  // client render agree, avoiding a hydration mismatch - localStorage
+  // doesn't exist during SSR, and reading it synchronously in useState's
+  // initializer would make the client's first render disagree with the
+  // server-rendered HTML it's hydrating onto.
+  //
+  // The correction runs in useLayoutEffect, not useEffect, specifically so
+  // a returning en/ru visitor doesn't see a flash of Azerbaijani text: a
+  // layout effect commits synchronously before the browser paints the
+  // post-hydration frame, where a plain effect is scheduled after that
+  // paint - on a real device that gap was measurably visible (~100ms of
+  // wrong-language text on every single page load).
   const [locale, setLocaleState] = useState<Locale>('az');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const stored = localStorage.getItem(LOCALE_KEY);
     if (stored === 'az' || stored === 'en' || stored === 'ru') {
       setLocaleState(stored);

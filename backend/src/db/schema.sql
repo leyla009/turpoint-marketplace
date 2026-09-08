@@ -99,6 +99,19 @@ CREATE TABLE IF NOT EXISTS favorites (
   UNIQUE(user_id, tour_id)
 );
 
+-- Smart Planner itineraries a traveler chose to keep. trip_json is the
+-- whole validated planner response (trip summary, days, activities with
+-- real tour ids) stored as-is - simplest thing that works for "show me my
+-- saved trips again later" without inventing a second normalized schema
+-- for what's fundamentally a snapshot of an AI-assisted plan.
+CREATE TABLE IF NOT EXISTS saved_trips (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  title TEXT NOT NULL,
+  trip_json TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Sprint 3: indexes for the query patterns the routes actually use (search
 -- filters, ownership lookups, and the per-tour joins on bookings/reviews/
 -- deals/group_formations). IF NOT EXISTS makes these safe to re-run on
@@ -122,4 +135,6 @@ CREATE INDEX IF NOT EXISTS idx_deals_expires_at ON last_minute_deals(expires_at)
 
 CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_tour_id ON favorites(tour_id);
+
+CREATE INDEX IF NOT EXISTS idx_saved_trips_user_id ON saved_trips(user_id);
  

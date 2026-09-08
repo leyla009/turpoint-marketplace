@@ -44,8 +44,19 @@ export default function HeroSearchCard({
   const { t } = useLanguage();
 
   return (
-    <div className="bg-accent rounded-2xl shadow-xl p-1.5">
-      <div className="flex flex-col md:flex-row gap-1.5 md:items-stretch">
+    // A single white surface with hairline dividers between fields, sitting
+    // on the hero's sand background - this is the hero's visual center, so
+    // it gets real elevation (a soft shadow, not a border trick) rather
+    // than blending into whatever sits behind it.
+    <div className="bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-2">
+      {/* Grid on mobile - pairs related fields (from/to, depart/return) into
+          two-up rows instead of stacking all six full-width, since a fully
+          stacked card can render tall enough to sit behind the persistent
+          mobile bottom nav bar on shorter phones. Plain flex-row on desktop,
+          unchanged from before - the grid classes below are simply inert
+          once display:flex takes over at md, so the divide-x dividers
+          between all six fields still work exactly as they did. */}
+      <div className="grid grid-cols-2 gap-1.5 md:flex md:gap-0 md:items-stretch md:divide-x md:divide-border">
         <Field label={t('search.from')} icon={<Navigation size={15} className="text-muted-foreground shrink-0" />}>
           <span className="text-sm font-medium text-foreground truncate">Bakı</span>
         </Field>
@@ -56,14 +67,21 @@ export default function HeroSearchCard({
 
         <DateField label={t('search.return')} value={returnDate} onChange={onReturnDateChange} />
 
-        <TravelersField label={t('search.travelers')} value={travelers} onChange={onTravelersChange} />
+        <TravelersField
+          label={t('search.travelers')}
+          value={travelers}
+          onChange={onTravelersChange}
+          className="col-span-2"
+        />
 
-        <button
-          onClick={onSearch}
-          className="flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-bold px-8 py-3 md:py-0 rounded-xl hover:opacity-90 transition-opacity shrink-0"
-        >
-          <Search size={16} /> {t('search.search')}
-        </button>
+        <div className="col-span-2 p-1.5 md:pl-3 md:py-1.5 flex items-stretch">
+          <button
+            onClick={onSearch}
+            className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-bold px-7 py-3 md:py-0 rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all shrink-0"
+          >
+            <Search size={16} /> {t('search.search')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -82,9 +100,9 @@ function Field({
 }) {
   return (
     <div
-      className={`flex-1 min-w-0 bg-card rounded-xl border-2 border-transparent focus-within:border-primary px-3 py-2 transition-colors ${className}`}
+      className={`flex-1 min-w-0 rounded-xl px-4 py-2.5 transition-colors hover:bg-muted/50 ${className}`}
     >
-      <p className="text-[11px] font-semibold text-foreground mb-0.5 truncate">{label}</p>
+      <p className="text-[11px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
       <div className="flex items-center gap-1.5">
         {icon}
         {children}
@@ -153,15 +171,15 @@ function DestinationField({
   return (
     <div ref={containerRef} className="relative flex-1 min-w-0">
       <div
-        className={`bg-card rounded-xl border-2 px-3 py-2 transition-colors cursor-text ${
-          open ? 'border-primary' : 'border-transparent'
+        className={`rounded-xl px-4 py-2.5 transition-colors cursor-text ${
+          open ? 'bg-muted/60' : 'hover:bg-muted/50'
         }`}
         onClick={() => {
           setOpen(true);
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
       >
-        <p className="text-[11px] font-semibold text-foreground mb-0.5 truncate">{label}</p>
+        <p className="text-[11px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
         <div className="flex items-center gap-1.5">
           <MapPin size={15} className="text-muted-foreground shrink-0" />
           {open ? (
@@ -228,8 +246,8 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex-1 min-w-0 bg-card rounded-xl border-2 border-transparent focus-within:border-primary px-3 py-2 transition-colors">
-      <p className="text-[11px] font-semibold text-foreground mb-0.5">{label}</p>
+    <div className="flex-1 min-w-0 rounded-xl px-4 py-2.5 transition-colors hover:bg-muted/50 focus-within:bg-muted/60">
+      <p className="text-[11px] font-semibold text-muted-foreground mb-0.5">{label}</p>
       <div className="relative flex items-center">
         <input
           type="date"
@@ -253,10 +271,12 @@ function TravelersField({
   label,
   value,
   onChange,
+  className = '',
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -280,15 +300,15 @@ function TravelersField({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative md:flex-none md:w-40">
+    <div ref={containerRef} className={`relative md:flex-none md:w-40 ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full text-left bg-card rounded-xl border-2 px-3 py-2 transition-colors ${
-          open ? 'border-primary' : 'border-transparent'
+        className={`w-full text-left rounded-xl px-4 py-2.5 transition-colors ${
+          open ? 'bg-muted/60' : 'hover:bg-muted/50'
         }`}
       >
-        <p className="text-[11px] font-semibold text-foreground mb-0.5 truncate">{label}</p>
+        <p className="text-[11px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
         <div className="flex items-center gap-1.5">
           <Users size={15} className="text-muted-foreground shrink-0" />
           <span className="flex-1 text-sm font-medium text-foreground">
