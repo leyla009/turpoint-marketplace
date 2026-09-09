@@ -198,7 +198,7 @@ export default function TourCard({
               {operatorName ?? t('tourCard.defaultOperator')}
             </p>
             <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-              <Users size={10} /> {t('tourCard.minToConfirm', { count: tour.min_participants })}
+              <Users size={10} /> {t('search.travelers')}: {tour.max_participants}
             </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">

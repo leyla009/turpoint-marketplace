@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
-  Users2, ShieldCheck, Wallet, ChevronDown, MapPin, LogIn, X,
+  ShieldCheck, MessageCircle, ChevronDown, MapPin, LogIn, X,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
@@ -776,38 +776,35 @@ export default function Home() {
         </div>
       </div>
 
-      {/* How it works - explains the group-buying mechanic (price drops as
-          more travelers join, confirmed once the tour's minimum is hit),
-          which isn't obvious from a first glance at a tour card. A subtle
-          green-tinted band (--surface-moss) rather than plain white or
-          another beige block, so the page's third act reads as its own
-          calm beat rather than a continuation of the sand-toned discovery
-          section above it. */}
-      <div className="bg-surface-moss">
-        <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
-          <h2
-            className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {t('home.howItWorksTitle')}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 max-w-4xl mx-auto">
-            {(
-              [
-                { Icon: Search, titleKey: 'home.step1Title', bodyKey: 'home.step1Body' },
-                { Icon: Users2, titleKey: 'home.step2Title', bodyKey: 'home.step2Body' },
-                { Icon: ShieldCheck, titleKey: 'home.step3Title', bodyKey: 'home.step3Body' },
-              ] satisfies { Icon: typeof Search; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-            ).map(({ Icon, titleKey, bodyKey }, i) => (
-              <div key={i} className="text-center">
-                <div className="w-11 h-11 rounded-full bg-card text-primary flex items-center justify-center mx-auto mb-4">
-                  <Icon size={18} />
-                </div>
-                <h3 className="text-sm font-bold text-foreground mb-1.5">{t(titleKey)}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px] mx-auto">{t(bodyKey)}</p>
-              </div>
-            ))}
-          </div>
+      {/* Why TurPoint - real product mechanics only (direct WhatsApp/
+          Instagram contact with the operator, genuine traveler reviews,
+          operators who own their listings), nothing fabricated like award
+          badges or made-up guest counts. Replaces the old "How it works"
+          band that used to sit here, which described the group-buying
+          booking flow this product no longer has. A plain list rather than
+          three bordered/shadowed boxes. Sits before the operator pitch now
+          (traveler-facing content first, operator pitch second). */}
+      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
+        <h2
+          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          {t('home.whyUsTitle')}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          {(
+            [
+              { Icon: MessageCircle, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
+              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
+              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
+            ] satisfies { Icon: typeof MessageCircle; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+          ).map(({ Icon, titleKey, bodyKey }, i) => (
+            <div key={i} className="text-center sm:text-left">
+              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
+              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -863,35 +860,6 @@ export default function Home() {
               {t('dashboard.becomeOperator')}
             </Link>
           </div>
-        </div>
-      </div>
-
-      {/* Why TurPoint - real product mechanics only (group pricing,
-          verified-buyer-only reviews, operators who own their listings),
-          nothing fabricated like award badges or made-up guest counts.
-          A plain list rather than three bordered/shadowed boxes, closing
-          the page on a quiet, editorial note before the footer. */}
-      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
-        <h2
-          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          {t('home.whyUsTitle')}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          {(
-            [
-              { Icon: Wallet, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
-              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
-              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
-            ] satisfies { Icon: typeof Wallet; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-          ).map(({ Icon, titleKey, bodyKey }, i) => (
-            <div key={i} className="text-center sm:text-left">
-              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
-              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
-            </div>
-          ))}
         </div>
       </div>
 

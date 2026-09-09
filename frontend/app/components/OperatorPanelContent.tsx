@@ -146,9 +146,8 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <div>
+        <div className="inline-block bg-card/95 backdrop-blur-sm rounded-xl shadow-md px-4 py-2.5">
           <h1 className="font-display text-xl font-bold text-foreground">{operatorProfile.name}</h1>
-          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -167,20 +166,32 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-foreground">{myTours.length}</p>
-          <p className="text-[11px] text-muted-foreground">{t('dashboard.activeTours')}</p>
+        <div className="bg-card border border-border rounded-xl shadow-md p-3.5 flex items-center gap-3">
+          <span className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Ticket size={17} className="text-primary" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-foreground leading-none">{myTours.length}</p>
+            <p className="text-[11px] text-muted-foreground mt-1 truncate">{t('dashboard.activeTours')}</p>
+          </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-foreground flex items-center justify-center gap-1">
-            <Star size={16} className="text-primary" fill="currentColor" />
-            {operatorProfile.rating ?? 0}
-          </p>
-          <p className="text-[11px] text-muted-foreground">{t('dashboard.rating')}</p>
+        <div className="bg-card border border-border rounded-xl shadow-md p-3.5 flex items-center gap-3">
+          <span className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Star size={17} className="text-primary" fill="currentColor" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-foreground leading-none">{operatorProfile.rating ?? 0}</p>
+            <p className="text-[11px] text-muted-foreground mt-1 truncate">{t('dashboard.rating')}</p>
+          </div>
         </div>
       </div>
 
-      <h2 className="text-sm font-semibold text-foreground mb-2">{t('dashboard.yourTours')}</h2>
+      <h2
+        className="inline-block bg-card/95 backdrop-blur-sm rounded-lg shadow-sm px-3 py-1.5 text-lg sm:text-xl font-bold text-foreground mb-2"
+        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+      >
+        {t('dashboard.yourTours')}
+      </h2>
 
       {loadError ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
@@ -198,7 +209,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
       ) : (
         <div className="space-y-2">
           {myTours.map((tour) => (
-            <div key={tour.id} className="bg-card border border-border rounded-xl p-3">
+            <div key={tour.id} className="bg-card border border-border rounded-xl shadow-md p-3">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -215,7 +226,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span className="text-[10px] font-semibold text-muted-foreground">
-                    {t('dashboard.minMax', { min: tour.min_participants, max: tour.max_participants })}
+                    {t('search.travelers')}: {tour.max_participants}
                   </span>
                   <button
                     onClick={() => setEditingTour(tour)}

@@ -364,7 +364,7 @@ export default function TourDetail() {
               <Calendar size={14} /> {formatDate(tour.date)} · {t('tourDetail.duration', { count: tour.duration_days })}
             </span>
             <span className="flex items-center gap-1">
-              <Users size={14} /> {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
+              <Users size={14} /> {t('search.travelerCount', { count: tour.max_participants })}
             </span>
             {reviews.length > 0 && (
               <span className="flex items-center gap-1 font-semibold text-foreground">
@@ -689,7 +689,7 @@ export default function TourDetail() {
             </p>
             <p className="flex items-center gap-2">
               <Users size={14} className="text-muted-foreground shrink-0" />{' '}
-              {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
+              {t('search.travelerCount', { count: tour.max_participants })}
             </p>
           </div>
 
