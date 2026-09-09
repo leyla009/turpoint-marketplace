@@ -6,6 +6,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { AZERBAIJAN_CITIES } from '../lib/azerbaijanCities';
 
 interface HeroSearchCardProps {
+  fromLocation: string;
+  onFromLocationChange: (value: string) => void;
   toLocation: string;
   onToLocationChange: (value: string) => void;
   departDate: string;
@@ -20,9 +22,11 @@ interface HeroSearchCardProps {
 // Floating hero search card, styled after a flights-style search bar but
 // scoped to what a tour marketplace actually has: one destination and one
 // date per tour, not an origin airport or a round trip.
-// - "Haradan?" is a static "Bakı", not editable - by product decision,
-//   every tour departs from Baku, there's no origin-city field in the
-//   tour data to filter by anyway.
+// - "Haradan?" is the traveler's own starting city - editable (any real
+//   Azerbaijan city), but it doesn't filter the tour results below, since
+//   tours have no origin-city field to filter by. It's real input, not a
+//   fake control: Smart Planner picks it up as the trip's starting point
+//   when a traveler opens it from the homepage.
 // - "Hara?" drives the same locationFilter state as the location dropdown
 //   further down the page - both stay in sync from one source of truth.
 // - "Gediş"/"Qayıdış" are a date RANGE filter (backend's fromDate/toDate),
@@ -31,6 +35,8 @@ interface HeroSearchCardProps {
 //   max_participants (== the "Yer sayı" set on the tour) is below the
 //   requested count.
 export default function HeroSearchCard({
+  fromLocation,
+  onFromLocationChange,
   toLocation,
   onToLocationChange,
   departDate,
@@ -57,9 +63,13 @@ export default function HeroSearchCard({
           once display:flex takes over at md, so the divide-x dividers
           between all six fields still work exactly as they did. */}
       <div className="grid grid-cols-2 gap-1.5 md:flex md:gap-0 md:items-stretch md:divide-x md:divide-border">
-        <Field label={t('search.from')} icon={<Navigation size={15} className="text-muted-foreground shrink-0" />}>
-          <span className="text-sm font-medium text-foreground truncate">Bakı</span>
-        </Field>
+        <DestinationField
+          label={t('search.from')}
+          value={fromLocation}
+          onChange={onFromLocationChange}
+          icon={<Navigation size={15} className="text-muted-foreground shrink-0" />}
+          showAnywhere={false}
+        />
 
         <DestinationField label={t('search.to')} value={toLocation} onChange={onToLocationChange} />
 
@@ -87,42 +97,24 @@ export default function HeroSearchCard({
   );
 }
 
-function Field({
-  label,
-  icon,
-  children,
-  className = '',
-}: {
-  label: string;
-  icon: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`flex-1 min-w-0 rounded-xl px-4 py-2.5 transition-colors hover:bg-muted/50 ${className}`}
-    >
-      <p className="text-[11px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
-      <div className="flex items-center gap-1.5">
-        {icon}
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// "Hara?" - a searchable destination dropdown instead of a plain <select>,
-// so picking from 65+ districts doesn't mean scrolling a native list one
-// entry at a time. Still just drives the same toLocation string as before;
-// nothing about what it filters changed, only how it's picked.
+// "Hara?"/"Haradan?" - a searchable destination dropdown instead of a
+// plain <select>, so picking from 65+ districts doesn't mean scrolling a
+// native list one entry at a time. Shared between both fields: "Hara?"
+// allows an "Anywhere" option (it drives the real location filter below),
+// "Haradan?" doesn't (a starting city is always a specific place) - see
+// showAnywhere.
 function DestinationField({
   label,
   value,
   onChange,
+  icon,
+  showAnywhere: allowAnywhere = true,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  icon?: ReactNode;
+  showAnywhere?: boolean;
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -131,14 +123,14 @@ function DestinationField({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const anywhereLabel = t('search.anywhere');
-  const displayValue = value === 'all' ? anywhereLabel : value;
+  const displayValue = allowAnywhere && value === 'all' ? anywhereLabel : value;
 
   const matches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
     const cities = q ? AZERBAIJAN_CITIES.filter((c) => c.toLocaleLowerCase().includes(q)) : AZERBAIJAN_CITIES;
-    const showAnywhere = !q || anywhereLabel.toLocaleLowerCase().includes(q);
+    const showAnywhere = allowAnywhere && (!q || anywhereLabel.toLocaleLowerCase().includes(q));
     return { showAnywhere, cities };
-  }, [query, anywhereLabel]);
+  }, [query, anywhereLabel, allowAnywhere]);
 
   useEffect(() => {
     if (!open) return;
@@ -181,7 +173,7 @@ function DestinationField({
       >
         <p className="text-[11px] font-semibold text-muted-foreground mb-0.5 truncate">{label}</p>
         <div className="flex items-center gap-1.5">
-          <MapPin size={15} className="text-muted-foreground shrink-0" />
+          {icon ?? <MapPin size={15} className="text-muted-foreground shrink-0" />}
           {open ? (
             <input
               ref={inputRef}

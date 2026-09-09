@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Home, User, Send,
   LayoutDashboard, ClipboardList, Settings,
@@ -52,36 +52,18 @@ export default function Nav() {
     setAccountMenuOpen(null);
   };
 
-  // The homepage hero is a full-bleed photo slideshow, so the header floats
-  // transparently over it until the page scrolls past the hero, then
-  // switches to the normal solid bar. Every other page keeps the solid bar
-  // from the start since there's no photo underneath it to float over.
-  const isHome = pathname === '/';
-  const [scrolledPastHero, setScrolledPastHero] = useState(false);
-  const HERO_SCROLL_THRESHOLD = 320;
-
-  useEffect(() => {
-    if (!isHome) return;
-    const onScroll = () => setScrolledPastHero(window.scrollY > HERO_SCROLL_THRESHOLD);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [isHome]);
-
-  const transparent = isHome && !scrolledPastHero;
 
   return (
     <>
-      {/* Desktop top bar - on the homepage it's taken out of normal flow
-          (fixed, not sticky) so the hero photo renders all the way up
-          behind it with a truly transparent background, instead of the
-          header reserving its own opaque strip above the photo. Once the
-          page scrolls past the hero it switches to solid, still fixed. */}
-      <header
-        className={`hidden md:block ${isHome ? 'fixed inset-x-0' : 'sticky'} top-0 z-40 transition-colors duration-300 ${
-          transparent ? 'bg-transparent' : 'bg-primary shadow-sm'
-        }`}
-      >
+      {/* Desktop top bar - always solid and sticky (reserving its own
+          64px in normal flow), on every page including the homepage. A
+          transparent-over-photo header (with or without a matching
+          negative margin on the hero to compensate) caused two rounds of
+          real overlap bugs - header covering the heading, then the
+          negative margin pulling the next section up to overlap the
+          search card - so the plain, always-solid bar won out over that
+          flourish. */}
+      <header className="hidden md:block sticky top-0 z-40 bg-primary shadow-sm">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
@@ -224,11 +206,7 @@ export default function Nav() {
           page (tour detail, bookings, dashboard), and no way to change
           language at all on mobile - the language switcher only ever
           existed in the desktop-only header above. */}
-      <div
-        className={`md:hidden ${isHome ? 'fixed inset-x-0' : 'sticky'} top-0 z-40 flex items-center justify-between px-4 h-12 transition-colors duration-300 ${
-          transparent ? 'bg-transparent' : 'bg-primary'
-        }`}
-      >
+      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-12 bg-primary">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/15 shrink-0">
             <Send size={13} className="text-white -rotate-45" />

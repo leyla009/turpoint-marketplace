@@ -141,11 +141,14 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
 
-  // Hero search card state. "Haradan?" is a static "Bakı" with no state of
-  // its own (see HeroSearchCard's comment - tours have no origin-city
-  // field to filter by). departDate/returnDate are a date-range filter,
-  // not a literal round trip - both default to today, set client-side
-  // after mount to avoid a server/client render mismatch on the initial date.
+  // Hero search card state. "Haradan?" is the traveler's own starting
+  // city - editable, defaults to Bakı, but doesn't filter tour results
+  // (see HeroSearchCard's comment - tours have no origin-city field to
+  // filter by); Smart Planner picks it up as the trip's origin instead.
+  // departDate/returnDate are a date-range filter, not a literal round
+  // trip - both default to today, set client-side after mount to avoid a
+  // server/client render mismatch on the initial date.
+  const [fromLocation, setFromLocation] = useState('Bakı');
   const [departDate, setDepartDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [travelers, setTravelers] = useState('');
@@ -352,15 +355,29 @@ export default function Home() {
       {/* Hero - a background photo slideshow (5 photos, 5s each) with the
           heading/search card overlaid at the bottom, readable over any
           photo thanks to the dark gradient scrim. bg-surface-sand stays as
-          the fallback color underneath while the first photo loads. */}
-      <div className="relative overflow-hidden min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
-        <HeroSlideshow />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+          the fallback color underneath while the first photo loads.
+          overflow-hidden lives on its OWN inner wrapper (photo + scrim
+          only) rather than on this outer container - the search card
+          below renders as a sibling of that wrapper, not a child of it,
+          specifically so its dropdowns (From/To/travelers) can overflow
+          past the photo's box without being clipped. Nav's header is
+          always solid now (no more transparent-over-photo + negative
+          margin trick) - that combination twice caused real overlap bugs
+          (header covering the heading, then the next section overlapping
+          the search card), so plain, boring, always-in-flow layout won
+          out over the "photo bleeds behind the header" flourish. */}
+      <div className="relative min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
+        <div className="absolute inset-0 overflow-hidden">
+          <HeroSlideshow />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+        </div>
         <div className="relative w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-10 pb-6 md:pt-12 md:pb-8">
           <Greeting />
 
           <div className="mt-5 md:mt-6">
             <HeroSearchCard
+              fromLocation={fromLocation}
+              onFromLocationChange={setFromLocation}
               toLocation={locationFilter}
               onToLocationChange={setLocationFilter}
               departDate={departDate}
@@ -811,34 +828,40 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Operator story - a full-bleed photographic band (a real image
-          from the same pool the hero draws from, not a new asset), so the
-          operator pitch reads as part of the brand's own visual world
-          instead of a bolted-on advertisement banner. Only describes
-          capabilities that actually exist: the public marketplace listing,
-          the operator dashboard's bookings view, and real photo uploads
-          on a tour listing. */}
-      <div className="relative overflow-hidden">
-        <img
-          src="/pictures/4.jpeg"
-          alt="Green mountain valley in the Caucasus"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0f1f17]/92 via-[#0f1f17]/75 to-[#0f1f17]/45" />
-        <div className="relative px-4 sm:px-6 py-16 md:py-24 max-w-[1600px] mx-auto">
-          <div className="max-w-lg">
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/70 mb-3">
-              {t('home.operatorEyebrow')}
-            </p>
-            <h2
-              className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              {t('home.operatorTitle')}
-            </h2>
-            <p className="text-sm sm:text-base text-white/80 mb-8 leading-relaxed">{t('home.operatorBody')}</p>
+      {/* Operator story - a solid deep-green band rather than text laid
+          over a photo. A busy landscape photo behind body copy never reads
+          cleanly regardless of how dark the scrim goes, and a generic
+          mountain view doesn't actually say anything about running tours
+          on a marketplace anyway - solid color plus real typographic
+          weight gives this section its own presence without fighting
+          legibility. Only describes capabilities that actually exist: the
+          public marketplace listing, the operator dashboard's bookings
+          view, and real photo uploads on a tour listing. */}
+      <div className="bg-primary">
+        <div className="px-4 sm:px-6 py-16 md:py-20 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div>
+              <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/60 mb-3">
+                {t('home.operatorEyebrow')}
+              </p>
+              <h2
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 leading-tight"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
+                {t('home.operatorTitle')}
+              </h2>
+              <p className="text-sm sm:text-base text-white/75 mb-8 leading-relaxed max-w-md">
+                {t('home.operatorBody')}
+              </p>
+              <Link
+                href="/dashboard/profile"
+                className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
+              >
+                {t('dashboard.becomeOperator')}
+              </Link>
+            </div>
 
-            <div className="space-y-5 mb-9">
+            <div className="space-y-5">
               {(
                 [
                   { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
@@ -846,22 +869,15 @@ export default function Home() {
                   { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
                 ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
               ).map(({ titleKey, bodyKey }, i) => (
-                <div key={i} className="flex gap-3.5">
-                  <span className="mt-1 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                <div key={i} className="flex gap-4 bg-white/[0.06] border border-white/10 rounded-xl px-5 py-4">
+                  <span className="text-sm font-bold text-accent shrink-0">{String(i + 1).padStart(2, '0')}</span>
                   <div>
                     <p className="text-sm font-bold text-white">{t(titleKey)}</p>
-                    <p className="text-xs text-white/70 mt-0.5 leading-relaxed">{t(bodyKey)}</p>
+                    <p className="text-xs text-white/70 mt-1 leading-relaxed">{t(bodyKey)}</p>
                   </div>
                 </div>
               ))}
             </div>
-
-            <Link
-              href="/dashboard/profile"
-              className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
-            >
-              {t('dashboard.becomeOperator')}
-            </Link>
           </div>
         </div>
       </div>
@@ -946,6 +962,7 @@ export default function Home() {
         <PlannerModal
           onClose={() => setShowPlannerModal(false)}
           onViewTour={(id) => router.push(`/tours/${id}`)}
+          initialOrigin={fromLocation}
         />
       )}
     </div>
