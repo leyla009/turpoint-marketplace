@@ -243,7 +243,7 @@ export default function LoginPage() {
 
             {!operatorProfile && (
               <button
-                onClick={() => router.push('/dashboard/profile')}
+                onClick={() => router.push('/dashboard')}
                 className="w-full text-sm font-semibold text-accent px-4 py-2.5 rounded-xl border border-accent/30 hover:bg-accent/5 transition-colors mb-3"
               >
                 {t('nav.becomeOperator')}

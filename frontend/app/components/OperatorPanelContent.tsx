@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { PlusCircle, Star, ListChecks, Ticket, ArrowRight, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
+import { PlusCircle, Store, Star, Ticket, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import NewTourModal from './NewTourModal';
 import EditTourModal from './EditTourModal';
+import OperatorProfileForm from './OperatorProfileForm';
+import OperatorProfileFormModal from './OperatorProfileFormModal';
 import type { ExistingTour } from './NewTourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -24,9 +25,9 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
 
   const [showNewTourModal, setShowNewTourModal] = useState(false);
   const [editingTour, setEditingTour] = useState<ExistingTour | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const [myTours, setMyTours] = useState<any[]>([]);
-  const [bookingCount, setBookingCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -51,22 +52,15 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
       return;
     }
     setLoadError(false);
-    Promise.all([
-      fetch(`${API_URL}/api/tours`).then((r) => {
+    fetch(`${API_URL}/api/tours`)
+      .then((r) => {
         if (!r.ok) throw new Error('request failed');
         return r.json();
-      }),
-      fetch(`${API_URL}/api/bookings/mine`, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
-        r.ok ? r.json() : []
-      ),
-    ])
-      .then(([allTours, bookings]) => {
-        setMyTours(allTours.filter((t: any) => t.operator_id === operatorProfile.id));
-        setBookingCount(bookings.length);
       })
+      .then((allTours) => setMyTours(allTours.filter((t: any) => t.operator_id === operatorProfile.id)))
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [operatorProfile, token]);
+  }, [operatorProfile]);
 
   async function handleDelete(tourId: number, title: string, force = false) {
     if (!force && !window.confirm(t('dashboard.deleteConfirm', { title }))) return;
@@ -146,19 +140,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
   }
 
   if (!operatorProfile) {
-    return (
-      <div className="min-h-full flex flex-col items-center justify-center text-center px-6 py-20">
-        <ListChecks size={32} className="text-muted-foreground mb-3" />
-        <h1 className="text-lg font-semibold text-foreground mb-1">{t('dashboard.noProfileYet')}</h1>
-        <p className="text-sm text-muted-foreground max-w-xs mb-4">{t('dashboard.createProfileHint')}</p>
-        <Link
-          href="/dashboard/profile"
-          className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl"
-        >
-          {t('dashboard.becomeOperator')}
-        </Link>
-      </div>
-    );
+    return <OperatorProfileForm />;
   }
 
   return (
@@ -168,15 +150,23 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           <h1 className="font-display text-xl font-bold text-foreground">{operatorProfile.name}</h1>
           <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
-        <button
-          onClick={() => setShowNewTourModal(true)}
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-semibold px-3 py-2 rounded-xl"
-        >
-          <PlusCircle size={15} /> {t('dashboard.addTour')}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="flex items-center gap-1.5 bg-accent text-accent-foreground text-sm font-semibold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
+          >
+            <Store size={15} /> {t('dashboard.profileButton')}
+          </button>
+          <button
+            onClick={() => setShowNewTourModal(true)}
+            className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-semibold px-3 py-2 rounded-xl"
+          >
+            <PlusCircle size={15} /> {t('dashboard.addTour')}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-card border border-border rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-foreground">{myTours.length}</p>
           <p className="text-[11px] text-muted-foreground">{t('dashboard.activeTours')}</p>
@@ -188,21 +178,9 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           </p>
           <p className="text-[11px] text-muted-foreground">{t('dashboard.rating')}</p>
         </div>
-        <Link
-          href="/dashboard/bookings"
-          className="bg-card border border-border rounded-xl p-3 text-center hover:border-primary/40"
-        >
-          <p className="text-2xl font-bold text-foreground">{bookingCount ?? 0}</p>
-          <p className="text-[11px] text-muted-foreground">{t('dashboard.bookingsStat')}</p>
-        </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-foreground">{t('dashboard.yourTours')}</h2>
-        <Link href="/dashboard/bookings" className="flex items-center gap-1 text-xs text-accent font-semibold">
-          {t('dashboard.viewBookings')} <ArrowRight size={12} />
-        </Link>
-      </div>
+      <h2 className="text-sm font-semibold text-foreground mb-2">{t('dashboard.yourTours')}</h2>
 
       {loadError ? (
         <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
@@ -310,6 +288,8 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           ))}
         </div>
       )}
+
+      {showProfileModal && <OperatorProfileFormModal onClose={() => setShowProfileModal(false)} />}
 
       {showNewTourModal && (
         <NewTourModal

@@ -857,7 +857,7 @@ export default function Home() {
             </div>
 
             <Link
-              href="/dashboard/profile"
+              href="/dashboard"
               className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
             >
               {t('dashboard.becomeOperator')}

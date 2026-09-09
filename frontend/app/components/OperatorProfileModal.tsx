@@ -28,9 +28,9 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 // Full operator profile - everything an operator fills in on their own
-// dashboard/profile page (photo, description, languages, phone,
-// Instagram) - opened by clicking the compact operator card on the tour
-// detail page. Portaled to <body> for the same reason as the other
+// panel page (photo, description, languages, phone, Instagram) - opened
+// by clicking the compact operator card on the tour detail page. Portaled
+// to <body> for the same reason as the other
 // floating modals (escapes the sticky-header stacking context).
 export default function OperatorProfileModal({
   operator,

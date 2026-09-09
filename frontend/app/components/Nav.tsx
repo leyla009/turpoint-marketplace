@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Home, User, Send,
-  LayoutDashboard, ClipboardList, Settings,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,12 +23,14 @@ const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
 ];
 
-// "Tur əlavə et" isn't listed here - it already lives inside the panel
-// page itself (its own "+ Tur əlavə et" button, which opens as a popup).
+// Operators only ever have the one page now - "Tur əlavə et" opens inside
+// it as a popup, and profile editing is a section on the same page rather
+// than its own route - so this exists solely to give the mobile bottom tab
+// bar somewhere to link. Being length 1 also means the desktop header's own
+// nav row (gated on navItems.length > 1 below) never renders "Panel" as a
+// clickable link - there's nothing else to switch to.
 const OPERATOR_ITEMS = [
   { href: '/dashboard', labelKey: 'nav.dashboard' as const, Icon: LayoutDashboard },
-  { href: '/dashboard/bookings', labelKey: 'nav.operatorBookings' as const, Icon: ClipboardList },
-  { href: '/dashboard/profile', labelKey: 'nav.profile' as const, Icon: Settings },
 ];
 
 export default function Nav() {
@@ -55,8 +57,13 @@ export default function Nav() {
   // The homepage hero is a full-bleed photo slideshow, so the header floats
   // transparently over it until the page scrolls past the hero, then
   // switches to the normal solid bar. Every other page keeps the solid bar
-  // from the start since there's no photo underneath it to float over.
+  // from the start since there's no photo underneath it to float over -
+  // except the operator panel, which has its own full-page photo background
+  // (see (main)/dashboard/page.tsx) that's already position:fixed behind
+  // everything, so the header can just stay transparent the whole time
+  // there without needing the scroll-based toggle the homepage hero needs.
   const isHome = pathname === '/';
+  const isOperatorPanel = pathname === '/dashboard';
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
   const HERO_SCROLL_THRESHOLD = 320;
 
@@ -68,7 +75,7 @@ export default function Nav() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [isHome]);
 
-  const transparent = isHome && !scrolledPastHero;
+  const transparent = (isHome && !scrolledPastHero) || isOperatorPanel;
 
   return (
     <>
@@ -76,7 +83,11 @@ export default function Nav() {
           (fixed, not sticky) so the hero photo renders all the way up
           behind it with a truly transparent background, instead of the
           header reserving its own opaque strip above the photo. Once the
-          page scrolls past the hero it switches to solid, still fixed. */}
+          page scrolls past the hero it switches to solid, still fixed. On
+          the operator panel it stays sticky (that page's photo background
+          is already fixed behind everything, so there's nothing to pull
+          the header out of flow for) but goes transparent the same way,
+          for the whole time you're on that page. */}
       <header
         className={`hidden md:block ${isHome ? 'fixed inset-x-0' : 'sticky'} top-0 z-40 transition-colors duration-300 ${
           transparent ? 'bg-transparent' : 'bg-primary shadow-sm'
@@ -153,7 +164,7 @@ export default function Nav() {
                 since creating a profile requires an account. */}
             {!loading && !operatorProfile && (
               <Link
-                href={user ? '/dashboard/profile' : '/login'}
+                href={user ? '/dashboard' : '/login'}
                 className="hidden lg:inline-flex items-center text-xs font-semibold text-white/90 hover:text-white border-b border-white/30 hover:border-white/70 pb-0.5 transition-colors"
               >
                 {t('nav.becomeOperator')}
