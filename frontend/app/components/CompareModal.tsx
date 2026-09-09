@@ -186,7 +186,7 @@ export default function CompareModal({
               </div>
               {data.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
-                  {t('tourDetail.peopleRange', { min: tour.min_participants, max: tour.max_participants })}
+                  {t('search.travelerCount', { count: tour.max_participants })}
                 </div>
               ))}
 

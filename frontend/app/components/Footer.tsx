@@ -65,7 +65,7 @@ export default function Footer() {
             {t('footer.forOperators')}
           </h3>
           <nav className="flex flex-col gap-2.5">
-            <Link href="/dashboard/profile" className="text-sm text-white/80 hover:text-white transition-colors">
+            <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">
               {t('dashboard.becomeOperator')}
             </Link>
             <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">

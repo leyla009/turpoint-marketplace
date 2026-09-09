@@ -3,41 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Sparkles, ArrowRight, Send, ChevronDown, ChevronUp,
-  MapPin, Star, Clock, Users, Wallet, Bookmark, Check, AlertCircle,
+  X, Send, Sparkles, Loader2, MapPin, Star, RotateCcw, Bookmark, BookmarkCheck,
 } from 'lucide-react';
-import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { CATEGORY_STYLE, CategoryMotif } from './TourCard';
-import { AZERBAIJAN_CITIES } from '../lib/azerbaijanCities';
-import type { TranslationKey } from '../lib/translations';
+import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type TravelStyle = 'relaxed' | 'balanced' | 'packed';
-type Interest = 'nature' | 'history' | 'entertainment' | 'food';
-
-interface Structured {
-  origin: string;
-  startDate: string;
-  endDate: string;
-  travelers: string;
-  budgetMax: string;
-  interests: Interest[];
-  travelStyle: TravelStyle | '';
-}
-
-const EMPTY_STRUCTURED: Structured = {
-  origin: '',
-  startDate: '',
-  endDate: '',
-  travelers: '',
-  budgetMax: '',
-  interests: [],
-  travelStyle: '',
-};
-
-interface Activity {
+interface PlannerActivity {
   tourId: number;
   title: string;
   location: string | null;
@@ -47,89 +21,183 @@ interface Activity {
   discountedPrice: number | null;
   rating: number | null;
   reviewCount: number;
-  date: string | null;
-  minParticipants: number;
-  maxParticipants: number;
   reason: string;
 }
 
-interface ItineraryDay {
+interface PlannerDay {
   day: number;
   destination: string | null;
-  activities: Activity[];
+  activities: PlannerActivity[];
 }
 
-interface Itinerary {
+interface PlannerItinerary {
   tripSummary: string;
-  travelerType: 'local' | 'international' | 'unspecified';
   travelers: number;
-  days: ItineraryDay[];
+  days: PlannerDay[];
   estimatedCost: number;
   toursCount: number;
   destinationsCount: number;
   notes: string[];
 }
 
-type Phase = 'clarify' | 'itinerary' | 'no_match' | 'error';
-
-interface PlannerTurn {
-  role: 'user' | 'assistant';
-  content: string;
-  phase?: Phase;
-  itinerary?: Itinerary;
-  alternatives?: any[];
+interface AlternativeTour {
+  id: number;
+  title: string;
+  location: string | null;
+  duration_days: number;
+  price: number;
+  discounted_price?: number | null;
+  rating?: number | null;
 }
 
-const QUICK_STARTS: { labelKey: TranslationKey; promptKey: TranslationKey }[] = [
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  itinerary?: PlannerItinerary;
+  alternatives?: AlternativeTour[];
+  isError?: boolean;
+}
+
+interface TourRow {
+  id: number;
+  title: string;
+  location: string | null;
+  durationDays: number;
+  price: number;
+  discountedPrice: number | null;
+  rating: number | null;
+  reason?: string;
+}
+
+function fromActivity(a: PlannerActivity): TourRow {
+  return {
+    id: a.tourId,
+    title: a.title,
+    location: a.location,
+    durationDays: a.durationDays,
+    price: a.price,
+    discountedPrice: a.discountedPrice,
+    rating: a.rating,
+    reason: a.reason,
+  };
+}
+
+function fromAlternative(t: AlternativeTour): TourRow {
+  return {
+    id: t.id,
+    title: t.title,
+    location: t.location,
+    durationDays: t.duration_days,
+    price: t.price,
+    discountedPrice: t.discounted_price ?? null,
+    rating: t.rating ?? null,
+  };
+}
+
+const QUICK_STARTS = [
   { labelKey: 'planner.quickStartWeekend', promptKey: 'planner.quickStartWeekendPrompt' },
   { labelKey: 'planner.quickStartFirstTrip', promptKey: 'planner.quickStartFirstTripPrompt' },
   { labelKey: 'planner.quickStartNature', promptKey: 'planner.quickStartNaturePrompt' },
   { labelKey: 'planner.quickStartFood', promptKey: 'planner.quickStartFoodPrompt' },
   { labelKey: 'planner.quickStartFamily', promptKey: 'planner.quickStartFamilyPrompt' },
   { labelKey: 'planner.quickStartBudget', promptKey: 'planner.quickStartBudgetPrompt' },
-];
+] as const;
 
-const INTERESTS: Interest[] = ['nature', 'history', 'entertainment', 'food'];
-
-// Smart Planner: a conversational, AI-assisted trip builder (see
-// backend/src/routes/planner.js for the actual reasoning/matching flow).
-// This component only ever renders tours the backend returns - it never
-// invents a tour, price, or rating of its own; every recommendation here
-// is a real TurPoint listing the visitor can open and book.
+// The Smart Planner as a real conversation instead of a budget/days/
+// interests form - you describe your trip in a sentence, an AI (via the
+// backend's /api/planner/chat, see backend/src/routes/planner.js) extracts
+// what you actually want and replies with a reasoned itinerary built only
+// from tours that really exist on TurPoint. Follow-up messages ("make it
+// cheaper", "swap day 2") refine the same itinerary rather than starting
+// over, by sending it back as `currentItinerary` on the next request.
 export default function PlannerModal({
   onClose,
   onViewTour,
-  initialOrigin,
 }: {
   onClose: () => void;
   onViewTour: (id: number) => void;
-  /** Pre-fills the structured panel's "From" field with whatever the
-   * homepage hero search card's own "Haradan?" field is currently set to,
-   * so opening the planner from there doesn't throw away what the
-   * traveler already told the site about their trip. */
-  initialOrigin?: string;
 }) {
   const { t, locale } = useLanguage();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
+  const { showToast } = useToast();
 
-  const [turns, setTurns] = useState<PlannerTurn[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [structured, setStructured] = useState<Structured>(() => ({
-    ...EMPTY_STRUCTURED,
-    origin: initialOrigin || '',
-  }));
-  const [showStructured, setShowStructured] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
-  const [savedTripIds, setSavedTripIds] = useState<Set<number>>(new Set());
-  const [savingIndex, setSavingIndex] = useState<number | null>(null);
+  const [sending, setSending] = useState(false);
+  const [currentItinerary, setCurrentItinerary] = useState<PlannerItinerary | null>(null);
+  const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const started = turns.length > 0;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [turns, loading]);
+  }, [messages, sending]);
+
+  async function sendMessage(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+
+    const historyForRequest = messages.map((m) => ({ role: m.role, content: m.text }));
+    setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
+    setInput('');
+    setSending(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/planner/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: trimmed,
+          locale,
+          history: historyForRequest,
+          currentItinerary: currentItinerary ?? undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('planner request failed');
+      const data = await res.json();
+
+      if (data.phase === 'itinerary' && data.itinerary) {
+        setCurrentItinerary(data.itinerary);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', text: data.itinerary.tripSummary || data.message, itinerary: data.itinerary },
+        ]);
+      } else if (data.phase === 'no_match') {
+        setMessages((prev) => [...prev, { role: 'assistant', text: data.message, alternatives: data.alternatives ?? [] }]);
+      } else if (data.phase === 'clarify') {
+        setMessages((prev) => [...prev, { role: 'assistant', text: data.message }]);
+      } else {
+        setMessages((prev) => [...prev, { role: 'assistant', text: data.message || t('planner.networkError'), isError: true }]);
+      }
+    } catch {
+      setMessages((prev) => [...prev, { role: 'assistant', text: t('planner.networkError'), isError: true }]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleNewTrip() {
+    setMessages([]);
+    setCurrentItinerary(null);
+    setInput('');
+    setSavedIndices(new Set());
+  }
+
+  async function handleSaveTrip(itinerary: PlannerItinerary, index: number) {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/planner/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: itinerary.tripSummary.slice(0, 80) || t('planner.title'), trip: itinerary }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setSavedIndices((prev) => new Set(prev).add(index));
+      showToast(t('planner.tripSaved'));
+    } catch {
+      showToast(t('planner.networkError'), 'error');
+    }
+  }
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -144,595 +212,223 @@ export default function PlannerModal({
     };
   }, [onClose]);
 
-  function toggleInterest(id: Interest) {
-    setStructured((prev) => ({
-      ...prev,
-      interests: prev.interests.includes(id) ? prev.interests.filter((x) => x !== id) : [...prev.interests, id],
-    }));
-  }
-
-  // Finds the most recent itinerary in the conversation, if any - sent
-  // back to the backend so a follow-up like "make it cheaper" edits the
-  // real plan instead of starting over from nothing.
-  function lastItinerary(): Itinerary | undefined {
-    for (let i = turns.length - 1; i >= 0; i--) {
-      const t = turns[i];
-      if (t.itinerary) return t.itinerary;
-    }
-    return undefined;
-  }
-
-  async function send(text: string) {
-    const message = text.trim();
-    if (!message || loading) return;
-
-    setInput('');
-    setNetworkError(false);
-    const userTurn: PlannerTurn = { role: 'user', content: message };
-    setTurns((prev) => [...prev, userTurn]);
-    setLoading(true);
-
-    const currentItinerary = lastItinerary();
-
-    try {
-      const res = await fetch(`${API_URL}/api/planner/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          locale,
-          structured: {
-            origin: structured.origin || undefined,
-            startDate: structured.startDate || undefined,
-            endDate: structured.endDate || undefined,
-            travelers: structured.travelers ? Number(structured.travelers) : undefined,
-            budgetMax: structured.budgetMax ? Number(structured.budgetMax) : undefined,
-            interests: structured.interests.length ? structured.interests : undefined,
-            travelStyle: structured.travelStyle || undefined,
-          },
-          history: [...turns, userTurn].slice(-8).map((t) => ({ role: t.role, content: t.content })),
-          currentItinerary: currentItinerary ?? undefined,
-        }),
-      });
-      if (!res.ok) throw new Error('planner request failed');
-      const data = await res.json();
-      setTurns((prev) => [
-        ...prev,
-        { role: 'assistant', content: data.message, phase: data.phase, itinerary: data.itinerary, alternatives: data.alternatives },
-      ]);
-    } catch {
-      setNetworkError(true);
-      setTurns((prev) => prev.slice(0, -1)); // drop the user turn that never got a reply, so retrying doesn't duplicate it
-      setInput(message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function saveTrip(itinerary: Itinerary, index: number) {
-    if (!token) return;
-    setSavingIndex(index);
-    try {
-      const res = await fetch(`${API_URL}/api/planner/trips`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: itinerary.tripSummary.slice(0, 60) || t('planner.title'), trip: itinerary }),
-      });
-      if (res.ok) setSavedTripIds((prev) => new Set(prev).add(index));
-    } catch {
-      // Save is a nice-to-have on top of an already-successful itinerary -
-      // fail quietly rather than interrupting the trip the visitor is
-      // actually looking at.
-    } finally {
-      setSavingIndex(null);
-    }
+  function renderTourRow(row: TourRow) {
+    return (
+      <button
+        key={row.id}
+        onClick={() => onViewTour(row.id)}
+        className="w-full text-left flex items-center justify-between gap-3 bg-card border border-border rounded-lg p-3 hover:border-primary/30 transition-colors"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">{row.title}</p>
+          <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+            {row.location && (
+              <>
+                <MapPin size={10} /> {row.location} ·{' '}
+              </>
+            )}
+            {t('planner.dayCount', { count: row.durationDays })}
+            {typeof row.rating === 'number' && row.rating > 0 && (
+              <span className="flex items-center gap-0.5 ml-1">
+                <Star size={10} className="fill-rating text-rating" /> {row.rating.toFixed(1)}
+              </span>
+            )}
+          </p>
+          {row.reason && <p className="text-xs text-muted-foreground mt-1 italic">{row.reason}</p>}
+        </div>
+        <div className="text-right shrink-0">
+          {row.discountedPrice != null ? (
+            <>
+              <p className="text-[10px] text-muted-foreground line-through">AZN {row.price}</p>
+              <p className="text-sm font-bold text-primary">AZN {row.discountedPrice}</p>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-primary">AZN {row.price}</p>
+          )}
+        </div>
+      </button>
+    );
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[1000] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-card rounded-2xl w-full max-w-2xl h-[85vh] flex flex-col relative shadow-2xl overflow-hidden"
+        className="bg-background rounded-2xl w-full max-w-2xl h-[85vh] flex flex-col relative shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-border shrink-0">
-          <Sparkles size={17} className="text-accent" />
-          <h2
-            className="text-base sm:text-lg font-bold text-foreground"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {t('planner.title')}
-          </h2>
-          <div className="flex-1" />
-          {started && (
-            <button
-              onClick={() => {
-                setTurns([]);
-                setStructured(EMPTY_STRUCTURED);
-              }}
-              className="text-xs font-semibold text-muted-foreground hover:text-foreground mr-1"
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles size={18} className="text-accent shrink-0" />
+            <h2
+              className="text-lg font-bold text-foreground truncate"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              {t('planner.newTrip')}
+              {t('planner.title')}
+            </h2>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {messages.length > 0 && (
+              <button
+                onClick={handleNewTrip}
+                title={t('planner.newTrip')}
+                className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors"
+              >
+                <RotateCcw size={13} /> {t('planner.newTrip')}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              title={t('map.close')}
+              aria-label={t('map.close')}
+              className="bg-muted hover:bg-border text-foreground rounded-full p-2 transition-colors"
+            >
+              <X size={18} />
             </button>
-          )}
-          <button
-            onClick={onClose}
-            title={t('map.close')}
-            aria-label={t('map.close')}
-            className="bg-muted hover:bg-border text-foreground rounded-full p-1.5 transition-colors"
-          >
-            <X size={16} />
-          </button>
+          </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          {!started ? (
-            <PlannerLanding
-              structured={structured}
-              setStructured={setStructured}
-              showStructured={showStructured}
-              setShowStructured={setShowStructured}
-              toggleInterest={toggleInterest}
-              onSend={send}
-            />
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+              <Sparkles size={30} className="text-accent mb-3" />
+              <h3
+                className="text-xl font-bold text-foreground mb-2"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
+                {t('planner.introTitle')}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-sm mb-6">{t('planner.introBody')}</p>
+              <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+                {QUICK_STARTS.map((q) => (
+                  <button
+                    key={q.labelKey}
+                    onClick={() => sendMessage(t(q.promptKey))}
+                    className="text-xs font-semibold bg-card border border-border rounded-full px-3.5 py-2 hover:border-primary/40 hover:text-primary transition-colors"
+                  >
+                    {t(q.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : (
-            <div className="px-5 py-5 space-y-5">
-              {turns.map((turn, i) =>
-                turn.role === 'user' ? (
-                  <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] bg-primary text-primary-foreground text-sm rounded-2xl rounded-tr-sm px-4 py-2.5">
-                      {turn.content}
+            <div className="space-y-4">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] ${m.role === 'user' ? '' : 'w-full'}`}>
+                    <div
+                      className={`text-sm rounded-2xl px-4 py-2.5 ${
+                        m.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-sm'
+                          : m.isError
+                          ? 'bg-danger/10 text-danger rounded-bl-sm'
+                          : 'bg-card border border-border text-foreground rounded-bl-sm'
+                      }`}
+                    >
+                      {m.text}
                     </div>
-                  </div>
-                ) : (
-                  <div key={i} className="space-y-3">
-                    {turn.phase === 'error' && (
-                      <div className="flex items-start gap-2 text-sm text-danger bg-danger/5 border border-danger/20 rounded-xl px-4 py-3">
-                        <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                        {turn.content}
+
+                    {m.itinerary && (
+                      <div className="mt-3 space-y-3">
+                        {m.itinerary.days.map((day) => (
+                          <div key={day.day}>
+                            <p className="text-xs font-bold text-foreground mb-1.5">
+                              {t('planner.dayLabel', { count: day.day })}
+                              {day.destination ? ` · ${day.destination}` : ''}
+                            </p>
+                            <div className="space-y-2">{day.activities.map((a) => renderTourRow(fromActivity(a)))}</div>
+                          </div>
+                        ))}
+
+                        {m.itinerary.notes.length > 0 && (
+                          <div className="bg-surface-sand rounded-lg p-3">
+                            <p className="text-xs font-bold text-foreground mb-1">{t('planner.notesTitle')}</p>
+                            <ul className="space-y-0.5">
+                              {m.itinerary.notes.map((n, ni) => (
+                                <li key={ni} className="text-xs text-muted-foreground">
+                                  • {n}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>
+                            <span className="font-bold text-foreground">{t('planner.estimatedCost')}:</span>{' '}
+                            AZN {m.itinerary.estimatedCost}
+                          </span>
+                          <span>{t('planner.toursCount', { count: m.itinerary.toursCount })}</span>
+                          <span>{t('planner.destinationsCount', { count: m.itinerary.destinationsCount })}</span>
+                          <span>{t('planner.travelersSummary', { count: m.itinerary.travelers })}</span>
+                        </div>
+
+                        {token ? (
+                          <button
+                            onClick={() => handleSaveTrip(m.itinerary!, i)}
+                            disabled={savedIndices.has(i)}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-primary disabled:text-accent disabled:cursor-default"
+                          >
+                            {savedIndices.has(i) ? (
+                              <>
+                                <BookmarkCheck size={13} /> {t('planner.tripSaved')}
+                              </>
+                            ) : (
+                              <>
+                                <Bookmark size={13} /> {t('planner.saveTrip')}
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">{t('planner.signInToSave')}</p>
+                        )}
                       </div>
                     )}
-                    {turn.phase !== 'error' && turn.content && (
-                      <p className="text-sm text-foreground max-w-[90%] leading-relaxed">{turn.content}</p>
-                    )}
-                    {turn.itinerary && (
-                      <ItineraryView
-                        itinerary={turn.itinerary}
-                        onViewTour={onViewTour}
-                        canSave={!!user}
-                        saved={savedTripIds.has(i)}
-                        saving={savingIndex === i}
-                        onSave={() => saveTrip(turn.itinerary!, i)}
-                      />
-                    )}
-                    {turn.alternatives && turn.alternatives.length > 0 && (
-                      <AlternativesView tours={turn.alternatives} onViewTour={onViewTour} />
+
+                    {m.alternatives && m.alternatives.length > 0 && (
+                      <div className="mt-3 space-y-2">{m.alternatives.map((alt) => renderTourRow(fromAlternative(alt)))}</div>
                     )}
                   </div>
-                )
-              )}
-              {loading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" />
-                  </span>
-                  {t('planner.thinking')}
                 </div>
-              )}
-              {networkError && (
-                <p className="flex items-center gap-2 text-sm text-danger">
-                  <AlertCircle size={15} className="shrink-0" /> {t('planner.networkError')}
-                </p>
+              ))}
+
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-2.5">
+                    <Loader2 size={14} className="animate-spin" /> {t('planner.thinking')}
+                  </div>
+                </div>
               )}
             </div>
           )}
         </div>
 
-        {started && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-            className="shrink-0 border-t border-border p-3 flex items-center gap-2"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage(input);
+          }}
+          className="flex items-center gap-2 p-4 border-t border-border shrink-0"
+        >
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={messages.length === 0 ? t('planner.inputPlaceholder') : t('planner.followUpPlaceholder')}
+            disabled={sending}
+            className="flex-1 text-sm bg-card border border-border rounded-full px-4 py-2.5 outline-none focus:border-primary disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={sending || !input.trim()}
+            title={t('planner.send')}
+            aria-label={t('planner.send')}
+            className="flex items-center justify-center bg-accent text-accent-foreground rounded-full w-10 h-10 shrink-0 hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('planner.followUpPlaceholder')}
-              disabled={loading}
-              className="flex-1 text-sm bg-muted rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              aria-label={t('planner.send')}
-              className="shrink-0 w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 disabled:opacity-40 transition-opacity"
-            >
-              <Send size={16} />
-            </button>
-          </form>
-        )}
+            <Send size={16} />
+          </button>
+        </form>
       </div>
     </div>,
     document.body
-  );
-}
-
-function PlannerLanding({
-  structured,
-  setStructured,
-  showStructured,
-  setShowStructured,
-  toggleInterest,
-  onSend,
-}: {
-  structured: Structured;
-  setStructured: (fn: (prev: Structured) => Structured) => void;
-  showStructured: boolean;
-  setShowStructured: (v: boolean) => void;
-  toggleInterest: (id: Interest) => void;
-  onSend: (text: string) => void;
-}) {
-  const { t } = useLanguage();
-  const [input, setInput] = useState('');
-
-  // The landing view builds its own first message from the free-text box,
-  // falling back to a plain "label: value" summary of whatever structured
-  // fields are set when the box is left empty - built entirely from
-  // already-localized field labels (not a hardcoded English sentence), so
-  // a visitor who only used the structured panel still sees their own
-  // chat bubble in their own language, not raw English.
-  function structuredSummary(): string {
-    const parts: string[] = [];
-    if (structured.origin) parts.push(`${t('planner.originLabel')}: ${structured.origin}`);
-    if (structured.startDate) {
-      parts.push(`${t('planner.datesLabel')}: ${structured.startDate}${structured.endDate ? ` – ${structured.endDate}` : ''}`);
-    }
-    if (structured.travelers) parts.push(`${t('planner.travelersLabel')}: ${structured.travelers}`);
-    if (structured.budgetMax) parts.push(`${t('planner.budgetMaxLabel')}: ${structured.budgetMax}`);
-    if (structured.interests.length) {
-      parts.push(`${t('planner.interestsLabel')}: ${structured.interests.map((i) => t(CATEGORY_STYLE[i].labelKey)).join(', ')}`);
-    }
-    if (structured.travelStyle) {
-      parts.push(
-        `${t('planner.travelStyleLabel')}: ${t(
-          structured.travelStyle === 'relaxed'
-            ? 'planner.travelStyleRelaxed'
-            : structured.travelStyle === 'packed'
-            ? 'planner.travelStylePacked'
-            : 'planner.travelStyleBalanced'
-        )}`
-      );
-    }
-    return parts.join(' · ');
-  }
-
-  return (
-    <div className="px-5 py-6">
-      <h3
-        className="text-lg sm:text-xl font-bold text-foreground mb-1.5"
-        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-      >
-        {t('planner.introTitle')}
-      </h3>
-      <p className="text-sm text-muted-foreground mb-5 leading-relaxed">{t('planner.introBody')}</p>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const text = input.trim() || structuredSummary();
-          if (text) onSend(text);
-        }}
-      >
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t('planner.inputPlaceholder')}
-          rows={3}
-          autoFocus
-          className="w-full text-sm bg-muted rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 resize-none mb-3"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() && structuredSummary() === ''}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-sm rounded-xl py-3 hover:opacity-90 disabled:opacity-40 transition-opacity mb-5"
-        >
-          <Sparkles size={15} />
-          {t('planner.buildTrip')}
-        </button>
-      </form>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {QUICK_STARTS.map(({ labelKey, promptKey }) => (
-          <button
-            key={labelKey}
-            type="button"
-            onClick={() => onSend(t(promptKey))}
-            className="text-xs font-semibold bg-card border border-border text-foreground rounded-full px-3.5 py-1.5 hover:border-primary/40 transition-colors"
-          >
-            {t(labelKey)}
-          </button>
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowStructured(!showStructured)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground mb-3"
-      >
-        {showStructured ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        {t('planner.moreOptions')}
-      </button>
-
-      {showStructured && (
-        <div className="bg-background border border-border rounded-xl p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label={t('planner.originLabel')}>
-              <input
-                type="text"
-                list="planner-cities"
-                value={structured.origin}
-                onChange={(e) => setStructured((p) => ({ ...p, origin: e.target.value }))}
-                placeholder={t('planner.originPlaceholder')}
-                className="w-full text-sm bg-card border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none"
-              />
-              <datalist id="planner-cities">
-                {AZERBAIJAN_CITIES.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label={t('planner.travelersLabel')}>
-              <div className="flex items-center gap-1.5">
-                <Users size={14} className="text-muted-foreground shrink-0" />
-                <input
-                  type="number"
-                  min={1}
-                  value={structured.travelers}
-                  onChange={(e) => setStructured((p) => ({ ...p, travelers: e.target.value }))}
-                  placeholder="1"
-                  className="w-full text-sm bg-card border border-border rounded-lg px-3 py-2 text-foreground outline-none"
-                />
-              </div>
-            </Field>
-            <Field label={t('planner.datesLabel')}>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={structured.startDate}
-                  onChange={(e) => setStructured((p) => ({ ...p, startDate: e.target.value }))}
-                  className="w-full text-sm bg-card border border-border rounded-lg px-2.5 py-2 text-foreground outline-none"
-                />
-                <input
-                  type="date"
-                  value={structured.endDate}
-                  onChange={(e) => setStructured((p) => ({ ...p, endDate: e.target.value }))}
-                  className="w-full text-sm bg-card border border-border rounded-lg px-2.5 py-2 text-foreground outline-none"
-                />
-              </div>
-            </Field>
-            <Field label={t('planner.budgetMaxLabel')}>
-              <div className="flex items-center gap-1.5">
-                <Wallet size={14} className="text-muted-foreground shrink-0" />
-                <input
-                  type="number"
-                  min={1}
-                  value={structured.budgetMax}
-                  onChange={(e) => setStructured((p) => ({ ...p, budgetMax: e.target.value }))}
-                  placeholder="300"
-                  className="w-full text-sm bg-card border border-border rounded-lg px-3 py-2 text-foreground outline-none"
-                />
-              </div>
-            </Field>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-1.5">{t('planner.travelStyleLabel')}</p>
-            <div className="flex bg-muted rounded-lg p-1">
-              {(['relaxed', 'balanced', 'packed'] as TravelStyle[]).map((style) => (
-                <button
-                  key={style}
-                  type="button"
-                  onClick={() => setStructured((p) => ({ ...p, travelStyle: p.travelStyle === style ? '' : style }))}
-                  className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-all ${
-                    structured.travelStyle === style ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                  }`}
-                >
-                  {t(
-                    style === 'relaxed'
-                      ? 'planner.travelStyleRelaxed'
-                      : style === 'packed'
-                      ? 'planner.travelStylePacked'
-                      : 'planner.travelStyleBalanced'
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-1.5">{t('planner.interestsLabel')}</p>
-            <div className="flex flex-wrap gap-2">
-              {INTERESTS.map((interest) => {
-                const style = CATEGORY_STYLE[interest];
-                const Icon = style.Icon;
-                const active = structured.interests.includes(interest);
-                return (
-                  <button
-                    key={interest}
-                    type="button"
-                    onClick={() => toggleInterest(interest)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                      active
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-foreground border-border hover:border-primary/30'
-                    }`}
-                  >
-                    <Icon size={12} />
-                    {t(style.labelKey)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-xs font-semibold text-foreground mb-1.5 block">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function ItineraryView({
-  itinerary,
-  onViewTour,
-  canSave,
-  saved,
-  saving,
-  onSave,
-}: {
-  itinerary: Itinerary;
-  onViewTour: (id: number) => void;
-  canSave: boolean;
-  saved: boolean;
-  saving: boolean;
-  onSave: () => void;
-}) {
-  const { t } = useLanguage();
-  return (
-    <div className="bg-background border border-border rounded-2xl overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-border flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="text-sm font-bold text-foreground">{t('planner.toursCount', { count: itinerary.toursCount })}</span>
-        <span className="text-sm text-muted-foreground">{t('planner.destinationsCount', { count: itinerary.destinationsCount })}</span>
-        <span className="text-sm text-muted-foreground">{t('planner.travelersSummary', { count: itinerary.travelers })}</span>
-        <div className="flex-1" />
-        <span className="text-sm font-bold text-primary">
-          {t('planner.estimatedCost')}: {itinerary.estimatedCost} AZN
-        </span>
-      </div>
-
-      <div className="divide-y divide-border">
-        {itinerary.days.map((day) => (
-          <div key={day.day} className="px-4 py-3.5">
-            <p className="text-xs font-bold uppercase tracking-wide text-accent mb-2">
-              Day {day.day}
-              {day.destination ? ` · ${day.destination}` : ''}
-            </p>
-            <div className="space-y-2.5">
-              {day.activities.map((a) => (
-                <ActivityCard key={a.tourId} activity={a} onViewTour={onViewTour} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {itinerary.notes.length > 0 && (
-        <div className="px-4 py-3.5 bg-muted/50 border-t border-border">
-          <p className="text-xs font-bold text-foreground mb-1.5">{t('planner.notesTitle')}</p>
-          <ul className="space-y-1">
-            {itinerary.notes.map((n, i) => (
-              <li key={i} className="text-xs text-muted-foreground leading-relaxed">
-                {n}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="px-4 py-3.5 border-t border-border">
-        {canSave ? (
-          <button
-            onClick={onSave}
-            disabled={saved || saving}
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-80 disabled:opacity-60"
-          >
-            {saved ? <Check size={13} /> : <Bookmark size={13} />}
-            {saved ? t('planner.tripSaved') : saving ? '…' : t('planner.saveTrip')}
-          </button>
-        ) : (
-          <p className="text-xs text-muted-foreground">{t('planner.signInToSave')}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ActivityCard({ activity, onViewTour }: { activity: Activity; onViewTour: (id: number) => void }) {
-  const { t } = useLanguage();
-  const style = CATEGORY_STYLE[activity.category ?? ''] ?? CATEGORY_STYLE.history;
-  const hasRating = typeof activity.rating === 'number' && activity.rating > 0;
-  const effectivePrice = activity.discountedPrice ?? activity.price;
-
-  return (
-    <button
-      onClick={() => onViewTour(activity.tourId)}
-      className="w-full text-left flex gap-3 bg-card border border-border rounded-xl p-2.5 hover:border-primary/30 transition-colors group"
-    >
-      <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-muted">
-        <CategoryMotif category={activity.category} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h4 className="text-sm font-semibold text-foreground truncate">{activity.title}</h4>
-        <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground mt-0.5">
-          {activity.location && (
-            <span className="flex items-center gap-0.5">
-              <MapPin size={10} /> {activity.location}
-            </span>
-          )}
-          <span className="flex items-center gap-0.5">
-            <Clock size={10} /> {t('tourDetail.duration', { count: activity.durationDays })}
-          </span>
-          {hasRating && (
-            <span className="flex items-center gap-0.5">
-              <Star size={10} className="fill-rating text-rating" /> {activity.rating!.toFixed(1)}
-            </span>
-          )}
-        </div>
-        {activity.reason && <p className="text-[11px] text-muted-foreground/80 italic mt-1 line-clamp-1">{activity.reason}</p>}
-      </div>
-      <div className="flex flex-col items-end justify-between shrink-0">
-        <span className="text-sm font-bold text-foreground">{effectivePrice} AZN</span>
-        <ArrowRight size={13} className="text-muted-foreground group-hover:text-accent transition-colors" />
-      </div>
-    </button>
-  );
-}
-
-function AlternativesView({ tours, onViewTour }: { tours: any[]; onViewTour: (id: number) => void }) {
-  return (
-    <div className="space-y-2">
-      {tours.map((tour) => (
-        <ActivityCard
-          key={tour.id}
-          activity={{
-            tourId: tour.id,
-            title: tour.title,
-            location: tour.location,
-            category: tour.category,
-            durationDays: tour.duration_days,
-            price: tour.price,
-            discountedPrice: tour.discounted_price ?? null,
-            rating: tour.rating,
-            reviewCount: tour.review_count,
-            date: tour.date,
-            minParticipants: tour.min_participants,
-            maxParticipants: tour.max_participants,
-            reason: '',
-          }}
-          onViewTour={onViewTour}
-        />
-      ))}
-    </div>
   );
 }

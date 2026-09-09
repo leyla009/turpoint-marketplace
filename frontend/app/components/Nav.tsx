@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Home, User, Send,
-  LayoutDashboard, ClipboardList, Settings,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,12 +23,14 @@ const TRAVELER_ITEMS = [
   { href: '/', labelKey: 'nav.home' as const, Icon: Home },
 ];
 
-// "Tur əlavə et" isn't listed here - it already lives inside the panel
-// page itself (its own "+ Tur əlavə et" button, which opens as a popup).
+// Operators only ever have the one page now - "Tur əlavə et" opens inside
+// it as a popup, and profile editing is a section on the same page rather
+// than its own route - so this exists solely to give the mobile bottom tab
+// bar somewhere to link. Being length 1 also means the desktop header's own
+// nav row (gated on navItems.length > 1 below) never renders "Panel" as a
+// clickable link - there's nothing else to switch to.
 const OPERATOR_ITEMS = [
   { href: '/dashboard', labelKey: 'nav.dashboard' as const, Icon: LayoutDashboard },
-  { href: '/dashboard/bookings', labelKey: 'nav.operatorBookings' as const, Icon: ClipboardList },
-  { href: '/dashboard/profile', labelKey: 'nav.profile' as const, Icon: Settings },
 ];
 
 export default function Nav() {
@@ -52,18 +54,48 @@ export default function Nav() {
     setAccountMenuOpen(null);
   };
 
+  // The homepage hero is a full-bleed photo slideshow, so the header floats
+  // transparently over it until the page scrolls past the hero, then
+  // switches to the normal solid bar. Every other page keeps the solid bar
+  // from the start since there's no photo underneath it to float over -
+  // except the operator panel, which has its own full-page photo background
+  // (see (main)/dashboard/page.tsx) that's already position:fixed behind
+  // everything, so the header can just stay transparent the whole time
+  // there without needing the scroll-based toggle the homepage hero needs.
+  const isHome = pathname === '/';
+  const isOperatorPanel = pathname === '/dashboard';
+  const [scrolledPastHero, setScrolledPastHero] = useState(false);
+  const HERO_SCROLL_THRESHOLD = 320;
+
+  useEffect(() => {
+    if (!isHome) return;
+    const onScroll = () => setScrolledPastHero(window.scrollY > HERO_SCROLL_THRESHOLD);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isHome]);
+
+  const transparent = (isHome && !scrolledPastHero) || isOperatorPanel;
 
   return (
     <>
-      {/* Desktop top bar - always solid and sticky (reserving its own
-          64px in normal flow), on every page including the homepage. A
-          transparent-over-photo header (with or without a matching
-          negative margin on the hero to compensate) caused two rounds of
-          real overlap bugs - header covering the heading, then the
-          negative margin pulling the next section up to overlap the
-          search card - so the plain, always-solid bar won out over that
-          flourish. */}
-      <header className="hidden md:block sticky top-0 z-40 bg-primary shadow-sm">
+      {/* Desktop top bar - always sticky (reserving its own 64px in normal
+          flow), never fixed, on every page including the homepage and the
+          operator panel. A `fixed` (flow-less) header here previously let
+          hero content (the greeting heading, the search card's dropdowns)
+          render partially underneath it - sticky keeps the exact same
+          transparent-over-photo look (see page.tsx's own inner photo
+          wrapper for how the homepage's photo still bleeds up behind this
+          header) with none of that overlap risk. The operator panel's own
+          background photo is already `fixed inset-0 -z-10` on that page
+          itself, so a sticky (in-flow) transparent header shows it through
+          identically to how a flow-less header would - no compensation
+          needed there at all. */}
+      <header
+        className={`hidden md:block sticky top-0 z-40 transition-colors duration-300 ${
+          transparent ? 'bg-transparent' : 'bg-primary shadow-sm'
+        }`}
+      >
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
@@ -135,7 +167,7 @@ export default function Nav() {
                 since creating a profile requires an account. */}
             {!loading && !operatorProfile && (
               <Link
-                href={user ? '/dashboard/profile' : '/login'}
+                href={user ? '/dashboard' : '/login'}
                 className="hidden lg:inline-flex items-center text-xs font-semibold text-white/90 hover:text-white border-b border-white/30 hover:border-white/70 pb-0.5 transition-colors"
               >
                 {t('nav.becomeOperator')}
@@ -206,7 +238,11 @@ export default function Nav() {
           page (tour detail, bookings, dashboard), and no way to change
           language at all on mobile - the language switcher only ever
           existed in the desktop-only header above. */}
-      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-12 bg-primary">
+      <div
+        className={`md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-12 transition-colors duration-300 ${
+          transparent ? 'bg-transparent' : 'bg-primary'
+        }`}
+      >
         <Link href="/" className="flex items-center gap-2">
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/15 shrink-0">
             <Send size={13} className="text-white -rotate-45" />

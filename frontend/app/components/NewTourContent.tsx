@@ -174,7 +174,7 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
     return (
       <div className="p-6 text-center text-sm text-muted-foreground">
         {t('tourForm.needProfile')}{' '}
-        <a href="/dashboard/profile" className="text-primary font-semibold">
+        <a href="/dashboard" className="text-primary font-semibold">
           {t('tourForm.createOne')}
         </a>
       </div>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
-  Users2, ShieldCheck, Wallet, ChevronDown, MapPin, LogIn, X,
+  ShieldCheck, MessageCircle, ChevronDown, MapPin, LogIn, X,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
@@ -356,18 +356,20 @@ export default function Home() {
           heading/search card overlaid at the bottom, readable over any
           photo thanks to the dark gradient scrim. bg-surface-sand stays as
           the fallback color underneath while the first photo loads.
-          overflow-hidden lives on its OWN inner wrapper (photo + scrim
-          only) rather than on this outer container - the search card
-          below renders as a sibling of that wrapper, not a child of it,
-          specifically so its dropdowns (From/To/travelers) can overflow
-          past the photo's box without being clipped. Nav's header is
-          always solid now (no more transparent-over-photo + negative
-          margin trick) - that combination twice caused real overlap bugs
-          (header covering the heading, then the next section overlapping
-          the search card), so plain, boring, always-in-flow layout won
-          out over the "photo bleeds behind the header" flourish. */}
+          The photo layer is its own absolutely-positioned wrapper, offset
+          upward by exactly Nav's sticky header height (-mt-12/-mt-16, see
+          Nav.tsx) so it still bleeds up behind that header when it's
+          transparent - without moving the hero box itself out of normal
+          flow. That distinction matters: an earlier version pulled the
+          whole hero div up with a negative margin, which also dragged the
+          NEXT section (the city marquee) up into overlapping the search
+          card. Being absolutely positioned, this wrapper's own
+          overflow-hidden (for clipping the photo/gradient) has no effect
+          on anything outside it either - the search card below is a
+          sibling, not a child, so its dropdowns (From/To/travelers) can
+          extend past the hero's box without being clipped. */}
       <div className="relative min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-12 md:-top-16 inset-x-0 bottom-0 overflow-hidden">
           <HeroSlideshow />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
         </div>
@@ -793,38 +795,35 @@ export default function Home() {
         </div>
       </div>
 
-      {/* How it works - explains the group-buying mechanic (price drops as
-          more travelers join, confirmed once the tour's minimum is hit),
-          which isn't obvious from a first glance at a tour card. A subtle
-          green-tinted band (--surface-moss) rather than plain white or
-          another beige block, so the page's third act reads as its own
-          calm beat rather than a continuation of the sand-toned discovery
-          section above it. */}
-      <div className="bg-surface-moss">
-        <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
-          <h2
-            className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {t('home.howItWorksTitle')}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 max-w-4xl mx-auto">
-            {(
-              [
-                { Icon: Search, titleKey: 'home.step1Title', bodyKey: 'home.step1Body' },
-                { Icon: Users2, titleKey: 'home.step2Title', bodyKey: 'home.step2Body' },
-                { Icon: ShieldCheck, titleKey: 'home.step3Title', bodyKey: 'home.step3Body' },
-              ] satisfies { Icon: typeof Search; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-            ).map(({ Icon, titleKey, bodyKey }, i) => (
-              <div key={i} className="text-center">
-                <div className="w-11 h-11 rounded-full bg-card text-primary flex items-center justify-center mx-auto mb-4">
-                  <Icon size={18} />
-                </div>
-                <h3 className="text-sm font-bold text-foreground mb-1.5">{t(titleKey)}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px] mx-auto">{t(bodyKey)}</p>
-              </div>
-            ))}
-          </div>
+      {/* Why TurPoint - real product mechanics only (direct WhatsApp/
+          Instagram contact with the operator, genuine traveler reviews,
+          operators who own their listings), nothing fabricated like award
+          badges or made-up guest counts. Replaces the old "How it works"
+          band that used to sit here, which described the group-buying
+          booking flow this product no longer has. A plain list rather than
+          three bordered/shadowed boxes. Sits before the operator pitch now
+          (traveler-facing content first, operator pitch second). */}
+      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
+        <h2
+          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          {t('home.whyUsTitle')}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          {(
+            [
+              { Icon: MessageCircle, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
+              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
+              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
+            ] satisfies { Icon: typeof MessageCircle; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+          ).map(({ Icon, titleKey, bodyKey }, i) => (
+            <div key={i} className="text-center sm:text-left">
+              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
+              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -854,7 +853,7 @@ export default function Home() {
                 {t('home.operatorBody')}
               </p>
               <Link
-                href="/dashboard/profile"
+                href="/dashboard"
                 className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
               >
                 {t('dashboard.becomeOperator')}
@@ -879,35 +878,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Why TurPoint - real product mechanics only (group pricing,
-          verified-buyer-only reviews, operators who own their listings),
-          nothing fabricated like award badges or made-up guest counts.
-          A plain list rather than three bordered/shadowed boxes, closing
-          the page on a quiet, editorial note before the footer. */}
-      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
-        <h2
-          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          {t('home.whyUsTitle')}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          {(
-            [
-              { Icon: Wallet, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
-              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
-              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
-            ] satisfies { Icon: typeof Wallet; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-          ).map(({ Icon, titleKey, bodyKey }, i) => (
-            <div key={i} className="text-center sm:text-left">
-              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
-              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -962,7 +932,6 @@ export default function Home() {
         <PlannerModal
           onClose={() => setShowPlannerModal(false)}
           onViewTour={(id) => router.push(`/tours/${id}`)}
-          initialOrigin={fromLocation}
         />
       )}
     </div>

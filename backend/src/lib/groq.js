@@ -10,8 +10,12 @@
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-export const GROQ_EXTRACT_MODEL = process.env.GROQ_EXTRACT_MODEL || 'llama-3.1-8b-instant';
-export const GROQ_ITINERARY_MODEL = process.env.GROQ_ITINERARY_MODEL || 'llama-3.3-70b-versatile';
+// The original defaults here (llama-3.1-8b-instant / llama-3.3-70b-versatile)
+// were retired from Groq's lineup - confirmed via GET /openai/v1/models,
+// which no longer lists any Llama chat model at all. Replaced with the
+// current smallest/largest general-purpose chat models in the same roles.
+export const GROQ_EXTRACT_MODEL = process.env.GROQ_EXTRACT_MODEL || 'openai/gpt-oss-20b';
+export const GROQ_ITINERARY_MODEL = process.env.GROQ_ITINERARY_MODEL || 'openai/gpt-oss-120b';
 
 export function groqConfigured() {
   return !!process.env.GROQ_API_KEY;

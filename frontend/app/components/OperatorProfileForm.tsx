@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Store, Camera, AtSign, Phone, CheckCircle2 } from 'lucide-react';
-import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
-import { useToast } from '@/app/context/ToastContext';
-import { useLanguage } from '@/app/context/LanguageContext';
+import { Store, Camera, AtSign, Phone, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const PHONE_PREFIX = '+994';
-
 const PHONE_DIGIT_COUNT = 9;
 
 // Live-formats the digits after +994 as 2-3-2-2 (e.g. "50 123 45 67"),
@@ -27,9 +25,12 @@ function formatPhoneDigits(digits: string): string {
   return groups.join(' ');
 }
 
-export default function OperatorProfilePage() {
-  const router = useRouter();
-  const { loading: authLoading } = useRequireAuth();
+// The operator profile create/edit form - lives directly inside the panel
+// page now instead of its own /dashboard/profile route (which one page it
+// renders is decided by whether operatorProfile exists, same as before).
+// Auth is already required by the panel page itself, so this component
+// doesn't gate on it separately.
+export default function OperatorProfileForm() {
   const { token, operatorProfile, setMode, refreshOperatorProfile } = useAuth();
   const { showToast } = useToast();
   const { t } = useLanguage();
@@ -167,10 +168,7 @@ export default function OperatorProfilePage() {
       }
       await refreshOperatorProfile();
       setSuccess(true);
-      if (!isEditing) {
-        setMode('operator');
-        setTimeout(() => router.push('/dashboard'), 800);
-      }
+      if (!isEditing) setMode('operator');
     } catch {
       setError(t('profile.couldntReachBackend'));
     } finally {
@@ -206,19 +204,8 @@ export default function OperatorProfilePage() {
     }
   }
 
-  if (authLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
-  }
-
   return (
-    <div className="min-h-full p-4 sm:p-6 max-w-lg mx-auto">
-      <button
-        onClick={() => router.push(isEditing ? '/dashboard' : '/')}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ChevronLeft size={16} /> {t('profile.back')}
-      </button>
-
+    <div>
       <div className="flex items-center gap-2 mb-1">
         <Store size={20} className="text-primary" />
         <h1 className="font-display text-xl font-bold text-foreground">
@@ -264,7 +251,7 @@ export default function OperatorProfilePage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4">
+      <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4 max-w-lg">
         <div>
           <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.companyName')}</label>
           <input
