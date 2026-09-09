@@ -11,13 +11,19 @@ export default function DashboardPage() {
   const { loading: authLoading } = useRequireAuth();
 
   return (
-    <div className="relative min-h-full">
+    <div className="relative min-h-screen">
+      {/* min-h-screen (not min-h-full) - the panel's own content is often
+          short (a couple of tour rows, a form), and min-h-full just let it
+          shrink to that height, which pulled the Footer up over the bottom
+          third of the fixed background photo below. Forcing this page to
+          be at least one full viewport tall pushes the footer below the
+          fold instead, so the photo shows in full before you scroll to it. */}
       {/* Fixed (not scrolling) photo behind the whole panel, shown at its
           original color with no scrim - text/card colors get tuned
           separately to stay readable against it. */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: "url('/pictures/Operatorback.jpg')" }}
+        style={{ backgroundImage: "url('/pictures/Operatorback.webp')" }}
       />
 
       <div className="relative p-4 sm:p-6 max-w-3xl mx-auto pb-20 md:pb-6">
