@@ -353,7 +353,13 @@ export default function Home() {
           heading/search card overlaid at the bottom, readable over any
           photo thanks to the dark gradient scrim. bg-surface-sand stays as
           the fallback color underneath while the first photo loads. */}
-      <div className="relative overflow-hidden min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
+      {/* No overflow-hidden here - HeroSlideshow already clips itself
+          (its own absolute inset-0 overflow-hidden wrapper), so this outer
+          div doesn't need to; keeping it here was clipping the "Hara?"/
+          traveler-count dropdowns wherever they extended past the hero's
+          bottom edge, which lines up right where the city marquee starts -
+          looking like the dropdown was rendering behind the marquee. */}
+      <div className="relative min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
         <HeroSlideshow />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
         <div className="relative w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-10 pb-6 md:pt-12 md:pb-8">
