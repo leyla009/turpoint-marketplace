@@ -23,7 +23,7 @@ export default function DashboardPage() {
           separately to stay readable against it. */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: "url('/pictures/Operatorback.webp')" }}
+        style={{ backgroundImage: "url('/pictures/Operatorback.jpg')" }}
       />
 
       <div className="relative p-4 sm:p-6 max-w-3xl mx-auto pb-20 md:pb-6">

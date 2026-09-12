@@ -145,10 +145,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <div className="inline-block bg-card/95 backdrop-blur-sm rounded-xl shadow-md px-4 py-2.5">
-          <h1 className="font-display text-xl font-bold text-foreground">{operatorProfile.name}</h1>
-        </div>
+      <div className="flex items-center justify-end mb-5">
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowProfileModal(true)}
@@ -176,8 +173,8 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           </div>
         </div>
         <div className="bg-card border border-border rounded-xl shadow-md p-3.5 flex items-center gap-3">
-          <span className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Star size={17} className="text-primary" fill="currentColor" />
+          <span className="w-10 h-10 rounded-full bg-rating/10 flex items-center justify-center shrink-0">
+            <Star size={17} className="text-rating" fill="currentColor" />
           </span>
           <div className="min-w-0">
             <p className="text-xl font-bold text-foreground leading-none">{operatorProfile.rating ?? 0}</p>
@@ -186,30 +183,48 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
         </div>
       </div>
 
-      <h2
-        className="inline-block bg-card/95 backdrop-blur-sm rounded-lg shadow-sm px-3 py-1.5 text-lg sm:text-xl font-bold text-foreground mb-2"
-        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+      {/* "Turlarınız" as a trapezoid tab flowing straight into the tours
+          panel below it - same bg-card color, zero gap, no radius where
+          they meet - so the heading and the list read as one continuous
+          shape instead of a floating label sitting above separate cards.
+          The right edge is narrower at the top and flares out to full
+          width at the bottom (where it merges into the panel) - the top-
+          left corner is a 3-point polygon approximation of a small round,
+          since clip-path can't mix straight cuts with a real border-radius
+          curve on the same edge. */}
+      <div
+        className="relative z-10 inline-flex items-center gap-2 bg-card pl-3 pr-8 py-2 -mb-px"
+        style={{ clipPath: 'polygon(0 10px, 3px 3px, 10px 0, calc(100% - 22px) 0, 100% 100%, 0 100%)' }}
       >
-        {t('dashboard.yourTours')}
-      </h2>
+        <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <Ticket size={13} className="text-primary" />
+        </span>
+        <h2
+          className="text-base sm:text-lg font-bold text-foreground"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          {t('dashboard.yourTours')}
+        </h2>
+      </div>
 
-      {loadError ? (
-        <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
-          <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">{t('dashboard.couldntLoadTours')}</p>
-        </div>
-      ) : myTours.length === 0 ? (
-        <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
-          <Ticket size={26} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground mb-3">{t('dashboard.noToursYet')}</p>
-          <button onClick={() => setShowNewTourModal(true)} className="text-sm text-primary font-semibold">
-            {t('dashboard.addFirstTour')}
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {myTours.map((tour) => (
-            <div key={tour.id} className="bg-card border border-border rounded-xl shadow-md p-3">
+      <div className="bg-card rounded-b-2xl rounded-tr-2xl shadow-md overflow-hidden">
+        {loadError ? (
+          <div className="p-6 text-center">
+            <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">{t('dashboard.couldntLoadTours')}</p>
+          </div>
+        ) : myTours.length === 0 ? (
+          <div className="p-6 text-center">
+            <Ticket size={26} className="text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground mb-3">{t('dashboard.noToursYet')}</p>
+            <button onClick={() => setShowNewTourModal(true)} className="text-sm text-primary font-semibold">
+              {t('dashboard.addFirstTour')}
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {myTours.map((tour) => (
+              <div key={tour.id} className="border-l-4 border-l-primary p-3">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -231,25 +246,25 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   <button
                     onClick={() => setEditingTour(tour)}
                     title={t('dashboard.editTour')}
-                    className="text-muted-foreground hover:text-foreground p-1"
+                    className="w-7 h-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center justify-center shrink-0"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={13} />
                   </button>
                   <button
                     onClick={() => openDealForm(tour.id)}
                     title={t('dashboard.createDeal')}
                     disabled={!!tour.active_deal}
-                    className="text-muted-foreground hover:text-accent disabled:opacity-30 p-1"
+                    className="w-7 h-7 rounded-full bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-30 transition-colors flex items-center justify-center shrink-0"
                   >
-                    <Zap size={14} />
+                    <Zap size={13} />
                   </button>
                   <button
                     onClick={() => handleDelete(tour.id, tour.title)}
                     disabled={deletingId === tour.id}
                     title={t('dashboard.deleteTour')}
-                    className="text-muted-foreground hover:text-danger disabled:opacity-40 p-1"
+                    className="w-7 h-7 rounded-full bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-40 transition-colors flex items-center justify-center shrink-0"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
@@ -295,10 +310,11 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   {dealError && <p className="text-[11px] text-danger w-full">{dealError}</p>}
                 </form>
               )}
-            </div>
-          ))}
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {showProfileModal && <OperatorProfileFormModal onClose={() => setShowProfileModal(false)} />}
 
