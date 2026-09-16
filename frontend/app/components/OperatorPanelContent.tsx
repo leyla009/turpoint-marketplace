@@ -163,7 +163,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-card border border-border rounded-xl shadow-md p-3.5 flex items-center gap-3">
+        <div className="bg-card rounded-xl shadow-md p-3.5 flex items-center gap-3">
           <span className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <Ticket size={17} className="text-primary" />
           </span>
@@ -172,7 +172,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
             <p className="text-[11px] text-muted-foreground mt-1 truncate">{t('dashboard.activeTours')}</p>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl shadow-md p-3.5 flex items-center gap-3">
+        <div className="bg-card rounded-xl shadow-md p-3.5 flex items-center gap-3">
           <span className="w-10 h-10 rounded-full bg-rating/10 flex items-center justify-center shrink-0">
             <Star size={17} className="text-rating" fill="currentColor" />
           </span>
@@ -183,19 +183,13 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
         </div>
       </div>
 
-      {/* "Turlarınız" as a trapezoid tab flowing straight into the tours
-          panel below it - same bg-card color, zero gap, no radius where
-          they meet - so the heading and the list read as one continuous
-          shape instead of a floating label sitting above separate cards.
-          The right edge is narrower at the top and flares out to full
-          width at the bottom (where it merges into the panel) - the top-
-          left corner is a 3-point polygon approximation of a small round,
-          since clip-path can't mix straight cuts with a real border-radius
-          curve on the same edge. */}
-      <div
-        className="relative z-10 inline-flex items-center gap-2 bg-card pl-3 pr-8 py-2 -mb-px"
-        style={{ clipPath: 'polygon(0 10px, 3px 3px, 10px 0, calc(100% - 22px) 0, 100% 100%, 0 100%)' }}
-      >
+      {/* "Turlarınız" as a plain rounded-top tab flowing straight into the
+          tours panel below it - same bg-card color, zero gap, no radius
+          where they meet - so the heading and the list read as one
+          continuous shape instead of a floating label sitting above
+          separate cards. Both top corners use the same rounded-2xl
+          radius, no trapezoid/flare on the right edge. */}
+      <div className="relative z-10 inline-flex items-center gap-2 bg-card rounded-t-2xl px-3.5 py-2 -mb-px">
         <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <Ticket size={13} className="text-primary" />
         </span>

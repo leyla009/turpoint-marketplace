@@ -141,14 +141,11 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
 
-  // Hero search card state. "Haradan?" is the traveler's own starting
-  // city - editable, defaults to Bakı, but doesn't filter tour results
-  // (see HeroSearchCard's comment - tours have no origin-city field to
-  // filter by); Smart Planner picks it up as the trip's origin instead.
-  // departDate/returnDate are a date-range filter, not a literal round
-  // trip - both default to today, set client-side after mount to avoid a
-  // server/client render mismatch on the initial date.
-  const [fromLocation, setFromLocation] = useState('Bakı');
+  // Hero search card state. "Haradan?" is fixed to Bakı (not stateful -
+  // see HeroSearchCard's comment). departDate/returnDate are a date-range
+  // filter, not a literal round trip - both default to today, set
+  // client-side after mount to avoid a server/client render mismatch on
+  // the initial date.
   const [departDate, setDepartDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [travelers, setTravelers] = useState('');
@@ -378,8 +375,6 @@ export default function Home() {
 
           <div className="mt-5 md:mt-6">
             <HeroSearchCard
-              fromLocation={fromLocation}
-              onFromLocationChange={setFromLocation}
               toLocation={locationFilter}
               onToLocationChange={setLocationFilter}
               departDate={departDate}
@@ -827,17 +822,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Operator story - a solid deep-green band rather than text laid
-          over a photo. A busy landscape photo behind body copy never reads
-          cleanly regardless of how dark the scrim goes, and a generic
-          mountain view doesn't actually say anything about running tours
-          on a marketplace anyway - solid color plus real typographic
-          weight gives this section its own presence without fighting
-          legibility. Only describes capabilities that actually exist: the
+      {/* Operator story - the /pictures/4.jpeg mountain-valley photo behind
+          a dark green gradient scrim, strong enough on the left (where the
+          heading/body copy sits) to keep text legible, fading out toward
+          the right where the benefit cards already carry their own
+          background. Only describes capabilities that actually exist: the
           public marketplace listing, the operator dashboard's bookings
           view, and real photo uploads on a tour listing. */}
-      <div className="bg-primary">
-        <div className="px-4 sm:px-6 py-16 md:py-20 max-w-[1600px] mx-auto">
+      <div
+        className="relative overflow-hidden bg-cover bg-center"
+        style={{ backgroundImage: "url('/pictures/4.jpeg')" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0f1f17]/95 via-[#0f1f17]/90 to-[#0f1f17]/78" />
+        <div className="relative px-4 sm:px-6 py-16 md:py-20 max-w-[1600px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div>
               <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/60 mb-3">
@@ -868,7 +865,10 @@ export default function Home() {
                   { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
                 ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
               ).map(({ titleKey, bodyKey }, i) => (
-                <div key={i} className="flex gap-4 bg-white/[0.06] border border-white/10 rounded-xl px-5 py-4">
+                <div
+                  key={i}
+                  className="flex gap-4 bg-[#0f1f17]/70 backdrop-blur-sm border border-white/10 rounded-xl px-5 py-4"
+                >
                   <span className="text-sm font-bold text-accent shrink-0">{String(i + 1).padStart(2, '0')}</span>
                   <div>
                     <p className="text-sm font-bold text-white">{t(titleKey)}</p>

@@ -88,6 +88,29 @@ const az = {
   'search.noDestinationMatch': 'Uyğun yer tapılmadı',
   'search.search': 'Axtar',
 
+  // Calendar - custom date-picker dropdown for search.depart/search.return
+  'calendar.month.jan': 'Yanvar',
+  'calendar.month.feb': 'Fevral',
+  'calendar.month.mar': 'Mart',
+  'calendar.month.apr': 'Aprel',
+  'calendar.month.may': 'May',
+  'calendar.month.jun': 'İyun',
+  'calendar.month.jul': 'İyul',
+  'calendar.month.aug': 'Avqust',
+  'calendar.month.sep': 'Sentyabr',
+  'calendar.month.oct': 'Oktyabr',
+  'calendar.month.nov': 'Noyabr',
+  'calendar.month.dec': 'Dekabr',
+  'calendar.day.mon': 'B.e',
+  'calendar.day.tue': 'Ç.a',
+  'calendar.day.wed': 'Ç',
+  'calendar.day.thu': 'C.a',
+  'calendar.day.fri': 'C',
+  'calendar.day.sat': 'Ş',
+  'calendar.day.sun': 'B',
+  'calendar.prevMonth': 'Əvvəlki ay',
+  'calendar.nextMonth': 'Növbəti ay',
+
   // Shared UI (horizontal scroll rows, etc.)
   'common.scrollLeft': 'Sola sürüşdür',
   'common.scrollRight': 'Sağa sürüşdür',
@@ -472,10 +495,46 @@ const az = {
   'operatorBookings.noBookingsYet': 'Hələ rezervasiya yoxdur.',
 
   // Footer
-  'footer.quickLinks': 'Sürətli keçidlər',
-  'footer.exploreByCategory': 'Kateqoriyalar',
+  'footer.about': 'Haqqımızda',
+  'footer.contact': 'Əlaqə',
   'footer.forOperators': 'Operatorlar üçün',
+  'footer.terms': 'İstifadə şərtləri',
+  'footer.privacy': 'Məxfilik siyasəti',
   'footer.rights': '© {year} TurPoint. Bütün hüquqlar qorunur.',
+
+  // About / Terms / Privacy pages
+  'about.title': 'Haqqımızda',
+  'about.subtitle': 'TurPoint — Azərbaycanda turları kəşf etmək, müqayisə etmək və rezerv etmək üçün bazar.',
+  'about.p1':
+    'TurPoint tur operatorlarını səyahətçilərlə birbaşa əlaqələndirən bazardır. Quba, Şəki, Qəbələ, Lənkəran və ölkənin digər bölgələrindəki turları bir yerdən axtara, müqayisə edə və rezerv edə bilərsiniz.',
+  'about.p2':
+    'Tur operatorları öz panellərindən turlarını əlavə edir, qiymətləri və yer sayını idarə edir, rezervasiyaları izləyir.',
+  'about.p3':
+    'Məqsədimiz yerli tur operatorlarına daha çox səyahətçiyə çatmağa, səyahətçilərə isə rahat və etibarlı seçim etməyə kömək etməkdir.',
+  'terms.title': 'İstifadə şərtləri',
+  'terms.intro': 'Bu şərtlər TurPoint platformasından istifadəni tənzimləyir. Platformadan istifadə etməklə bu şərtləri qəbul edirsiniz.',
+  'terms.section1Title': 'Hesab',
+  'terms.section1Body':
+    'Platformadan istifadə etmək üçün doğru məlumatlarla hesab yaratmalısınız. Hesabınızın təhlükəsizliyinə görə siz məsulsunuz.',
+  'terms.section2Title': 'Rezervasiyalar',
+  'terms.section2Body':
+    'Rezervasiya zamanı göstərilən qiymət, tarix və şərtlər müvafiq tur operatoru tərəfindən müəyyən edilir. TurPoint yalnız platforma xidmətini təmin edir.',
+  'terms.section3Title': 'Ödənişlər',
+  'terms.section3Body':
+    'Ləğvetmə və geri qaytarma şərtləri hər turun təsvirində göstərilir. Suallarınız üçün əvvəlcə tur operatoru ilə əlaqə saxlayın.',
+  'terms.section4Title': 'Dəyişikliklər',
+  'terms.section4Body':
+    'Bu şərtlər zaman zaman yenilənə bilər. Yenilənmiş şərtlər bu səhifədə dərc olunduğu andan qüvvəyə minir.',
+  'privacy.title': 'Məxfilik siyasəti',
+  'privacy.intro': 'Bu səhifə TurPoint-in istifadəçi məlumatlarını necə topladığını və istifadə etdiyini izah edir.',
+  'privacy.section1Title': 'Topladığımız məlumatlar',
+  'privacy.section1Body': 'Hesab yaratdığınızda ad, e-poçt və telefon nömrəsi kimi məlumatları toplayırıq.',
+  'privacy.section2Title': 'Məlumatların istifadəsi',
+  'privacy.section2Body': 'Məlumatlarınız rezervasiyaları həyata keçirmək və xidməti yaxşılaşdırmaq üçün istifadə olunur.',
+  'privacy.section3Title': 'Məlumatların paylaşılması',
+  'privacy.section3Body': 'Rezervasiya etdiyiniz turun operatoru ilə yalnız rezervasiya üçün zəruri məlumatlar paylaşılır.',
+  'privacy.section4Title': 'Əlaqə',
+  'privacy.section4Body': 'Məxfiliklə bağlı suallarınız üçün bizimlə {email} vasitəsilə əlaqə saxlaya bilərsiniz.',
 
   // Account panel (floating, opened by clicking the avatar/name in the nav)
   'account.personalInfo': 'Şəxsi məlumatlarım',
@@ -571,6 +630,29 @@ const en: Record<TranslationKey, string> = {
   'search.done': 'Done',
   'search.noDestinationMatch': 'No matching destination',
   'search.search': 'Search',
+
+  // Calendar
+  'calendar.month.jan': 'January',
+  'calendar.month.feb': 'February',
+  'calendar.month.mar': 'March',
+  'calendar.month.apr': 'April',
+  'calendar.month.may': 'May',
+  'calendar.month.jun': 'June',
+  'calendar.month.jul': 'July',
+  'calendar.month.aug': 'August',
+  'calendar.month.sep': 'September',
+  'calendar.month.oct': 'October',
+  'calendar.month.nov': 'November',
+  'calendar.month.dec': 'December',
+  'calendar.day.mon': 'Mo',
+  'calendar.day.tue': 'Tu',
+  'calendar.day.wed': 'We',
+  'calendar.day.thu': 'Th',
+  'calendar.day.fri': 'Fr',
+  'calendar.day.sat': 'Sa',
+  'calendar.day.sun': 'Su',
+  'calendar.prevMonth': 'Previous month',
+  'calendar.nextMonth': 'Next month',
 
   // Shared UI (horizontal scroll rows, etc.)
   'common.scrollLeft': 'Scroll left',
@@ -938,10 +1020,46 @@ const en: Record<TranslationKey, string> = {
   'operatorBookings.createOne': 'Create one →',
   'operatorBookings.noBookingsYet': 'No bookings yet.',
 
-  'footer.quickLinks': 'Quick links',
-  'footer.exploreByCategory': 'Categories',
+  'footer.about': 'About us',
+  'footer.contact': 'Contact',
   'footer.forOperators': 'For operators',
+  'footer.terms': 'Terms of use',
+  'footer.privacy': 'Privacy policy',
   'footer.rights': '© {year} TurPoint. All rights reserved.',
+
+  // About / Terms / Privacy pages
+  'about.title': 'About us',
+  'about.subtitle': 'TurPoint is a marketplace for discovering, comparing and booking tours across Azerbaijan.',
+  'about.p1':
+    'TurPoint connects tour operators directly with travelers. Search, compare and book tours across Quba, Şəki, Qəbələ, Lənkəran and other regions of the country, all in one place.',
+  'about.p2':
+    'Tour operators add their tours, manage pricing and capacity, and track bookings from their own dashboard.',
+  'about.p3':
+    'Our goal is to help local tour operators reach more travelers, and help travelers make a confident, informed choice.',
+  'terms.title': 'Terms of use',
+  'terms.intro': 'These terms govern your use of the TurPoint platform. By using the platform, you agree to these terms.',
+  'terms.section1Title': 'Account',
+  'terms.section1Body':
+    'You must create an account with accurate information to use the platform. You are responsible for keeping your account secure.',
+  'terms.section2Title': 'Bookings',
+  'terms.section2Body':
+    'The price, date and conditions shown at booking are set by the relevant tour operator. TurPoint only provides the platform service.',
+  'terms.section3Title': 'Payments',
+  'terms.section3Body':
+    'Cancellation and refund terms are shown on each tour listing. For questions, contact the tour operator first.',
+  'terms.section4Title': 'Changes',
+  'terms.section4Body':
+    'These terms may be updated from time to time. Updated terms take effect as soon as they are published on this page.',
+  'privacy.title': 'Privacy policy',
+  'privacy.intro': 'This page explains how TurPoint collects and uses your information.',
+  'privacy.section1Title': 'Information we collect',
+  'privacy.section1Body': 'When you create an account, we collect information such as your name, email and phone number.',
+  'privacy.section2Title': 'How we use it',
+  'privacy.section2Body': 'Your information is used to process bookings and improve the service.',
+  'privacy.section3Title': 'Sharing your information',
+  'privacy.section3Body': 'Only the information needed to fulfil a booking is shared with the tour operator you book with.',
+  'privacy.section4Title': 'Contact',
+  'privacy.section4Body': 'For privacy questions, you can reach us at {email}.',
 
   'account.personalInfo': 'My personal info',
   'account.favorites': 'Favorites',
@@ -1033,6 +1151,29 @@ const ru: Record<TranslationKey, string> = {
   'search.done': 'Готово',
   'search.noDestinationMatch': 'Совпадений не найдено',
   'search.search': 'Искать',
+
+  // Calendar
+  'calendar.month.jan': 'Январь',
+  'calendar.month.feb': 'Февраль',
+  'calendar.month.mar': 'Март',
+  'calendar.month.apr': 'Апрель',
+  'calendar.month.may': 'Май',
+  'calendar.month.jun': 'Июнь',
+  'calendar.month.jul': 'Июль',
+  'calendar.month.aug': 'Август',
+  'calendar.month.sep': 'Сентябрь',
+  'calendar.month.oct': 'Октябрь',
+  'calendar.month.nov': 'Ноябрь',
+  'calendar.month.dec': 'Декабрь',
+  'calendar.day.mon': 'Пн',
+  'calendar.day.tue': 'Вт',
+  'calendar.day.wed': 'Ср',
+  'calendar.day.thu': 'Чт',
+  'calendar.day.fri': 'Пт',
+  'calendar.day.sat': 'Сб',
+  'calendar.day.sun': 'Вс',
+  'calendar.prevMonth': 'Предыдущий месяц',
+  'calendar.nextMonth': 'Следующий месяц',
 
   // Shared UI (horizontal scroll rows, etc.)
   'common.scrollLeft': 'Прокрутить влево',
@@ -1400,10 +1541,46 @@ const ru: Record<TranslationKey, string> = {
   'operatorBookings.createOne': 'Создать профиль →',
   'operatorBookings.noBookingsYet': 'Пока нет броней.',
 
-  'footer.quickLinks': 'Быстрые ссылки',
-  'footer.exploreByCategory': 'Категории',
+  'footer.about': 'О нас',
+  'footer.contact': 'Контакты',
   'footer.forOperators': 'Для операторов',
+  'footer.terms': 'Условия использования',
+  'footer.privacy': 'Политика конфиденциальности',
   'footer.rights': '© {year} TurPoint. Все права защищены.',
+
+  // About / Terms / Privacy pages
+  'about.title': 'О нас',
+  'about.subtitle': 'TurPoint — маркетплейс для поиска, сравнения и бронирования туров по Азербайджану.',
+  'about.p1':
+    'TurPoint напрямую соединяет туроператоров с путешественниками. Ищите, сравнивайте и бронируйте туры по Губе, Шеки, Габале, Ленкорани и другим регионам страны в одном месте.',
+  'about.p2':
+    'Туроператоры добавляют туры, управляют ценами и вместимостью, а также отслеживают бронирования из своей панели.',
+  'about.p3':
+    'Наша цель — помочь местным туроператорам находить больше путешественников, а путешественникам — делать уверенный и обоснованный выбор.',
+  'terms.title': 'Условия использования',
+  'terms.intro': 'Эти условия регулируют использование платформы TurPoint. Используя платформу, вы соглашаетесь с этими условиями.',
+  'terms.section1Title': 'Аккаунт',
+  'terms.section1Body':
+    'Для использования платформы необходимо создать аккаунт с достоверными данными. Вы несёте ответственность за безопасность своего аккаунта.',
+  'terms.section2Title': 'Бронирования',
+  'terms.section2Body':
+    'Цена, дата и условия, указанные при бронировании, устанавливаются соответствующим туроператором. TurPoint предоставляет только платформенный сервис.',
+  'terms.section3Title': 'Оплата',
+  'terms.section3Body':
+    'Условия отмены и возврата средств указаны в описании каждого тура. По вопросам сначала обращайтесь к туроператору.',
+  'terms.section4Title': 'Изменения',
+  'terms.section4Body':
+    'Эти условия могут периодически обновляться. Обновлённые условия вступают в силу с момента публикации на этой странице.',
+  'privacy.title': 'Политика конфиденциальности',
+  'privacy.intro': 'Эта страница объясняет, как TurPoint собирает и использует вашу информацию.',
+  'privacy.section1Title': 'Какую информацию мы собираем',
+  'privacy.section1Body': 'При создании аккаунта мы собираем такие данные, как имя, email и номер телефона.',
+  'privacy.section2Title': 'Как мы её используем',
+  'privacy.section2Body': 'Ваша информация используется для обработки бронирований и улучшения сервиса.',
+  'privacy.section3Title': 'Передача информации',
+  'privacy.section3Body': 'Туроператору, у которого вы бронируете тур, передаётся только информация, необходимая для бронирования.',
+  'privacy.section4Title': 'Контакты',
+  'privacy.section4Body': 'По вопросам конфиденциальности вы можете связаться с нами по адресу {email}.',
 
   'account.personalInfo': 'Личные данные',
   'account.favorites': 'Избранное',

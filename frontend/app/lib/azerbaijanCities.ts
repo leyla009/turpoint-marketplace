@@ -18,7 +18,7 @@ function azRank(char: string): number {
   const j = AZ_ALPHABET_UPPER.indexOf(char);
   return j !== -1 ? j : AZ_ALPHABET_LOWER.length;
 }
-function azCompare(a: string, b: string): number {
+export function azCompare(a: string, b: string): number {
   const len = Math.max(a.length, b.length);
   for (let i = 0; i < len; i++) {
     const ra = i < a.length ? azRank(a[i]) : -1;
@@ -28,11 +28,10 @@ function azCompare(a: string, b: string): number {
   return 0;
 }
 
-// Azerbaijan's district centers plus its major cities. Shared by the
-// homepage's Haradan?/Hara? dropdowns and the add-tour form's Məkan
-// dropdown - a tour marketplace covering the whole country should let you
-// pick any of them, not just the handful that happen to have a tour
-// listed right now.
+// Azerbaijan's district centers plus its major cities. Used by the
+// add-tour form's Məkan dropdown - a tour marketplace covering the whole
+// country should let you pick any of them, not just the handful that
+// happen to have a tour listed right now.
 export const AZERBAIJAN_CITIES = [
   'Ağcabədi', 'Ağdam', 'Ağdaş', 'Ağstafa', 'Ağsu', 'Astara', 'Bakı', 'Balakən',
   'Beyləqan', 'Bərdə', 'Biləsuvar', 'Cəbrayıl', 'Cəlilabad', 'Daşkəsən',

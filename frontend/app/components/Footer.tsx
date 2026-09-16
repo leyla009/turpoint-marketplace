@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Send } from 'lucide-react';
+import { Send, Mail, Phone } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { CATEGORY_STYLE } from './TourCard';
+import { CONTACT_EMAIL, CONTACT_PHONE } from '../lib/contact';
 
 // Global footer, shown at the end of every page's content (see
-// layout.tsx). Kept deliberately minimal - no contact details or social
-// links, since none exist for this project and inventing placeholders
-// would just be fake content. The "Explore by category" column links back
-// into the homepage's own real category filter (see page.tsx's
-// window.location-based deep-link effect) rather than a separate page.
+// layout.tsx). Used to have "Sürətli keçidlər" (just one Home link) and
+// "Kateqoriyalar" (duplicated the homepage's own category filter) columns
+// - both dropped as dead weight. In their place: a real "Haqqımızda"
+// (About) link and contact details. CONTACT_EMAIL/CONTACT_PHONE (from
+// ../lib/contact) are placeholders - no real support channel exists for
+// this project yet.
 export default function Footer() {
   const { t } = useLanguage();
 
@@ -34,30 +35,33 @@ export default function Footer() {
 
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/50 mb-3.5">
-            {t('footer.quickLinks')}
+            {t('footer.about')}
           </h3>
           <nav className="flex flex-col gap-2.5">
-            <Link href="/" className="text-sm text-white/80 hover:text-white transition-colors">
-              {t('nav.home')}
+            <Link href="/about" className="text-sm text-white/80 hover:text-white transition-colors">
+              {t('about.title')}
             </Link>
           </nav>
         </div>
 
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/50 mb-3.5">
-            {t('footer.exploreByCategory')}
+            {t('footer.contact')}
           </h3>
-          <nav className="flex flex-col gap-2.5">
-            {Object.entries(CATEGORY_STYLE).map(([cat, style]) => (
-              <Link
-                key={cat}
-                href={`/?category=${cat}`}
-                className="text-sm text-white/80 hover:text-white transition-colors"
-              >
-                {t(style.labelKey)}
-              </Link>
-            ))}
-          </nav>
+          <div className="flex flex-col gap-2.5">
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
+            >
+              <Mail size={14} className="shrink-0" /> {CONTACT_EMAIL}
+            </a>
+            <a
+              href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
+              className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
+            >
+              <Phone size={14} className="shrink-0" /> {CONTACT_PHONE}
+            </a>
+          </div>
         </div>
 
         <div>
@@ -76,9 +80,17 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-white/10">
-        <p className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-[11px] text-white/50">
-          {t('footer.rights', { year: new Date().getFullYear() })}
-        </p>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11px] text-white/50">{t('footer.rights', { year: new Date().getFullYear() })}</p>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="text-[11px] text-white/50 hover:text-white/80 transition-colors">
+              {t('footer.terms')}
+            </Link>
+            <Link href="/privacy" className="text-[11px] text-white/50 hover:text-white/80 transition-colors">
+              {t('footer.privacy')}
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
   );

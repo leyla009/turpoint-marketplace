@@ -1,4 +1,7 @@
-const CITIES = [
+// Also used as the "Hara?" destination field's dropdown options in
+// HeroSearchCard, so both places offer the same curated set of popular
+// destinations instead of the full 66-city AZERBAIJAN_CITIES list.
+export const POPULAR_DESTINATIONS = [
   'Quba',
   'Lahıc kəndi',
   'Şuşa',
@@ -27,7 +30,7 @@ export default function CityMarquee() {
   return (
     <div className="bg-accent overflow-hidden py-3">
       <div className="flex w-max animate-marquee">
-        {[...CITIES, ...CITIES].map((city, i) => (
+        {[...POPULAR_DESTINATIONS, ...POPULAR_DESTINATIONS].map((city, i) => (
           <span key={i} className="flex items-center shrink-0">
             <span className="px-6 text-sm font-bold tracking-wide uppercase text-accent-foreground whitespace-nowrap">
               {city}
