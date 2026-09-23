@@ -138,16 +138,3 @@ Every endpoint is documented and directly testable via Swagger UI once the backe
 http://localhost:4000/api-docs
 ```
 (or the Codespaces-forwarded equivalent, per the note above). Covers auth, operators, tours, group formations, bookings, reviews, deals, and the planner — kept current with the actual route set as of the last hardening pass (see TASKS.md).
-
----
-
-## The Team
-
-Created as a Holberton School Final Portfolio Project:
-
-- **Leyla Khaspoladova** — 
-- **Ramil Mammadov** — Computer Science
-- **Huseyn Sadatkhanov** - Computer Science
-- **Aytakin Imanova** — 
-
----
