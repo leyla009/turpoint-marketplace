@@ -6,6 +6,7 @@ import { LogOut, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
+import HeroSlideshow from '../../components/HeroSlideshow';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -210,8 +211,24 @@ export default function LoginPage() {
   const isLoggedIn = !loading && !!user;
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
-      <div className="w-full max-w-[380px]">
+    <div className="relative flex-1 flex items-center justify-center overflow-hidden px-4 py-10 sm:py-16">
+      {/* Full-bleed photo background - the same real slideshow photos as the
+          homepage hero, now filling the entire space between the header and
+          footer instead of a thin band, so the page reads as one integrated
+          scene rather than a banner sitting above an empty canvas. */}
+      <HeroSlideshow />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60" />
+
+      <div className="absolute top-6 left-4 sm:top-8 sm:left-8 z-10">
+        <p className="text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-white/90">
+          {t('nav.tagline')}
+        </p>
+      </div>
+
+      {/* Card, same rounded-2xl + soft shadow treatment as HeroSearchCard on
+          the homepage, centered directly in the photo so it reads as the
+          same design system rather than a bare form on a flat background. */}
+      <div className="relative z-10 w-full max-w-[400px] bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-6 sm:p-9">
         {isLoggedIn ? (
           <div className="text-center">
             <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-3">
