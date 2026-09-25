@@ -493,11 +493,19 @@ export default function TourDetail() {
             </div>
 
             {reviews.length > 0 && (
-              <div className="flex items-center gap-4 bg-card border border-border rounded-xl p-3 mb-3">
+              // The rating number is deliberately oversized relative to
+              // everything around it - DESIGN.md calls this out as the one
+              // place Airbnb's system trusts type alone to carry hierarchy
+              // ("the loudest typographic moment in the entire system"),
+              // since a rating is the strongest trust signal on the page. It
+              // used to render at the same text-2xl as ordinary body copy.
+              <div className="flex items-center gap-5 bg-card border border-border rounded-xl p-4 mb-3">
                 <div className="text-center shrink-0">
-                  <p className="text-2xl font-bold text-foreground">{avgRating.toFixed(1)}</p>
-                  <StarRow rating={avgRating} size={11} />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                  <p className="text-5xl font-bold text-foreground leading-none">{avgRating.toFixed(1)}</p>
+                  <div className="mt-2">
+                    <StarRow rating={avgRating} size={11} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
                     {t('tourDetail.reviewCount', { count: reviews.length })}
                   </p>
                 </div>
