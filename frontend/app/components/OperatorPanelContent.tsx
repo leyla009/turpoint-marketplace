@@ -140,7 +140,23 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
   }
 
   if (!operatorProfile) {
-    return <OperatorProfileForm />;
+    // Unlike the edit flow (OperatorProfileFormModal, which already centers
+    // itself as a fixed overlay on its own bg-card surface), this first-time
+    // "become an operator" form used to render with no wrapper at all - just
+    // pinned to the top-left of the panel's full-bleed background photo,
+    // with its heading/subtitle floating unreadably on the photo itself
+    // (they carry no background of their own; the modal only ever hid that
+    // because its own card already sits behind them there). Giving this
+    // wrapper the same rounded-2xl/shadow card treatment as the login page
+    // both centers it and puts a legible surface behind that heading text.
+    // OperatorProfileForm itself stays untouched, so the modal is unaffected.
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-full max-w-lg bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-6 sm:p-8">
+          <OperatorProfileForm />
+        </div>
+      </div>
+    );
   }
 
   return (

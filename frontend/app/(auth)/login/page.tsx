@@ -219,12 +219,6 @@ export default function LoginPage() {
       <HeroSlideshow />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60" />
 
-      <div className="absolute top-6 left-4 sm:top-8 sm:left-8 z-10">
-        <p className="text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-white/90">
-          {t('nav.tagline')}
-        </p>
-      </div>
-
       {/* Card, same rounded-2xl + soft shadow treatment as HeroSearchCard on
           the homepage, centered directly in the photo so it reads as the
           same design system rather than a bare form on a flat background. */}
