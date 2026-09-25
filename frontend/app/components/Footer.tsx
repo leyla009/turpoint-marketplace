@@ -17,7 +17,7 @@ export default function Footer() {
 
   return (
     <footer className="bg-primary text-primary-foreground mt-auto mb-16 md:mb-0">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16 grid grid-cols-2 sm:grid-cols-4 gap-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16 grid grid-cols-2 sm:grid-cols-4 gap-6">
         <div className="col-span-2 sm:col-span-1">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/15 shrink-0">

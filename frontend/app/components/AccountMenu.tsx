@@ -52,7 +52,7 @@ export default function AccountMenu({
       ref={ref}
       className={`absolute ${
         anchor === 'below' ? 'top-full mt-2' : 'bottom-full mb-2'
-      } right-0 w-56 bg-card border border-border rounded-xl shadow-xl py-1.5 z-50`}
+      } right-0 w-56 bg-card border border-border rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)] py-1.5 z-50`}
     >
       {ITEMS.map(({ id, labelKey, Icon }) => (
         <button

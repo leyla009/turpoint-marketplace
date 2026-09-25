@@ -745,10 +745,10 @@ export default function Home() {
             )}
 
             {loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6" aria-hidden>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-hidden>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="bg-card rounded-2xl overflow-hidden border border-border animate-pulse">
-                    <div className="h-36 sm:h-40 bg-muted" />
+                    <div className="aspect-[4/3] bg-muted" />
                     <div className="p-3.5 space-y-2">
                       <div className="h-4 bg-muted rounded w-3/4" />
                       <div className="h-3 bg-muted rounded w-1/2" />
@@ -767,7 +767,7 @@ export default function Home() {
             )}
 
             {!error && !loading && sortedFiltered.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {sortedFiltered.map((tour) => (
                   <TourCard
                     key={tour.id}

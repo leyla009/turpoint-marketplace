@@ -71,8 +71,12 @@ export default function HeroSearchCard({
     // A single white surface with hairline dividers between fields, sitting
     // on the hero's sand background - this is the hero's visual center, so
     // it gets real elevation (a soft shadow, not a border trick) rather
-    // than blending into whatever sits behind it.
-    <div className="bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-2">
+    // than blending into whatever sits behind it. Fully pill-shaped on the
+    // desktop single-row layout (Airbnb DESIGN.md's signature search-bar
+    // shape) - kept at rounded-2xl on the stacked mobile grid instead, since
+    // a full pill reads as one continuous shape only in a single row, not
+    // wrapped around a 2-column grid of chips.
+    <div className="bg-card rounded-2xl md:rounded-full shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-2">
       {/* Grid on mobile - pairs related fields (from/to, depart/return) into
           two-up rows instead of stacking all six full-width, since a fully
           stacked card can render tall enough to sit behind the persistent
@@ -105,7 +109,7 @@ export default function HeroSearchCard({
         <div className="col-span-2 p-1.5 md:pl-3 md:py-1.5 flex items-stretch">
           <button
             onClick={onSearch}
-            className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-bold px-7 py-3 md:py-0 rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all shrink-0"
+            className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-bold px-7 py-3 md:py-0 rounded-full hover:bg-primary/90 active:scale-[0.98] transition-all shrink-0"
           >
             <Search size={16} /> {t('search.search')}
           </button>
@@ -208,8 +212,12 @@ function DestinationField({
         </div>
       </div>
 
+      {/* Same documented shadow tier as TourCard's hover elevation (Airbnb
+          DESIGN.md groups property-card hover and search/account dropdowns
+          under one shadow definition) instead of Tailwind's generic
+          shadow-xl - the border-border hairline stays TurPoint's own color. */}
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 w-full sm:w-72 max-h-80 overflow-y-auto bg-card border border-border rounded-xl shadow-xl py-1.5 z-50">
+        <div className="absolute top-full left-0 mt-1.5 w-full sm:w-72 max-h-80 overflow-y-auto bg-card border border-border rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)] py-1.5 z-50">
           {matches.showAnywhere && (
             <button
               type="button"
@@ -342,7 +350,7 @@ function DateField({
 
       {open && (
         <div
-          className={`absolute top-full mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] bg-card border border-border rounded-xl shadow-xl p-3 z-50 ${
+          className={`absolute top-full mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] bg-card border border-border rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)] p-3 z-50 ${
             align === 'right' ? 'right-0' : 'left-0'
           }`}
         >
@@ -469,7 +477,7 @@ function TravelersField({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 md:left-auto md:right-0 mt-1.5 w-full md:w-64 bg-card border border-border rounded-xl shadow-xl p-4 z-50">
+        <div className="absolute top-full left-0 right-0 md:left-auto md:right-0 mt-1.5 w-full md:w-64 bg-card border border-border rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)] p-4 z-50">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">{t('search.travelers')}</span>
             <div className="flex items-center gap-3">

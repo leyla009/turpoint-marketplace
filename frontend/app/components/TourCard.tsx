@@ -107,13 +107,24 @@ export default function TourCard({
   const hasRating = typeof tour.rating === 'number' && tour.rating > 0;
 
   return (
+    // Flat at rest, elevated only on hover - matching Airbnb's DESIGN.md
+    // elevation model (one shadow tier, used nowhere else) rather than a
+    // permanent resting border. The exact rgba stack below is that same
+    // documented tier, not an arbitrary Tailwind shadow-lg.
     <div
       onClick={onClick}
-      className={`bg-card rounded-xl overflow-hidden ring-1 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
-        compareSelected ? 'ring-accent ring-2' : 'ring-black/[0.06] hover:ring-black/[0.12]'
+      className={`bg-card rounded-xl overflow-hidden transition-shadow duration-300 cursor-pointer group ${
+        compareSelected
+          ? 'ring-accent ring-2'
+          : 'hover:shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)]'
       }`}
     >
-      <div className="relative h-36 sm:h-40 flex items-center justify-center overflow-hidden bg-muted">
+      {/* aspect-[4/3] (not a fixed px height) so the photo stays
+          photo-dominant - the DESIGN.md principle of trusting photography
+          over typographic weight - at every card width this renders at
+          (grid columns, the w-64 horizontal scrollers, compare mode), not
+          just the one width it was tuned for. */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {tour.photo_url ? (
           <img
             src={`${API_URL}${tour.photo_url}`}
