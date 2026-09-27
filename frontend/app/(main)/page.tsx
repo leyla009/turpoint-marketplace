@@ -823,7 +823,10 @@ export default function Home() {
       </div>
 
       {/* Operator story - the /pictures/4.jpeg mountain-valley photo behind
-          a dark green gradient scrim, strong enough on the left (where the
+          a near-black cinematic scrim (borrowed from DESIGN-sequel.md's
+          pure-black-canvas mood, deliberately deeper than the dark-GREEN
+          tint this used to be) so this one section reads as a distinct
+          premium moment for operators, strong enough on the left (where the
           heading/body copy sits) to keep text legible, fading out toward
           the right where the benefit cards already carry their own
           background. Only describes capabilities that actually exist: the
@@ -833,7 +836,7 @@ export default function Home() {
         className="relative overflow-hidden bg-cover bg-center"
         style={{ backgroundImage: "url('/pictures/4.jpeg')" }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0f1f17]/95 via-[#0f1f17]/90 to-[#0f1f17]/78" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/90 to-black/75" />
         <div className="relative px-4 sm:px-6 py-16 md:py-20 max-w-[1600px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div>
@@ -849,9 +852,13 @@ export default function Home() {
               <p className="text-sm sm:text-base text-white/75 mb-8 leading-relaxed max-w-md">
                 {t('home.operatorBody')}
               </p>
+              {/* Cream pill CTA (Sequel's #f5f5f0-on-black is the one loud
+                  element in its whole system) rather than the plain white
+                  rounded-xl rectangle this used to be - against the new
+                  near-black scrim this reads as the one thing to press. */}
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 bg-white text-primary text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
+                className="inline-flex items-center gap-2 bg-[#f5f5f0] text-black text-sm font-bold px-6 py-3 rounded-full hover:bg-white transition-colors"
               >
                 {t('dashboard.becomeOperator')}
               </Link>
@@ -865,9 +872,14 @@ export default function Home() {
                   { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
                 ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
               ).map(({ titleKey, bodyKey }, i) => (
+                /* Sequel's signature dark-card elevation - a soft drop
+                   shadow paired with a 1px inset white top-highlight at 8%
+                   alpha - instead of a flat blurred panel with a border.
+                   Reads as "lit from above" against the black scrim rather
+                   than a bordered box sitting on it. */
                 <div
                   key={i}
-                  className="flex gap-4 bg-[#0f1f17]/70 backdrop-blur-sm border border-white/10 rounded-xl px-5 py-4"
+                  className="flex gap-4 bg-black/60 backdrop-blur-sm rounded-xl px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)]"
                 >
                   <span className="text-sm font-bold text-accent shrink-0">{String(i + 1).padStart(2, '0')}</span>
                   <div>
