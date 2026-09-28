@@ -27,6 +27,7 @@ import { useLanguage } from '@/app/context/LanguageContext';
 import type { TranslationKey } from '@/app/lib/translations';
 import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
 import OperatorProfileModal from '@/app/components/OperatorProfileModal';
+import GroupInviteCard from '@/app/components/GroupInviteCard';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -436,6 +437,15 @@ export default function TourDetail() {
               </div>
             </div>
           )}
+
+          {/* Invite friends - group progress + share links (WhatsApp,
+              Telegram, copy). Renders nothing for tours with no minimum. */}
+          <GroupInviteCard
+            tourId={tour.id}
+            tourTitle={tour.title}
+            minParticipants={tour.min_participants}
+            maxParticipants={tour.max_participants}
+          />
 
           {/* Contact the operator - replaces the old in-app group-booking
               flow entirely. Instagram is always shown if the operator set

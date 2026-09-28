@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
+import GroupInviteCard from '@/app/components/GroupInviteCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -148,6 +149,17 @@ export default function BookTour() {
           >
             {t('booking.backToTours')}
           </button>
+        </div>
+
+        {/* Right after booking is the best moment to recruit friends. */}
+        <div className="mt-4 text-left">
+          <GroupInviteCard
+            tourId={tour.id}
+            tourTitle={tour.title}
+            minParticipants={tour.min_participants}
+            maxParticipants={tour.max_participants}
+            refreshKey={ticket.id}
+          />
         </div>
       </PageContainer>
     );
