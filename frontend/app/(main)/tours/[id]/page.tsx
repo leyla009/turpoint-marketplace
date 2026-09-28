@@ -28,6 +28,7 @@ import type { TranslationKey } from '@/app/lib/translations';
 import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
 import OperatorProfileModal from '@/app/components/OperatorProfileModal';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
+import WeatherForecast from '@/app/components/WeatherForecast';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -437,6 +438,10 @@ export default function TourDetail() {
               </div>
             </div>
           )}
+
+          {/* Weather forecast for the tour's days (Open-Meteo, no API key).
+              Renders nothing once the tour is over or the place is unknown. */}
+          <WeatherForecast location={tour.location} date={tour.date} durationDays={tour.duration_days} />
 
           {/* Invite friends - group progress + share links (WhatsApp,
               Telegram, copy). Renders nothing for tours with no minimum. */}
