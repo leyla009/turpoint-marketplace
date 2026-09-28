@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
   ShieldCheck, MessageCircle, ChevronDown, MapPin, LogIn, X,
+  Sparkles, Gift, Unlock,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
@@ -346,6 +347,13 @@ export default function Home() {
     });
     return counts;
   }, [tours, operatorVehicleFeatures]);
+
+  // Real, already-fetched counts (see the /api/tours + /api/operators
+  // Promise.all above) - not an estimate, so the operator band's stat line
+  // can show a genuine platform-wide number the same way a "your home
+  // could make $X" hook needs a real number, without TurPoint having (or
+  // faking) a per-operator earnings-prediction feature it doesn't have.
+  const operatorCount = Object.keys(operators).length;
 
   return (
     <div className="min-h-full">
@@ -813,10 +821,16 @@ export default function Home() {
               { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
             ] satisfies { Icon: typeof MessageCircle; titleKey: TranslationKey; bodyKey: TranslationKey }[]
           ).map(({ Icon, titleKey, bodyKey }, i) => (
-            <div key={i} className="text-center sm:text-left">
-              <Icon size={18} className="text-accent mb-2.5 mx-auto sm:mx-0" />
-              <h3 className="text-sm font-bold text-foreground mb-1">{t(titleKey)}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
+            // Icon sits in a soft rounded badge instead of floating bare -
+            // the single biggest gap versus a real reference (Airbnb's own
+            // "why host" section wraps every icon in a rounded-square
+            // surface) that made this read as thin/unfinished before.
+            <div key={i} className="text-center">
+              <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 mb-4 mx-auto">
+                <Icon size={22} className="text-accent" />
+              </span>
+              <h3 className="text-base font-bold text-foreground mb-1.5">{t(titleKey)}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
             </div>
           ))}
         </div>
@@ -837,34 +851,76 @@ export default function Home() {
         style={{ backgroundImage: "url('/pictures/4.jpeg')" }}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/90 to-black/75" />
-        <div className="relative px-4 sm:px-6 py-16 md:py-20 max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+        <div className="relative px-4 sm:px-6 py-20 md:py-28 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-start">
             <div>
               <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/60 mb-3">
                 {t('home.operatorEyebrow')}
               </p>
+              {/* Big, bold, confident display type instead of the
+                  same modest text-2xl/3xl scale the rest of the page
+                  uses - matching an actual Airbnb host-page headline's
+                  scale, which is what made the old version of this
+                  section feel timid by comparison. */}
               <h2
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 leading-tight"
+                className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-5 leading-[1.05] tracking-tight"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 {t('home.operatorTitle')}
               </h2>
-              <p className="text-sm sm:text-base text-white/75 mb-8 leading-relaxed max-w-md">
+              <p className="text-base sm:text-lg text-white/75 mb-6 leading-relaxed max-w-md">
                 {t('home.operatorBody')}
               </p>
+
+              {/* Real platform-wide stat (tours.length / operatorCount are
+                  both straight from the same /api/tours + /api/operators
+                  fetch every other real number on this page uses) - the
+                  honest equivalent of Airbnb's "your home could make $X"
+                  concrete-number hook, without inventing a per-operator
+                  earnings estimate TurPoint has no feature to produce. */}
+              {!loading && tours.length > 0 && (
+                <p className="text-sm font-bold text-[#f5f5f0] mb-8">
+                  {t('home.operatorStat', { tourCount: tours.length, operatorCount })}
+                </p>
+              )}
+
               {/* Cream pill CTA (Sequel's #f5f5f0-on-black is the one loud
                   element in its whole system) rather than the plain white
                   rounded-xl rectangle this used to be - against the new
                   near-black scrim this reads as the one thing to press. */}
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 bg-[#f5f5f0] text-black text-sm font-bold px-6 py-3 rounded-full hover:bg-white transition-colors"
+                className="inline-flex items-center gap-2 bg-[#f5f5f0] text-black text-base font-bold px-7 py-3.5 rounded-full hover:bg-white transition-colors"
               >
                 {t('dashboard.becomeOperator')}
               </Link>
             </div>
 
-            <div className="space-y-5">
+            <div>
+              {/* Real product screenshot (literally captured from this
+                  site's own tour-detail review section, not a stock photo
+                  or mockup) in a plain browser-chrome frame - the same
+                  "show the actual product" pattern Airbnb's own operator-
+                  facing page uses instead of describing features in the
+                  abstract. Tour photo galleries aren't populated yet (every
+                  seeded tour still falls back to the abstract category
+                  motif), so this deliberately showcases the reviews UI
+                  rather than a listing card that would show that same
+                  placeholder art operators are being pitched to replace. */}
+              <div className="rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/10 mb-6">
+                <div className="bg-[#1a1a1a] px-4 py-2.5 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
+                </div>
+                <img
+                  src="/pictures/product-showcase.png"
+                  alt={t('home.operatorScreenshotAlt')}
+                  className="w-full h-auto block"
+                />
+              </div>
+
+              <div className="space-y-5">
               {(
                 [
                   { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
@@ -888,7 +944,33 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
+          </div>
+
+          {/* Operator-specific perk trio - mirrors an actual Airbnb host
+              page's "It's easy / It's worth it / You're protected" row
+              (a DIFFERENT, more visceral trio than the general traveler-
+              facing "Why TurPoint" section elsewhere on this page), but
+              every claim here is literally true of TurPoint today: there is
+              no listing fee anywhere in the codebase, and contact is a
+              direct WhatsApp/Instagram link with no in-app middleman. */}
+          <div className="mt-16 md:mt-20 pt-12 md:pt-14 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-10 text-center">
+            {(
+              [
+                { Icon: Sparkles, titleKey: 'home.operatorPerk1Title', bodyKey: 'home.operatorPerk1Body' },
+                { Icon: Gift, titleKey: 'home.operatorPerk2Title', bodyKey: 'home.operatorPerk2Body' },
+                { Icon: Unlock, titleKey: 'home.operatorPerk3Title', bodyKey: 'home.operatorPerk3Body' },
+              ] satisfies { Icon: typeof Sparkles; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+            ).map(({ Icon, titleKey, bodyKey }, i) => (
+              <div key={i}>
+                <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white/10 mb-4 mx-auto">
+                  <Icon size={22} className="text-[#f5f5f0]" />
+                </span>
+                <h3 className="text-base font-bold text-white mb-1.5">{t(titleKey)}</h3>
+                <p className="text-sm text-white/70 leading-relaxed">{t(bodyKey)}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
