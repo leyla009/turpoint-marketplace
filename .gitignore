@@ -3,26 +3,27 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build and Output Folders
+# Build & Output Folders
 .next/
 dist/
 build/
 out/
 coverage/
+tsconfig.tsbuildinfo
 
-# SQLite Database Files
+# SQLite Database Files & Backups
 *.db
 *.sqlite
 *.sqlite3
 *.db-journal
 *.db-wal
 *.db-shm
+*.db.backup*
 
 # Environment Variables & Secrets
 .env
-.env.local
-.env.development
-.env.production
+.env.*
+!.env.example
 
 # Logs
 *.log
