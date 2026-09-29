@@ -9,6 +9,7 @@ import NewTourModal from './NewTourModal';
 import EditTourModal from './EditTourModal';
 import OperatorProfileForm from './OperatorProfileForm';
 import OperatorProfileFormModal from './OperatorProfileFormModal';
+import OperatorAnalytics from './OperatorAnalytics';
 import type { ExistingTour } from './NewTourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -198,6 +199,9 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           </div>
         </div>
       </div>
+
+      {/* Analytics: revenue, bookings, fill rate, views, ratings (GET /api/operators/me/analytics) */}
+      <OperatorAnalytics />
 
       {/* "Turlarınız" as a plain rounded-top tab flowing straight into the
           tours panel below it - same bg-card color, zero gap, no radius

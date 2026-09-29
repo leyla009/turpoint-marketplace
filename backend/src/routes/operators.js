@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { buildOperatorAnalytics } from '../lib/analytics.js';
 
 const router = Router();
 
@@ -80,6 +81,16 @@ router.post('/', requireAuth, (req, res) => {
 router.get('/me', requireAuth, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   res.json(operator ?? null);
+});
+
+// Operator analytics for the dashboard: revenue, bookings, fill rate, views
+// and per-tour performance, scoped to the logged-in operator's own tours
+// (ownership comes from the verified token, never from a query param).
+// Must be declared before GET /:id, or Express would match "me" as :id.
+router.get('/me/analytics', requireAuth, (req, res) => {
+  const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  res.json(buildOperatorAnalytics(db, operator.id));
 });
 
 // Profile photo upload - separate from PUT /:id since that route takes a
