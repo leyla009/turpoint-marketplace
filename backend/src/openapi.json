@@ -140,7 +140,7 @@
     },
     "/operators": {
       "post": {
-        "summary": "Create an operator profile - requires login; one profile per account. phone is required and must start with +994.",
+        "summary": "Create an operator profile - requires login; one profile per account. phone is required and must start with +994. The instagram field is normalised to a bare handle (\"@name\", \"instagram.com/name\" and full URLs are all accepted).",
         "security": [
           {
             "bearerAuth": []
@@ -510,7 +510,7 @@
     },
     "/tours/{id}": {
       "get": {
-        "summary": "Get one tour (includes discounted_price if an active deal exists)",
+        "summary": "Get one tour (includes discounted_price if an active deal exists). Counts as a page view at most once per visitor per 30 minutes; the owning operator's own views are never counted (an optional Bearer token is used only to recognise the owner).",
         "parameters": [
           {
             "name": "id",
@@ -729,13 +729,16 @@
           },
           "401": {
             "description": "CRON_SECRET is set on the server and the x-cron-secret header is missing or doesn't match"
+          },
+          "503": {
+            "description": "Production only: CRON_SECRET is not configured on the server, so the route refuses to run"
           }
         }
       }
     },
     "/bookings": {
       "post": {
-        "summary": "Book a tour (simulated payment) - requires login; identity comes from the token, not the request body",
+        "summary": "Book a tour (simulated payment) - requires login; identity comes from the token, not the request body. Charged at the tour's listed price, or the discounted price while a last-minute deal is active. Tours whose date has passed can't be booked.",
         "security": [
           {
             "bearerAuth": []
@@ -759,7 +762,7 @@
             "description": "Booking + ticket_code"
           },
           "400": {
-            "description": "Missing tour_id, seats, or payment; seats not a positive whole number; or seats exceeds the tour's max_participants"
+            "description": "Missing tour_id, seats, or payment; seats not a positive whole number; seats exceeds the tour's max_participants; or the tour has already taken place"
           },
           "401": {
             "description": "Missing/invalid token"
@@ -836,7 +839,7 @@
     },
     "/reviews": {
       "post": {
-        "summary": "Post a review - requires login; identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
+        "summary": "Post a review - requires login and a CONFIRMED booking on the tour (operators can't review their own tours); identity comes from the token, not the request body. Updates the operator's rolled-up rating. One review per user per tour.",
         "security": [
           {
             "bearerAuth": []
@@ -862,6 +865,9 @@
           },
           "401": {
             "description": "Missing/invalid token"
+          },
+          "403": {
+            "description": "No confirmed booking on this tour, or reviewing your own tour"
           },
           "404": {
             "description": "Tour not found"
@@ -889,6 +895,37 @@
         "responses": {
           "200": {
             "description": "Array of reviews"
+          }
+        }
+      }
+    },
+    "/reviews/eligibility": {
+      "get": {
+        "summary": "Can the logged-in user review this tour? Only travelers with a confirmed booking on it can; operators can't review their own tours. Drives the review form's messaging on the tour page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ eligible: boolean, reason: null | 'no-booking' | 'own-tour' }"
+          },
+          "401": {
+            "description": "Missing/invalid token"
+          },
+          "404": {
+            "description": "Tour not found"
           }
         }
       }

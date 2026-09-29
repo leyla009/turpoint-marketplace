@@ -11,7 +11,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -236,16 +236,46 @@ router.get('/popular', (req, res) => {
   res.json(attachReviewStats(attachActiveDeals(tours)));
 });
 
-router.get('/:id', (req, res) => {
+// --- view counting -------------------------------------------------------
+// click_count feeds both the "popular" ranking and the operator analytics
+// conversion rate, so it should reflect real, distinct interest - not the
+// owner checking their own listing or one visitor hitting refresh. A view
+// is counted at most once per visitor (IP + tour) per window. In-memory on
+// purpose: it resets on restart, which only ever means a few extra counts.
+const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000;
+const recentViews = new Map(); // `${ip}:${tourId}` -> timestamp
+
+function shouldCountView(req, tour) {
+  // The owner looking at their own tour never counts.
+  if (req.user) {
+    const owner = db.prepare('SELECT user_id FROM operators WHERE id = ?').get(tour.operator_id);
+    if (owner && owner.user_id === req.user.userId) return false;
+  }
+  const now = Date.now();
+  const key = `${req.ip}:${tour.id}`;
+  const last = recentViews.get(key);
+  if (last && now - last < VIEW_DEDUPE_WINDOW_MS) return false;
+  recentViews.set(key, now);
+
+  // Opportunistic cleanup so the map can't grow without bound.
+  if (recentViews.size > 5000) {
+    for (const [k, ts] of recentViews) {
+      if (now - ts >= VIEW_DEDUPE_WINDOW_MS) recentViews.delete(k);
+    }
+  }
+  return true;
+}
+
+router.get('/:id', optionalAuth, (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
 
-  // Feeds "Populyar turlar"'s popularity score - counts every detail-page
-  // view, including an operator checking their own tour, which is an
-  // acceptable amount of noise for a "popular" ranking (not precise
-  // analytics).
-  db.prepare('UPDATE tours SET click_count = click_count + 1 WHERE id = ?').run(tour.id);
-  tour.click_count += 1;
+  // Feeds "Populyar turlar"'s popularity score and the operator analytics
+  // (views / conversion). See shouldCountView above for what is excluded.
+  if (shouldCountView(req, tour)) {
+    db.prepare('UPDATE tours SET click_count = click_count + 1 WHERE id = ?').run(tour.id);
+    tour.click_count += 1;
+  }
 
   // Task 15: attach discounted_price if an active last-minute deal exists.
   res.json(attachReviewStats(attachActiveDeals(tour)));

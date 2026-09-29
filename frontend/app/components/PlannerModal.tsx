@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { formatAzn } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -239,11 +240,11 @@ export default function PlannerModal({
         <div className="text-right shrink-0">
           {row.discountedPrice != null ? (
             <>
-              <p className="text-[10px] text-muted-foreground line-through">AZN {row.price}</p>
-              <p className="text-sm font-bold text-primary">AZN {row.discountedPrice}</p>
+              <p className="text-xs text-muted-foreground line-through">{formatAzn(row.price)}</p>
+              <p className="text-sm font-bold text-primary">{formatAzn(row.discountedPrice)}</p>
             </>
           ) : (
-            <p className="text-sm font-bold text-primary">AZN {row.price}</p>
+            <p className="text-sm font-bold text-primary">{formatAzn(row.price)}</p>
           )}
         </div>
       </button>
@@ -355,7 +356,7 @@ export default function PlannerModal({
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span>
                             <span className="font-bold text-foreground">{t('planner.estimatedCost')}:</span>{' '}
-                            AZN {m.itinerary.estimatedCost}
+                            {formatAzn(m.itinerary.estimatedCost)}
                           </span>
                           <span>{t('planner.toursCount', { count: m.itinerary.toursCount })}</span>
                           <span>{t('planner.destinationsCount', { count: m.itinerary.destinationsCount })}</span>

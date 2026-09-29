@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, MapPin, Calendar, Users, Tag, Loader2 } from 'lucide-react';
 import { CATEGORY_STYLE, type ApiTour } from './TourCard';
 import { useLanguage } from '../context/LanguageContext';
+import { formatAzn, formatDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -27,7 +28,7 @@ export default function CompareModal({
   onClose: () => void;
   onViewTour: (id: number) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [data, setData] = useState<CompareTour[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -130,11 +131,11 @@ export default function CompareModal({
                 <div key={tour.id} className="flex items-center px-1">
                   {typeof tour.discounted_price === 'number' ? (
                     <div>
-                      <span className="text-sm font-bold text-accent">{tour.discounted_price} AZN</span>
-                      <span className="text-xs text-muted-foreground line-through ml-1.5">{tour.price} AZN</span>
+                      <span className="text-sm font-bold text-accent">{formatAzn(tour.discounted_price)}</span>
+                      <span className="text-xs text-muted-foreground line-through ml-1.5">{formatAzn(tour.price)}</span>
                     </div>
                   ) : (
-                    <span className="text-sm font-bold text-foreground">{tour.price} AZN</span>
+                    <span className="text-sm font-bold text-foreground">{formatAzn(tour.price)}</span>
                   )}
                 </div>
               ))}
@@ -168,7 +169,7 @@ export default function CompareModal({
               </div>
               {data.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
-                  {tour.date}
+                  {formatDate(tour.date, locale)}
                 </div>
               ))}
 

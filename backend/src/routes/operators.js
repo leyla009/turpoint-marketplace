@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { normalizeInstagram } from '../lib/instagram.js';
 import { buildOperatorAnalytics } from '../lib/analytics.js';
 
 const router = Router();
@@ -68,7 +69,7 @@ router.post('/', requireAuth, (req, res) => {
       `INSERT INTO operators (name, description, languages, photo_url, phone, instagram, user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, instagram ?? null, req.user.userId);
+    .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, normalizeInstagram(instagram), req.user.userId);
 
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(operator);
@@ -191,7 +192,7 @@ router.put('/:id', requireAuth, (req, res) => {
     updated.vehicle_features,
     updated.phone,
     phoneVerified,
-    updated.instagram,
+    normalizeInstagram(updated.instagram),
     req.params.id
   );
 

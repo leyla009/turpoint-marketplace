@@ -7,6 +7,7 @@ import { Clock, CheckCircle2, XCircle, MapPin, Calendar, AlertCircle } from 'luc
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
+import { formatAzn, formatDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -20,7 +21,7 @@ export default function MyBookingsPage() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { token } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function MyBookingsPage() {
                     <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                       <MapPin size={11} /> {b.tour_location}
                       <span className="mx-1">·</span>
-                      <Calendar size={11} /> {b.tour_date}
+                      <Calendar size={11} /> {formatDate(b.tour_date, locale)}
                     </p>
                   </div>
                   <span
@@ -90,7 +91,7 @@ export default function MyBookingsPage() {
                   <span className="font-mono text-muted-foreground">{b.ticket_code}</span>
                   <span className="text-muted-foreground">
                     {t('myBookings.seatsCount', { count: b.seats })} ·{' '}
-                    <span className="font-semibold text-foreground">AZN{b.total_price}</span>
+                    <span className="font-semibold text-foreground">{formatAzn(b.total_price)}</span>
                   </span>
                 </div>
               </Link>
