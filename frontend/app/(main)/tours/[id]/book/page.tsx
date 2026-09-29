@@ -8,6 +8,7 @@ import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
+import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -16,7 +17,7 @@ export default function BookTour() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { user, token } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [tour, setTour] = useState<any>(null);
   const [group, setGroup] = useState<any>(null);
@@ -95,6 +96,24 @@ export default function BookTour() {
     return <div className="p-6 text-sm text-muted-foreground">{t('booking.tourNotFound')}</div>;
   }
 
+  if (!ticket && isPastDate(tour.date)) {
+    return (
+      <PageContainer maxWidth="max-w-2xl">
+        <div className="bg-card border border-border rounded-xl p-6 text-center">
+          <Clock size={40} className="text-muted-foreground mx-auto mb-3" />
+          <h1 className="text-lg font-bold text-foreground mb-1">{tour.title}</h1>
+          <p className="text-sm text-muted-foreground mb-5">{t('tourDetail.tourEnded')}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5"
+          >
+            {t('booking.backToTours')}
+          </button>
+        </div>
+      </PageContainer>
+    );
+  }
+
   if (ticket) {
     const isPending = ticket.status === 'pending';
     return (
@@ -134,7 +153,7 @@ export default function BookTour() {
               <span className="text-muted-foreground">
                 {isPending ? t('booking.estimatedTotal') : t('booking.totalPaid')}
               </span>
-              <span className="font-semibold text-foreground">AZN{ticket.total_price}</span>
+              <span className="font-semibold text-foreground">{formatAzn(ticket.total_price)}</span>
             </div>
             {isPending && (
               <p className="text-[11px] text-muted-foreground pt-2 border-t border-border">
@@ -176,7 +195,7 @@ export default function BookTour() {
 
       <h1 className="text-xl font-bold text-foreground mb-1">{tour.title}</h1>
       <p className="text-sm text-muted-foreground mb-2">
-        {tour.location} · {tour.date}
+        {tour.location} · {formatDate(tour.date, locale)}
       </p>
       {group && group.status === 'confirmed' && (
         <p className="flex items-center gap-1.5 text-xs font-semibold text-accent mb-4">
@@ -235,13 +254,13 @@ export default function BookTour() {
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-1">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>
-              AZN{previewPricePerPerson} × {seats}
+              {formatAzn(previewPricePerPerson)} × {seats}
             </span>
-            <span>AZN{total}</span>
+            <span>{formatAzn(total)}</span>
           </div>
           <div className="flex justify-between text-base font-bold text-foreground pt-1 border-t border-border">
             <span>{t('booking.total')}</span>
-            <span>AZN{total}</span>
+            <span>{formatAzn(total)}</span>
           </div>
         </div>
 

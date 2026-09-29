@@ -7,6 +7,7 @@ import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-r
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
+import { formatAzn, formatDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -53,7 +54,7 @@ export default function ETicketPage() {
   const router = useRouter();
   const { loading: authLoading } = useRequireAuth();
   const { token } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -108,7 +109,7 @@ export default function ETicketPage() {
             <div>
               <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">{t('eTicket.dateTime')}</p>
               <p className="text-sm text-foreground">
-                {booking.tour.date}
+                {formatDate(booking.tour.date, locale)}
                 {pickup?.time ? ` · ${pickup.time}` : ''}
               </p>
             </div>
@@ -127,7 +128,7 @@ export default function ETicketPage() {
               <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">
                 {isPending ? t('eTicket.estimatedTotal') : t('eTicket.totalPaid')}
               </p>
-              <p className="text-lg font-bold text-foreground">AZN{booking.total_price}</p>
+              <p className="text-lg font-bold text-foreground">{formatAzn(booking.total_price)}</p>
               <span
                 className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 ${
                   isPending ? 'text-primary' : 'text-accent'

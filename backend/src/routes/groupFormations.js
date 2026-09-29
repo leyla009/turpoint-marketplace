@@ -49,6 +49,11 @@ router.get('/:id', (req, res) => {
 // doesn't need extra setup to exercise.
 router.post('/expire-past-due', (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
+  // Fail closed in production: with no secret configured this endpoint
+  // would be a public "cancel groups and bookings" button.
+  if (process.env.NODE_ENV === 'production' && !cronSecret) {
+    return res.status(503).json({ error: 'CRON_SECRET is not configured on the server' });
+  }
   if (cronSecret && req.headers['x-cron-secret'] !== cronSecret) {
     return res.status(401).json({ error: 'missing or invalid x-cron-secret header' });
   }

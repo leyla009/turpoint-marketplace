@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Star, Phone, AtSign } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { instagramHandle, instagramUrl } from '@/app/lib/instagram';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -116,7 +117,7 @@ export default function OperatorProfileModal({
           </div>
         )}
 
-        {(operator.phone || operator.instagram) && (
+        {(operator.phone || instagramHandle(operator.instagram)) && (
           <div className="mt-4 pt-4 border-t border-border space-y-2">
             {operator.phone && (
               <a
@@ -126,14 +127,14 @@ export default function OperatorProfileModal({
                 <Phone size={15} className="text-muted-foreground shrink-0" /> {operator.phone}
               </a>
             )}
-            {operator.instagram && (
+            {instagramHandle(operator.instagram) && (
               <a
-                href={`https://instagram.com/${operator.instagram}`}
+                href={instagramUrl(operator.instagram) ?? '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
               >
-                <AtSign size={15} className="text-muted-foreground shrink-0" /> {operator.instagram}
+                <AtSign size={15} className="text-muted-foreground shrink-0" /> @{instagramHandle(operator.instagram)}
               </a>
             )}
           </div>

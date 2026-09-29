@@ -5,6 +5,7 @@ import { PlusCircle, Store, Star, Ticket, Trash2, Pencil, Zap, AlertCircle } fro
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { formatAzn, formatDate } from '../lib/format';
 import NewTourModal from './NewTourModal';
 import EditTourModal from './EditTourModal';
 import OperatorProfileForm from './OperatorProfileForm';
@@ -22,7 +23,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 export default function OperatorPanelContent({ authLoading = false }: { authLoading?: boolean }) {
   const { token, operatorProfile } = useAuth();
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [showNewTourModal, setShowNewTourModal] = useState(false);
   const [editingTour, setEditingTour] = useState<ExistingTour | null>(null);
@@ -186,7 +187,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           </span>
           <div className="min-w-0">
             <p className="text-xl font-bold text-foreground leading-none">{myTours.length}</p>
-            <p className="text-[11px] text-muted-foreground mt-1 truncate">{t('dashboard.activeTours')}</p>
+            <p className="text-xs text-muted-foreground mt-1 truncate">{t('dashboard.activeTours')}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl shadow-md p-3.5 flex items-center gap-3">
@@ -195,7 +196,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
           </span>
           <div className="min-w-0">
             <p className="text-xl font-bold text-foreground leading-none">{operatorProfile.rating ?? 0}</p>
-            <p className="text-[11px] text-muted-foreground mt-1 truncate">{t('dashboard.rating')}</p>
+            <p className="text-xs text-muted-foreground mt-1 truncate">{t('dashboard.rating')}</p>
           </div>
         </div>
       </div>
@@ -244,17 +245,17 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-sm font-semibold text-foreground truncate">{tour.title}</p>
                     {tour.active_deal && (
-                      <span className="flex items-center gap-0.5 text-[10px] font-semibold text-accent-foreground bg-accent px-1.5 py-0.5 rounded-full shrink-0">
+                      <span className="flex items-center gap-0.5 text-xs font-semibold text-accent-foreground bg-accent px-1.5 py-0.5 rounded-full shrink-0">
                         <Zap size={9} /> -{tour.active_deal.discount_percent}%
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {tour.location} · {tour.date} · AZN{tour.price}{t('tourCard.perPerson')}
+                    {tour.location} · {formatDate(tour.date, locale)} · {formatAzn(tour.price)}{t('tourCard.perPerson')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <span className="text-[10px] font-semibold text-muted-foreground">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     {t('search.travelers')}: {tour.max_participants}
                   </span>
                   <button
@@ -283,7 +284,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                 </div>
               </div>
               {deleteError?.id === tour.id && (
-                <p className="text-[11px] text-danger mt-2 pt-2 border-t border-border">{deleteError.message}</p>
+                <p className="text-xs text-danger mt-2 pt-2 border-t border-border">{deleteError.message}</p>
               )}
               {dealFormTourId === tour.id && (
                 <form
@@ -291,7 +292,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   className="mt-2 pt-2 border-t border-border flex items-end gap-2 flex-wrap"
                 >
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-0.5">
                       {t('dashboard.discountPercent')}
                     </label>
                     <input
@@ -304,7 +305,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-0.5">
                       {t('dashboard.expires')}
                     </label>
                     <input
@@ -321,7 +322,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                   >
                     {dealSubmitting ? t('dashboard.creating') : t('dashboard.createDealBtn')}
                   </button>
-                  {dealError && <p className="text-[11px] text-danger w-full">{dealError}</p>}
+                  {dealError && <p className="text-xs text-danger w-full">{dealError}</p>}
                 </form>
               )}
               </div>

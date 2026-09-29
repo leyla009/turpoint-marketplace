@@ -17,3 +17,20 @@ export function requireAuth(req, res, next) {
     res.status(401).json({ error: 'invalid or expired token' });
   }
 }
+
+
+// Like requireAuth, but never rejects: if a valid Bearer token is present
+// req.user is set, otherwise the request just continues anonymously. Used
+// on public routes that behave slightly differently for a logged-in
+// viewer (e.g. GET /api/tours/:id not counting the owner's own views).
+export function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      req.user = jwt.verify(authHeader.slice('Bearer '.length), JWT_SECRET);
+    } catch {
+      /* invalid/expired token - treat as anonymous */
+    }
+  }
+  next();
+}

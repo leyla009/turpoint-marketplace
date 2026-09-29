@@ -25,6 +25,10 @@ export default function DashboardPage() {
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{ backgroundImage: "url('/pictures/Operatorback.jpg')" }}
       />
+      {/* Light scrim: calms the busy tree-canopy texture and lifts contrast
+          for anything that sits directly on the photo (headings, skeletons)
+          without turning the photo grey. Raise /25 for more contrast. */}
+      <div className="fixed inset-0 -z-10 bg-black/25" aria-hidden />
 
       <div className="relative p-4 sm:p-6 max-w-3xl mx-auto pb-20 md:pb-6">
         <OperatorPanelContent authLoading={authLoading} />

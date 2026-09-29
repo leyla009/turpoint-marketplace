@@ -19,6 +19,7 @@ import {
   Send,
   Pencil,
   Trash2,
+  Ticket,
 } from 'lucide-react';
 import { CATEGORY_STYLE, CategoryMotif } from '@/app/components/TourCard';
 import { useAuth } from '@/app/context/AuthContext';
@@ -29,6 +30,8 @@ import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
 import OperatorProfileModal from '@/app/components/OperatorProfileModal';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
 import WeatherForecast from '@/app/components/WeatherForecast';
+import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
+import { instagramUrl as buildInstagramUrl } from '@/app/lib/instagram';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -73,13 +76,6 @@ interface Review {
   created_at?: string;
 }
 
-function formatDate(value?: string) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -97,9 +93,9 @@ function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
 export default function TourDetail() {
   const { id } = useParams();
   const router = useRouter();
-  const { token, user } = useAuth();
+  const { token, user, operatorProfile } = useAuth();
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
@@ -122,10 +118,12 @@ export default function TourDetail() {
   const [editError, setEditError] = useState<string | null>(null);
   const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
 
-  // Any logged-in traveler can review a tour now (the old "confirmed
-  // booking" requirement was removed along with in-app booking - see
-  // reviews.js). This just tracks whether someone's logged in at all.
-  const [eligibility, setEligibility] = useState<'loading' | 'eligible' | 'not-logged-in'>('loading');
+  // Only a traveler with a CONFIRMED booking on this tour can review it
+  // (enforced server-side in reviews.js; this state just drives the
+  // messaging). Asked of GET /api/reviews/eligibility.
+  const [eligibility, setEligibility] = useState<
+    'loading' | 'eligible' | 'not-logged-in' | 'needs-booking' | 'own-tour'
+  >('loading');
 
   const fetchReviews = useCallback(() => {
     if (!id) return;
@@ -136,8 +134,25 @@ export default function TourDetail() {
   }, [id]);
 
   useEffect(() => {
-    setEligibility(token ? 'eligible' : 'not-logged-in');
-  }, [token]);
+    if (!token) {
+      setEligibility('not-logged-in');
+      return;
+    }
+    if (!id) return;
+    let cancelled = false;
+    setEligibility('loading');
+    fetch(`${API_URL}/api/reviews/eligibility?tour_id=${id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.eligible) setEligibility('eligible');
+        else setEligibility(data?.reason === 'own-tour' ? 'own-tour' : 'needs-booking');
+      })
+      .catch(() => !cancelled && setEligibility('needs-booking'));
+    return () => {
+      cancelled = true;
+    };
+  }, [token, id]);
 
   const alreadyReviewed = user ? reviews.some((r) => r.user_id === user.id) : false;
 
@@ -292,8 +307,19 @@ export default function TourDetail() {
 
   const effectivePrice = tour?.discounted_price ?? tour?.price;
   const tourFeatures = parseFeatures(tour?.features);
-  const whatsappUrl = operator?.phone_verified && operator.phone ? `https://wa.me/${operator.phone.replace(/\D/g, '')}` : null;
-  const instagramUrl = operator?.instagram ? `https://instagram.com/${operator.instagram}` : null;
+  // Pre-filled so the operator immediately knows which tour and date the
+  // message is about.
+  const whatsappUrl =
+    operator?.phone_verified && operator.phone
+      ? `https://wa.me/${operator.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+          t('tourDetail.whatsappPrefill', { title: tour?.title ?? '', date: formatDate(tour?.date, locale) })
+        )}`
+      : null;
+  const instagramUrl = buildInstagramUrl(operator?.instagram);
+  const isOwnTour = !!operatorProfile && !!tour && operatorProfile.id === tour.operator_id;
+  const bookHref = tour ? `/tours/${tour.id}/book` : '#';
+  // A tour that already happened can't be booked (the API rejects it too).
+  const isPast = isPastDate(tour?.date);
 
   return (
     <div className="min-h-full">
@@ -363,7 +389,7 @@ export default function TourDetail() {
               </span>
             )}
             <span className="flex items-center gap-1">
-              <Calendar size={14} /> {formatDate(tour.date)} · {t('tourDetail.duration', { count: tour.duration_days })}
+              <Calendar size={14} /> {formatDate(tour.date, locale)} · {t('tourDetail.duration', { count: tour.duration_days })}
             </span>
             <span className="flex items-center gap-1">
               <Users size={14} /> {t('search.travelerCount', { count: tour.max_participants })}
@@ -445,19 +471,21 @@ export default function TourDetail() {
 
           {/* Invite friends - group progress + share links (WhatsApp,
               Telegram, copy). Renders nothing for tours with no minimum. */}
-          <GroupInviteCard
-            tourId={tour.id}
-            tourTitle={tour.title}
-            minParticipants={tour.min_participants}
-            maxParticipants={tour.max_participants}
-          />
+          {!isPast && (
+            <GroupInviteCard
+              tourId={tour.id}
+              tourTitle={tour.title}
+              minParticipants={tour.min_participants}
+              maxParticipants={tour.max_participants}
+            />
+          )}
 
           {/* Contact the operator - replaces the old in-app group-booking
               flow entirely. Instagram is always shown if the operator set
               a handle; WhatsApp only shows once the operator's phone has
               actually been verified (see the profile page's send/verify
               flow), so this never points travelers at an unconfirmed number. */}
-          <div className="mb-6 rounded-2xl border-2 border-primary/25 bg-primary/[0.04] p-4">
+          <div className="mb-6 rounded-2xl border border-border bg-card p-4">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-1">
               <MessageCircle size={15} className="text-primary" /> {t('tourDetail.contactUs')}
             </h2>
@@ -520,14 +548,14 @@ export default function TourDetail() {
                   <div className="mt-2">
                     <StarRow rating={avgRating} size={11} />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {t('tourDetail.reviewCount', { count: reviews.length })}
                   </p>
                 </div>
                 <div className="flex-1 space-y-1">
                   {[5, 4, 3, 2, 1].map((star, i) => (
                     <div key={star} className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground w-3">{star}</span>
+                      <span className="text-xs text-muted-foreground w-3">{star}</span>
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary rounded-full"
@@ -544,6 +572,16 @@ export default function TourDetail() {
 
             {/* Eligibility messaging - only a traveler with a confirmed
                 booking on THIS tour can review it. */}
+            {eligibility === 'needs-booking' && (
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
+                {t('tourDetail.bookToReview')}
+              </p>
+            )}
+            {eligibility === 'own-tour' && (
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
+                {t('tourDetail.ownTourNoReview')}
+              </p>
+            )}
             {eligibility === 'not-logged-in' && (
               <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
                 <Link href="/login" className="text-accent font-semibold hover:underline">
@@ -655,7 +693,7 @@ export default function TourDetail() {
                             <StarRow rating={r.rating} />
                             <div className="flex items-center gap-2">
                               {r.created_at && (
-                                <span className="text-[10px] text-muted-foreground">{formatDate(r.created_at)}</span>
+                                <span className="text-xs text-muted-foreground">{formatDate(r.created_at, locale)}</span>
                               )}
                               {isOwn && (
                                 <div className="flex items-center gap-1">
@@ -696,8 +734,8 @@ export default function TourDetail() {
         <aside className="hidden lg:block sticky top-24 bg-card border border-border rounded-2xl shadow-sm p-5">
           <p className="text-xs text-muted-foreground mb-0.5">{t('tourDetail.perPerson')}</p>
           <div className="flex items-baseline gap-2 mb-4">
-            {hasDeal && <span className="text-sm text-muted-foreground line-through">AZN {tour.price}</span>}
-            <span className="text-2xl font-bold text-primary">AZN {effectivePrice}</span>
+            {hasDeal && <span className="text-sm text-muted-foreground line-through">{formatAzn(tour.price)}</span>}
+            <span className="text-2xl font-bold text-primary">{formatAzn(effectivePrice)}</span>
           </div>
 
           <div className="space-y-2 text-sm text-foreground/80 mb-4 pb-4 border-b border-border">
@@ -707,7 +745,7 @@ export default function TourDetail() {
               </p>
             )}
             <p className="flex items-center gap-2">
-              <Calendar size={14} className="text-muted-foreground shrink-0" /> {formatDate(tour.date)} ·{' '}
+              <Calendar size={14} className="text-muted-foreground shrink-0" /> {formatDate(tour.date, locale)} ·{' '}
               {t('tourDetail.duration', { count: tour.duration_days })}
             </p>
             <p className="flex items-center gap-2">
@@ -717,28 +755,38 @@ export default function TourDetail() {
           </div>
 
           <div className="space-y-2">
-            {whatsappUrl && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
-              >
-                <MessageCircle size={16} /> {t('tourDetail.messageOnWhatsapp')}
-              </a>
-            )}
-            {instagramUrl && (
-              <a
-                href={instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold py-3 rounded-xl hover:border-primary/40 transition-colors"
-              >
-                <AtSign size={16} /> {t('tourDetail.viewInstagram')}
-              </a>
-            )}
-            {!whatsappUrl && !instagramUrl && (
-              <p className="text-xs text-muted-foreground text-center">{t('tourDetail.noContactYet')}</p>
+            {isOwnTour ? (
+              <p className="text-xs text-muted-foreground text-center">{t('tourDetail.ownTourNote')}</p>
+            ) : (
+              <>
+                {/* Primary action: reserve in the app. Logged-out travelers
+                    are sent to /login and returned here by the book page's
+                    own auth guard. */}
+                {isPast ? (
+                  <p className="w-full text-center text-sm font-semibold text-muted-foreground bg-muted rounded-xl py-3">
+                    {t('tourDetail.tourEnded')}
+                  </p>
+                ) : (
+                  <Link
+                    href={bookHref}
+                    className="flex items-center justify-center gap-2 w-full bg-accent text-accent-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    <Ticket size={16} /> {t('tourDetail.bookNow')}
+                  </Link>
+                )}
+                {whatsappUrl && (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold py-3 rounded-xl hover:border-primary/40 transition-colors"
+                  >
+                    <MessageCircle size={16} /> {t('tourDetail.messageOnWhatsapp')}
+                  </a>
+                )}
+                {/* Instagram lives in the "Contact" card only - it used to
+                    appear here AND there. */}
+              </>
             )}
           </div>
         </aside>
@@ -751,32 +799,49 @@ export default function TourDetail() {
         <div className="fixed bottom-16 md:bottom-0 lg:hidden inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] text-muted-foreground">{t('tourDetail.perPerson')}</p>
-              <p className="text-lg font-bold text-primary">AZN {effectivePrice}</p>
+              <p className="text-xs text-muted-foreground">{t('tourDetail.perPerson')}</p>
+              <p className="text-lg font-bold text-primary">{formatAzn(effectivePrice)}</p>
             </div>
-            <div className="flex items-center gap-2 flex-1 max-w-[260px]">
-              {whatsappUrl && (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-                >
-                  <MessageCircle size={15} /> {t('tourDetail.messageOnWhatsapp')}
-                </a>
-              )}
-              {instagramUrl && (
-                <a
-                  href={instagramUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={t('tourDetail.viewInstagram')}
-                  className={`${
-                    whatsappUrl ? 'shrink-0 w-11 h-11' : 'flex-1'
-                  } bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center`}
-                >
-                  <AtSign size={16} />
-                </a>
+            <div className="flex items-center gap-2 flex-1 max-w-[300px]">
+              {isOwnTour ? (
+                <p className="flex-1 text-xs text-muted-foreground text-right">{t('tourDetail.ownTourNote')}</p>
+              ) : (
+                <>
+                  {isPast ? (
+                    <p className="flex-1 text-center text-sm font-semibold text-muted-foreground bg-muted rounded-xl py-2.5">
+                      {t('tourDetail.tourEnded')}
+                    </p>
+                  ) : (
+                    <Link
+                      href={bookHref}
+                      className="flex-1 bg-accent text-accent-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+                    >
+                      <Ticket size={15} /> {t('tourDetail.bookNow')}
+                    </Link>
+                  )}
+                  {whatsappUrl && (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t('tourDetail.messageOnWhatsapp')}
+                      className="shrink-0 w-11 h-11 bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center"
+                    >
+                      <MessageCircle size={16} />
+                    </a>
+                  )}
+                  {instagramUrl && (
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t('tourDetail.viewInstagram')}
+                      className="shrink-0 w-11 h-11 bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center"
+                    >
+                      <AtSign size={16} />
+                    </a>
+                  )}
+                </>
               )}
             </div>
           </div>

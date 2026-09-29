@@ -5,12 +5,11 @@
 // - Edit/Delete support: Added ownership-gated PUT/DELETE /api/reviews/:id with rating rollup recalculation.
 // - Rate limiting: Added rolling-window rate limit on new review creation to prevent burst reviews.
 //
-// The "verified buyer" (confirmed booking) gate that used to live here was
-// removed once booking-through-the-app was replaced by contacting the
-// operator directly (see tours/[id] page) - there's no more "confirmed
-// booking" for a traveler to ever have, so any logged-in traveler can
-// review a tour now. The one-review-per-tour and rate-limit checks below
-// still apply.
+// Verified-buyer gate (restored): now that in-app booking is back on the
+// tour page, only a traveler with a CONFIRMED booking on a tour can review
+// it, and an operator can't review their own tours. Without this, anyone
+// with an account could post fake reviews. The one-review-per-tour and
+// rate-limit checks below still apply.
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
@@ -38,6 +37,28 @@ function recalculateOperatorRating(operatorId) {
   return newRating;
 }
  
+// Why (or whether) the current user may review a tour. Returns the reason
+// rather than just a boolean so the frontend can show the right message.
+function reviewEligibility(userId, tour) {
+  const owner = db.prepare('SELECT user_id FROM operators WHERE id = ?').get(tour.operator_id);
+  if (owner && owner.user_id === userId) return { eligible: false, reason: 'own-tour' };
+
+  const confirmed = db
+    .prepare("SELECT 1 FROM bookings WHERE tour_id = ? AND user_id = ? AND status = 'confirmed' LIMIT 1")
+    .get(tour.id, userId);
+  if (!confirmed) return { eligible: false, reason: 'no-booking' };
+
+  return { eligible: true, reason: null };
+}
+
+// GET /api/reviews/eligibility?tour_id=5 - drives the review form's
+// messaging on the tour page. Must be declared before any /:id route.
+router.get('/eligibility', requireAuth, (req, res) => {
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.query.tour_id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+  res.json(reviewEligibility(req.user.userId, tour));
+});
+
 router.post('/', requireAuth, (req, res) => {
   const { tour_id, rating, comment } = req.body;
  
@@ -50,6 +71,16 @@ router.post('/', requireAuth, (req, res) => {
  
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
+
+  const eligibility = reviewEligibility(req.user.userId, tour);
+  if (!eligibility.eligible) {
+    return res.status(403).json({
+      error:
+        eligibility.reason === 'own-tour'
+          ? 'you cannot review your own tour'
+          : 'only travelers with a confirmed booking on this tour can review it',
+    });
+  }
 
   // One review per user per tour - prevents a single account from
   // stacking ratings on the same tour to skew the operator average.

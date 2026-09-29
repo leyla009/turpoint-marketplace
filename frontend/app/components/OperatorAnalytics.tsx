@@ -5,9 +5,9 @@ import { BarChart3, Eye, Heart, Star, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
+import { DATE_LOCALES, formatAzn, formatDate } from '../lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const DATE_LOCALES = { az: 'az-AZ', en: 'en-GB', ru: 'ru-RU' } as const;
 const TOURS_COLLAPSED = 5;
 
 // Shape of GET /api/operators/me/analytics (see backend/src/lib/analytics.js).
@@ -51,15 +51,14 @@ interface Analytics {
 
 type State = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: Analytics };
 
-const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const pct = (n: number | null, digits = 0) => (n === null ? '—' : `${(n * 100).toFixed(digits)}%`);
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-card rounded-xl shadow-md p-3.5">
-      <p className="text-[11px] text-muted-foreground truncate">{label}</p>
+      <p className="text-xs text-muted-foreground truncate">{label}</p>
       <p className="text-xl font-bold text-foreground leading-tight mt-0.5">{value}</p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }
@@ -98,24 +97,26 @@ export default function OperatorAnalytics() {
 
   return (
     <section className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="w-7 h-7 rounded-full bg-card flex items-center justify-center shrink-0">
+      {/* The heading used to be dark text (text-foreground) sitting directly
+          on the dark forest photo, so it was effectively invisible - only
+          the icon showed. It now sits on its own card surface, same
+          treatment as the "Turlarınız" tab below. */}
+      <div className="inline-flex items-center gap-2 bg-card rounded-full pl-1.5 pr-4 py-1.5 mb-3 shadow-md">
+        <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <BarChart3 size={14} className="text-primary" />
         </span>
-        <div>
-          <h2
-            className="text-base sm:text-lg font-bold text-foreground leading-tight"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {t('analytics.title')}
-          </h2>
-        </div>
+        <h2
+          className="text-base sm:text-lg font-bold text-foreground leading-tight"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          {t('analytics.title')}
+        </h2>
       </div>
 
       {state.kind === 'loading' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-[74px] rounded-xl bg-card/70 animate-pulse" />
+            <div key={i} className="h-[74px] rounded-xl bg-card shadow-md animate-pulse" />
           ))}
         </div>
       )}
@@ -138,8 +139,8 @@ export default function OperatorAnalytics() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                 <Kpi
                   label={t('analytics.revenue')}
-                  value={`AZN ${money(summary.revenue)}`}
-                  sub={summary.pending_revenue > 0 ? t('analytics.pendingRevenue', { amount: money(summary.pending_revenue) }) : undefined}
+                  value={formatAzn(summary.revenue)}
+                  sub={summary.pending_revenue > 0 ? t('analytics.pendingRevenue', { amount: formatAzn(summary.pending_revenue) }) : undefined}
                 />
                 <Kpi
                   label={t('analytics.bookings')}
@@ -172,14 +173,14 @@ export default function OperatorAnalytics() {
                       <div
                         key={m.month}
                         className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
-                        title={`${monthLabel(m.month)}: ${m.bookings} · AZN ${money(m.revenue)}`}
+                        title={`${monthLabel(m.month)}: ${m.bookings} · ${formatAzn(m.revenue)}`}
                       >
-                        <span className="text-[10px] font-semibold text-foreground mb-0.5">{m.bookings}</span>
+                        <span className="text-xs font-semibold text-foreground mb-0.5">{m.bookings}</span>
                         <div
                           className="w-full max-w-[36px] rounded-t-md bg-primary"
                           style={{ height: `${Math.max(m.bookings > 0 ? 6 : 2, (m.bookings / maxMonthly) * 76)}px`, opacity: m.bookings > 0 ? 1 : 0.25 }}
                         />
-                        <span className="text-[10px] text-muted-foreground mt-1">{monthLabel(m.month)}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{monthLabel(m.month)}</span>
                       </div>
                     ))}
                   </div>
@@ -200,12 +201,12 @@ export default function OperatorAnalytics() {
                           <p className="text-sm font-semibold text-foreground truncate">{tour.title}</p>
                           <div className="flex items-center gap-1 shrink-0">
                             {tour.group_status && (
-                              <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                              <span className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
                                 {t(`tourDetail.groupStatus.${tour.group_status}` as TranslationKey)}
                               </span>
                             )}
                             <span
-                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                              className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                                 tour.is_upcoming ? 'text-accent-foreground bg-accent' : 'text-muted-foreground bg-muted'
                               }`}
                             >
@@ -214,10 +215,10 @@ export default function OperatorAnalytics() {
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">
-                          {[tour.location, tour.date].filter(Boolean).join(' · ')}
+                          {[tour.location, formatDate(tour.date, locale)].filter(Boolean).join(' · ')}
                         </p>
 
-                        <div className="flex items-center justify-between text-[11px] mb-1">
+                        <div className="flex items-center justify-between text-xs mb-1">
                           <span className="text-muted-foreground">
                             {t('analytics.seatsLabel', { taken, max: tour.max_participants })}
                           </span>
@@ -227,9 +228,9 @@ export default function OperatorAnalytics() {
                           <div className="h-full bg-primary rounded-full" style={{ width: `${fillPct}%` }} />
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span className="font-semibold text-foreground">
-                            {t('analytics.revenue')}: AZN {money(tour.revenue)}
+                            {t('analytics.revenue')}: {formatAzn(tour.revenue)}
                           </span>
                           <span className="flex items-center gap-1" title={t('analytics.views')}>
                             <Eye size={12} /> {tour.views}

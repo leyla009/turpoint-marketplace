@@ -9,6 +9,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { attachActiveDeals } from './tours.js';
  
 const router = Router();
  
@@ -29,6 +30,15 @@ router.post('/', requireAuth, (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  
+  // Fixed: nothing stopped a traveler booking a tour that already happened.
+  // Compared as YYYY-MM-DD in Baku time (the server itself runs in UTC, and
+  // Baku is UTC+4, so `new Date()` alone would disagree for a few hours
+  // around midnight). A tour departing TODAY is still bookable.
+  const todayInBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+  if (String(tour.date).slice(0, 10) < todayInBaku) {
+    return res.status(400).json({ error: 'this tour has already taken place and can no longer be booked' });
+  }
+
   if (seats > tour.max_participants) {
     return res.status(400).json({ error: `cannot book more than ${tour.max_participants} seats on this tour` });
   }
@@ -57,7 +67,12 @@ router.post('/', requireAuth, (req, res) => {
     // no longer affect what anyone actually pays. Operators wanting a
     // different price for early bookers should use the manual "create
     // deal" feature instead.
-    const flatPrice = tour.price;
+    //
+    // Fixed: this used to be `tour.price` even while a last-minute deal was
+    // active, so a traveler saw (and was promised) the discounted price on
+    // the booking page but was charged the full price. attachActiveDeals is
+    // the same helper GET /api/tours/:id uses, so the two always agree.
+    const flatPrice = attachActiveDeals(tour).discounted_price ?? tour.price;
 
     if (openGroup) {
       const newCount = openGroup.current_participants + seats;

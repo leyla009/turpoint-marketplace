@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { AccountSection } from './AccountMenu';
+import { formatAzn, formatDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -23,7 +24,7 @@ export default function AccountDetailModal({
 }) {
   const { user, token, login } = useAuth();
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -183,9 +184,9 @@ export default function AccountDetailModal({
                           <span className="mx-1">·</span>
                         </>
                       )}
-                      <Calendar size={11} /> {tour.date}
+                      <Calendar size={11} /> {formatDate(tour.date, locale)}
                       <span className="mx-1">·</span>
-                      <span className="font-semibold text-foreground">AZN{tour.price}</span>
+                      <span className="font-semibold text-foreground">{formatAzn(tour.price)}</span>
                     </p>
                   </Link>
                   <button

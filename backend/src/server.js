@@ -26,6 +26,13 @@ const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json')
 
 const app = express();
 
+// Behind Railway's proxy every request otherwise appears to come from the
+// proxy's own IP - which makes the rate limiters below share ONE bucket for
+// all users, and breaks per-visitor view counting. Trust exactly one hop.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Sets a standard set of protective response headers (no CSP here - this
 // is a pure JSON API, the frontend is a separate origin/deployment).
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -66,19 +73,18 @@ app.use(
   })
 );
 
-// Only enforced in production - during local dev this would otherwise lock
-// you out after repeated test logins/signups from the same machine.
-if (process.env.NODE_ENV === 'production') {
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'too many attempts - try again later' },
-  });
-  app.use('/api/auth/login', authLimiter);
-  app.use('/api/auth/signup', authLimiter);
-}
+// Always on (previously production-only, which meant the limiter was never
+// exercised until it was live). Dev gets a much higher ceiling so repeated
+// local test logins/signups don't lock you out.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 20 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many attempts - try again later' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

@@ -103,11 +103,13 @@ function createTourMap(
     const [lat, lng] = [coords[0] + jitter, coords[1] + jitter];
 
     const price = tour.discounted_price ?? tour.price;
+    const esc = (v: unknown) =>
+      String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
     const popupHtml = `
       <div style="font-family: 'Nunito', sans-serif; min-width: 160px;">
-        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${tour.title}</p>
-        <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${tour.location}</p>
-        <p style="font-weight:700;font-size:13px;color:#1B3D2F;margin:0 0 6px;">AZN${price}<span style="font-weight:400;font-size:10px;color:#7A7266;">/pp</span></p>
+        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${esc(tour.title)}</p>
+        <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${esc(tour.location)}</p>
+        <p style="font-weight:700;font-size:13px;color:#1B3D2F;margin:0 0 6px;">AZN ${esc(price)}<span style="font-weight:400;font-size:10px;color:#7A7266;">/pp</span></p>
         <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#C95E18;text-decoration:none;">${viewTourLabel}</a>
       </div>`;
 
