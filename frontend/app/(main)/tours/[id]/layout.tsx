@@ -13,7 +13,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const { id } = params;
   try {
-    const res = await fetch(`${API_URL}/api/tours/${id}`, { next: { revalidate: 60 } });
+    // x-no-view-count: this is Next fetching metadata, not a visitor viewing the tour.
+    const res = await fetch(`${API_URL}/api/tours/${id}`, { next: { revalidate: 60 }, headers: { 'x-no-view-count': '1' } });
     if (!res.ok) return {};
     const tour = await res.json();
     if (!tour?.title) return {};

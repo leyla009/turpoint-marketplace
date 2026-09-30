@@ -17,16 +17,20 @@ const router = Router();
 const JWT_EXPIRES_IN = '7d';
  
 router.post('/signup', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, password } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email, and password are required' });
   }
-  if (password.length < 6) {
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'a valid email address is required' });
+  }
+  if (typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'password must be at least 6 characters' });
   }
  
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existing = db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
   if (existing) {
     return res.status(409).json({ error: 'an account with this email already exists' });
   }
@@ -45,13 +49,15 @@ router.post('/signup', async (req, res) => {
 });
  
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
  
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  // lower(email) so accounts created before normalization (mixed case) can still log in.
+  const user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(email);
   if (!user) {
     return res.status(401).json({ error: 'invalid email or password' });
   }
@@ -86,7 +92,8 @@ router.get('/me', requireAuth, (req, res) => {
 // file so it doesn't need to be retyped for every reservation - sending an
 // empty string clears it.
 router.put('/me', requireAuth, async (req, res) => {
-  const { name, email, password, id_number } = req.body;
+  const { name, password, id_number } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
 
   if (name !== undefined && !name.trim()) {
     return res.status(400).json({ error: 'name cannot be empty' });
@@ -102,7 +109,7 @@ router.put('/me', requireAuth, async (req, res) => {
   if (!current) return res.status(404).json({ error: 'user not found' });
 
   if (email !== undefined && email !== current.email) {
-    const taken = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, current.id);
+    const taken = db.prepare('SELECT id FROM users WHERE lower(email) = ? AND id != ?').get(email, current.id);
     if (taken) return res.status(409).json({ error: 'an account with this email already exists' });
   }
 

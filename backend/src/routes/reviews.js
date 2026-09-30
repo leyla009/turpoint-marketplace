@@ -43,6 +43,11 @@ function reviewEligibility(userId, tour) {
   const owner = db.prepare('SELECT user_id FROM operators WHERE id = ?').get(tour.operator_id);
   if (owner && owner.user_id === userId) return { eligible: false, reason: 'own-tour' };
 
+  // A review reflects a trip that actually happened, so it opens on the
+  // tour's date (Baku time), not the moment the seat is paid for.
+  const todayInBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+  if (String(tour.date).slice(0, 10) > todayInBaku) return { eligible: false, reason: 'not-yet' };
+
   const confirmed = db
     .prepare("SELECT 1 FROM bookings WHERE tour_id = ? AND user_id = ? AND status = 'confirmed' LIMIT 1")
     .get(tour.id, userId);
@@ -65,8 +70,8 @@ router.post('/', requireAuth, (req, res) => {
   if (!tour_id || !rating) {
     return res.status(400).json({ error: 'tour_id and rating are required' });
   }
-  if (rating < 1 || rating > 5) {
-    return res.status(400).json({ error: 'rating must be between 1 and 5' });
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'rating must be a whole number between 1 and 5' });
   }
  
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(tour_id);
@@ -78,6 +83,8 @@ router.post('/', requireAuth, (req, res) => {
       error:
         eligibility.reason === 'own-tour'
           ? 'you cannot review your own tour'
+          : eligibility.reason === 'not-yet'
+          ? 'you can review this tour once it has taken place'
           : 'only travelers with a confirmed booking on this tour can review it',
     });
   }
@@ -133,8 +140,8 @@ router.put('/:id', requireAuth, (req, res) => {
   if (rating === undefined && comment === undefined) {
     return res.status(400).json({ error: 'nothing to update - provide rating and/or comment' });
   }
-  if (rating !== undefined && (rating < 1 || rating > 5)) {
-    return res.status(400).json({ error: 'rating must be between 1 and 5' });
+  if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+    return res.status(400).json({ error: 'rating must be a whole number between 1 and 5' });
   }
  
   const newRating = rating !== undefined ? rating : review.rating;

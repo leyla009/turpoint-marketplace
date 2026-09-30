@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   group_formation_id INTEGER REFERENCES group_formations(id),
   seats INTEGER DEFAULT 1,
   total_price REAL NOT NULL,
-  status TEXT DEFAULT 'confirmed', -- confirmed | cancelled
+  status TEXT DEFAULT 'confirmed', -- pending | confirmed | cancelled (pending = group hasn't reached its minimum yet)
   ticket_code TEXT UNIQUE,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

@@ -93,7 +93,7 @@ function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
 export default function TourDetail() {
   const { id } = useParams();
   const router = useRouter();
-  const { token, user, operatorProfile } = useAuth();
+  const { token, user, operatorProfile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const { t, locale } = useLanguage();
 
@@ -122,7 +122,7 @@ export default function TourDetail() {
   // (enforced server-side in reviews.js; this state just drives the
   // messaging). Asked of GET /api/reviews/eligibility.
   const [eligibility, setEligibility] = useState<
-    'loading' | 'eligible' | 'not-logged-in' | 'needs-booking' | 'own-tour'
+    'loading' | 'eligible' | 'not-logged-in' | 'needs-booking' | 'own-tour' | 'not-yet'
   >('loading');
 
   const fetchReviews = useCallback(() => {
@@ -146,7 +146,7 @@ export default function TourDetail() {
       .then((data) => {
         if (cancelled) return;
         if (data?.eligible) setEligibility('eligible');
-        else setEligibility(data?.reason === 'own-tour' ? 'own-tour' : 'needs-booking');
+        else setEligibility(data?.reason === 'own-tour' ? 'own-tour' : data?.reason === 'not-yet' ? 'not-yet' : 'needs-booking');
       })
       .catch(() => !cancelled && setEligibility('needs-booking'));
     return () => {
@@ -185,14 +185,17 @@ export default function TourDetail() {
   }
 
   useEffect(() => {
-    if (!id) return;
+    // Wait until the saved login has been read, so the very first request
+    // already carries the token and the server can recognise the tour's
+    // owner (their own views are never counted).
+    if (!id || authLoading) return;
     let cancelled = false;
 
     setLoadingTour(true);
     setTour(null);
     setOperator(null);
 
-    fetch(`${API_URL}/api/tours/${id}`)
+    fetch(`${API_URL}/api/tours/${id}`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -212,7 +215,7 @@ export default function TourDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, fetchReviews]);
+  }, [id, fetchReviews, authLoading, token]);
 
   const handleSubmitReview = (e: FormEvent) => {
     e.preventDefault();
@@ -310,7 +313,7 @@ export default function TourDetail() {
   // Pre-filled so the operator immediately knows which tour and date the
   // message is about.
   const whatsappUrl =
-    operator?.phone_verified && operator.phone
+    operator?.phone && /^\+994\d{9}$/.test(operator.phone)
       ? `https://wa.me/${operator.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
           t('tourDetail.whatsappPrefill', { title: tour?.title ?? '', date: formatDate(tour?.date, locale) })
         )}`
@@ -575,6 +578,11 @@ export default function TourDetail() {
             {eligibility === 'needs-booking' && (
               <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
                 {t('tourDetail.bookToReview')}
+              </p>
+            )}
+            {eligibility === 'not-yet' && (
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
+                {t('tourDetail.reviewAfterTour')}
               </p>
             )}
             {eligibility === 'own-tour' && (

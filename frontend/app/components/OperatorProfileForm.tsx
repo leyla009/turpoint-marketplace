@@ -69,7 +69,10 @@ export default function OperatorProfileForm() {
   }, [operatorProfile]);
 
   const fullPhone = `${PHONE_PREFIX}${phoneDigits.trim()}`;
-  const isPhoneVerified = Boolean(operatorProfile?.phone_verified) && operatorProfile?.phone === fullPhone;
+  // Real SMS verification does not exist yet (the backend answers 501 in production), so the
+  // send-code / verify UI stays hidden unless NEXT_PUBLIC_PHONE_VERIFICATION=true is set.
+  const verificationEnabled = process.env.NEXT_PUBLIC_PHONE_VERIFICATION === 'true';
+  const isPhoneVerified = verificationEnabled && Boolean(operatorProfile?.phone_verified) && operatorProfile?.phone === fullPhone;
 
   function handlePhoneDigitsChange(value: string) {
     setPhoneDigits(value.replace(/\D/g, '').slice(0, PHONE_DIGIT_COUNT));
@@ -294,7 +297,7 @@ export default function OperatorProfileForm() {
             />
           </div>
 
-          {isEditing && !isPhoneVerified && (
+          {verificationEnabled && isEditing && !isPhoneVerified && (
             <div className="mt-2">
               {!phoneCodeSent ? (
                 <button
