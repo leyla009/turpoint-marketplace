@@ -9,6 +9,7 @@ import { VEHICLE_FEATURES } from '../lib/vehicleFeatures';
 import { AZERBAIJAN_CITIES } from '../lib/azerbaijanCities';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
+import { photoSrc } from '../lib/photo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
@@ -82,7 +83,7 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(
-    tour?.photo_url ? `${API_URL}${tour.photo_url}` : null
+    photoSrc(tour?.photo_url)
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
