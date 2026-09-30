@@ -235,4 +235,47 @@ router.get('/:id', requireAuth, (req, res) => {
   res.json({ ...booking, tour });
 });
  
+// Cancel a booking. Allowed for the traveler who made it, or for the
+// operator who owns the tour (e.g. before deleting a tour). Only bookings
+// that are still confirmed/pending, on a tour that hasn't happened yet.
+// Frees the seats on the group so the capacity checks in POST / stay
+// accurate. Payment is simulated in this app, so there is nothing to refund.
+router.post('/:id/cancel', requireAuth, (req, res) => {
+  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'booking not found' });
+
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(booking.tour_id);
+  const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
+  const isTraveler = booking.user_id === req.user.userId;
+  const isTourOperator = !!operator && !!tour && operator.id === tour.operator_id;
+  if (!isTraveler && !isTourOperator) {
+    return res.status(403).json({ error: 'you can only cancel your own bookings or bookings on your own tours' });
+  }
+
+  if (booking.status === 'cancelled') return res.status(409).json({ error: 'booking is already cancelled' });
+
+  const todayInBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+  if (tour && String(tour.date).slice(0, 10) < todayInBaku) {
+    return res.status(400).json({ error: 'this tour has already taken place' });
+  }
+
+  const cancel = db.transaction(() => {
+    db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(booking.id);
+    if (booking.group_formation_id) {
+      const group = db.prepare('SELECT * FROM group_formations WHERE id = ?').get(booking.group_formation_id);
+      if (group) {
+        const remaining = Math.max(0, group.current_participants - booking.seats);
+        // An unconfirmed group with nobody left is over; a confirmed group
+        // stays confirmed (its other travelers were already promised the trip).
+        const status = remaining === 0 && group.status !== 'confirmed' ? 'cancelled' : group.status;
+        db.prepare('UPDATE group_formations SET current_participants = ?, status = ? WHERE id = ?')
+          .run(remaining, status, group.id);
+      }
+    }
+  });
+  cancel();
+
+  res.json(db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id));
+});
+
 export default router;

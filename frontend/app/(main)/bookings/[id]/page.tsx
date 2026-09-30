@@ -7,7 +7,7 @@ import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-r
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
-import { formatAzn, formatDate } from '@/app/lib/format';
+import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -59,6 +59,8 @@ export default function ETicketPage() {
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -72,6 +74,28 @@ export default function ETicketPage() {
       .finally(() => setLoading(false));
   }, [id, token]);
 
+  const handleCancel = async () => {
+    if (!window.confirm(t('eTicket.cancelConfirm'))) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const res = await fetch(`${API_URL}/api/bookings/${id}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelError(data.error || t('eTicket.cancelFailed'));
+        return;
+      }
+      setBooking((prev: any) => ({ ...prev, status: data.status }));
+    } catch {
+      setCancelError(t('eTicket.cancelFailed'));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (authLoading || loading) {
     return <div className="p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
   }
@@ -81,6 +105,7 @@ export default function ETicketPage() {
 
   const pickup = parseFirstStop(booking.tour.route);
   const isPending = booking.status === 'pending';
+  const isCancelled = booking.status === 'cancelled';
 
   return (
     <PageContainer maxWidth="max-w-2xl">
@@ -131,11 +156,11 @@ export default function ETicketPage() {
               <p className="text-lg font-bold text-foreground">{formatAzn(booking.total_price)}</p>
               <span
                 className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 ${
-                  isPending ? 'text-primary' : 'text-accent'
+                  isCancelled ? 'text-red-600' : isPending ? 'text-primary' : 'text-accent'
                 }`}
               >
                 {isPending ? <Clock size={10} /> : <CheckCircle2 size={10} />}
-                {isPending ? t('status.pending') : t('status.confirmed')}
+                {isCancelled ? t('status.cancelled') : isPending ? t('status.pending') : t('status.confirmed')}
               </span>
             </div>
             <div className="bg-white p-2 rounded-lg border border-border">
@@ -156,6 +181,17 @@ export default function ETicketPage() {
       >
         <CalendarPlus size={15} /> {t('eTicket.addToCalendar')}
       </button>
+
+      {booking.status !== 'cancelled' && !isPastDate(booking.tour?.date) && (
+        <button
+          onClick={handleCancel}
+          disabled={cancelling}
+          className="flex items-center justify-center w-full text-sm font-semibold text-red-600 border border-red-200 rounded-xl py-2.5 mt-2 hover:bg-red-50 transition-colors disabled:opacity-60"
+        >
+          {cancelling ? t('eTicket.cancelling') : t('eTicket.cancelBooking')}
+        </button>
+      )}
+      {cancelError && <p className="text-xs text-red-600 mt-2 text-center">{cancelError}</p>}
     </PageContainer>
   );
 }

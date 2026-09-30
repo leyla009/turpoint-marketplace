@@ -9,6 +9,7 @@
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { expirePastDueGroups } from '../lib/expireGroups.js';
  
 const router = Router();
  
@@ -58,34 +59,8 @@ router.post('/expire-past-due', (req, res) => {
     return res.status(401).json({ error: 'missing or invalid x-cron-secret header' });
   }
 
-  const expired = db
-    .prepare(
-      `SELECT gf.id FROM group_formations gf
-       JOIN tours t ON t.id = gf.tour_id
-       WHERE gf.status IN ('waiting','forming') AND date(t.date) < date('now')`
-    )
-    .all();
- 
-  const cancelGroup = db.prepare("UPDATE group_formations SET status = 'cancelled' WHERE id = ?");
-  // Anyone still 'pending' on a group that never filled was never actually
-  // charged (payment only settles once a group confirms) - cancel their
-  // booking too so nothing is left dangling in limbo.
-  const cancelPendingBookings = db.prepare(
-    "UPDATE bookings SET status = 'cancelled' WHERE group_formation_id = ? AND status = 'pending'"
-  );
- 
-  const cancelledBookingIds = [];
-  expired.forEach((row) => {
-    cancelGroup.run(row.id);
-    const pending = db
-      .prepare("SELECT id FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
-      .all(row.id);
-    cancelPendingBookings.run(row.id);
-    pending.forEach((b) => cancelledBookingIds.push(b.id));
-  });
- 
-  res.json({ cancelled_groups: expired.map((r) => r.id), cancelled_bookings: cancelledBookingIds });
+  res.json(expirePastDueGroups());
 });
- 
+
 export default router;
  

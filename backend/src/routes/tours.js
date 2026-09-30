@@ -6,32 +6,12 @@
 // that profile server-side - never trusted from the request body.
  
 import { Router } from 'express';
-import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { createImageUpload } from '../lib/uploads.js';
 
 const router = Router();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, '../../uploads/tours');
-fs.mkdirSync(uploadsDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: uploadsDir,
-  filename: (req, file, cb) => {
-    cb(null, `${req.user.userId}-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    cb(null, file.mimetype.startsWith('image/'));
-  },
-});
+const upload = createImageUpload('tours');
 
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
@@ -129,6 +109,9 @@ router.post('/', requireAuth, (req, res) => {
   }
   if (!(price > 0)) {
     return res.status(400).json({ error: 'price must be a positive number' });
+  }
+  if (category && !CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: `category must be one of: ${CATEGORIES.join(', ')}` });
   }
   if (min_participants !== undefined && !(min_participants >= 1)) {
     return res.status(400).json({ error: 'min_participants must be at least 1' });
@@ -246,6 +229,9 @@ const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000;
 const recentViews = new Map(); // `${ip}:${tourId}` -> timestamp
 
 function shouldCountView(req, tour) {
+  // Server-side metadata fetches (Next's generateMetadata) send this header
+  // so they never count as a visitor view.
+  if (req.headers['x-no-view-count'] === '1') return false;
   // The owner looking at their own tour never counts.
   if (req.user) {
     const owner = db.prepare('SELECT user_id FROM operators WHERE id = ?').get(tour.operator_id);
@@ -308,6 +294,9 @@ router.put('/:id', requireAuth, (req, res) => {
   }
   if (date !== undefined && !date) {
     return res.status(400).json({ error: 'date cannot be empty' });
+  }
+  if (category !== undefined && category !== null && category !== '' && !CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: `category must be one of: ${CATEGORIES.join(', ')}` });
   }
   if (min_participants !== undefined && !(min_participants >= 1)) {
     return res.status(400).json({ error: 'min_participants must be at least 1' });
@@ -375,6 +364,19 @@ router.delete('/:id', requireAuth, (req, res) => {
   const bookingCount = db
     .prepare('SELECT COUNT(*) as count FROM bookings WHERE tour_id = ?')
     .get(tour.id).count;
+  // Even with ?force=true, never wipe out CONFIRMED/PENDING bookings on a tour
+  // that hasn't happened yet - those travelers have paid or reserved. The
+  // operator must cancel them first (POST /api/bookings/:id/cancel).
+  const todayInBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+  const activeUpcoming = String(tour.date).slice(0, 10) >= todayInBaku
+    ? db.prepare("SELECT COUNT(*) as count FROM bookings WHERE tour_id = ? AND status IN ('confirmed','pending')").get(tour.id).count
+    : 0;
+  if (activeUpcoming > 0) {
+    return res.status(409).json({
+      error: `this upcoming tour has ${activeUpcoming} active booking(s) - cancel them first, then delete the tour`,
+      active_booking_count: activeUpcoming,
+    });
+  }
   if (bookingCount > 0 && req.query.force !== 'true') {
     return res.status(409).json({
       error: `this tour has ${bookingCount} booking(s) - pass ?force=true to delete anyway`,

@@ -1158,6 +1158,47 @@
           }
         }
       }
+    },
+    "/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel a booking",
+        "description": "Allowed for the traveler who made it or the operator who owns the tour. Only pending/confirmed bookings on tours that haven't happened yet. Frees the seats on the group.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The cancelled booking"
+          },
+          "400": {
+            "description": "Tour already taken place"
+          },
+          "403": {
+            "description": "Not your booking / tour"
+          },
+          "404": {
+            "description": "Booking not found"
+          },
+          "409": {
+            "description": "Already cancelled"
+          }
+        }
+      }
     }
   }
 }

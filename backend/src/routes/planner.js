@@ -377,6 +377,9 @@ router.post('/chat', async (req, res) => {
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });
   }
+  if (message.length > 1000) {
+    return res.status(400).json({ error: 'message is too long (max 1000 characters)' });
+  }
   const safeLocale = LANGUAGE_NAMES[locale] ? locale : 'en';
 
   if (!groqConfigured()) {

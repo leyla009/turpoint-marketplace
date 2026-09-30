@@ -20,6 +20,8 @@ import reviewsRouter from './routes/reviews.js';
 import dealsRouter from './routes/deals.js';
 import plannerRouter from './routes/planner.js';
 import favoritesRouter from './routes/favorites.js';
+import { UPLOADS_ROOT } from './lib/uploads.js';
+import { expirePastDueGroups } from './lib/expireGroups.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json'), 'utf-8'));
@@ -58,7 +60,7 @@ app.use(
     res.header('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
   },
-  express.static(path.join(__dirname, '../uploads'))
+  express.static(UPLOADS_ROOT, { index: false, dotfiles: 'deny' })
 );
 
 // Broad, cheap-to-run limiter for every route - a basic ceiling against
@@ -99,6 +101,17 @@ app.use('/api/group-formations', groupFormationsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/deals', dealsRouter);
+// Every planner message triggers two paid/limited Groq calls, and the
+// endpoint is open to anonymous visitors, so it gets its own much tighter
+// ceiling than the global limiter (per IP; needs `trust proxy`, set above).
+const plannerLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 15 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many planner requests - try again in a few minutes' },
+});
+app.use('/api/planner/chat', plannerLimiter);
 app.use('/api/planner', plannerRouter);
 app.use('/api/favorites', favoritesRouter);
 
@@ -118,6 +131,22 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'internal server error' });
 });
+
+// Expire unfilled groups whose tour date has passed, without needing an
+// external cron. Runs at boot and then hourly; the manual
+// POST /api/group-formations/expire-past-due endpoint still works too.
+function runExpiry() {
+  try {
+    const result = expirePastDueGroups();
+    if (result.cancelled_groups.length) {
+      console.log(`Expired ${result.cancelled_groups.length} unfilled group(s), cancelled ${result.cancelled_bookings.length} pending booking(s).`);
+    }
+  } catch (err) {
+    console.error('expiry job failed', err);
+  }
+}
+runExpiry();
+setInterval(runExpiry, 60 * 60 * 1000).unref();
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

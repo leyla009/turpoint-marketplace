@@ -6,34 +6,38 @@
 // derived from the verified token, never trusted from the request body.
 
 import { Router } from 'express';
-import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { normalizeInstagram } from '../lib/instagram.js';
 import { buildOperatorAnalytics } from '../lib/analytics.js';
+import { createImageUpload } from '../lib/uploads.js';
 
 const router = Router();
+const upload = createImageUpload('operators');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, '../../uploads/operators');
-fs.mkdirSync(uploadsDir, { recursive: true });
+// Columns that must never leave the server: the pending SMS code/number/
+// expiry (anyone could read a live code off the public list) and the owning
+// account id. `phone` stays public on purpose - it is the operator's
+// business contact number shown on their tours.
+function publicOperator(row) {
+  if (!row) return row;
+  const {
+    phone_verification_code,
+    phone_verification_phone,
+    phone_verification_expires_at,
+    user_id,
+    ...safe
+  } = row;
+  return safe;
+}
 
-const storage = multer.diskStorage({
-  destination: uploadsDir,
-  filename: (req, file, cb) => {
-    cb(null, `${req.user.userId}-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    cb(null, file.mimetype.startsWith('image/'));
-  },
-});
+// /me is the owner's own record, so user_id is fine there - but the pending
+// code is still never returned.
+function ownOperator(row) {
+  if (!row) return row;
+  const { phone_verification_code, phone_verification_phone, phone_verification_expires_at, ...safe } = row;
+  return safe;
+}
 
 // Azerbaijan mobile numbers are always +994 followed by exactly 9 digits
 // (e.g. +994 50 123 45 67) - the profile form fixes the +994 prefix and
@@ -42,19 +46,37 @@ function isValidPhone(phone) {
   return /^\+994\d{9}$/.test(phone);
 }
 
-// Phone verification is mocked for now - there's no SMS provider wired up
-// (would need a paid/free-tier account like Twilio or Vonage), so instead
-// of generating and texting a real random code, "sending" a code just
-// stores this fixed one. Swap this out for a real provider + a random
-// per-request code once one is chosen; everything else (the pending-code
-// columns, the expiry check, the reset-on-phone-change logic below) is
-// already shaped to support that without further changes.
+// Phone verification. There is no SMS provider wired up yet, so the only
+// available mode is a MOCK that accepts a fixed code. That is fine for local
+// development but would let anyone mark any number "verified" in
+// production, so:
+//   - outside production the mock works as before (fixed dev code);
+//   - in production the endpoints answer 501 unless the deployer explicitly
+//     opts in with ALLOW_MOCK_PHONE_VERIFICATION=true (demo deployments).
+// When a real provider is added, replace sendCode()/checkCode() below with a
+// random per-request code and the provider call; the pending-code columns,
+// expiry and reset-on-phone-change logic already support that.
 const DEV_VERIFICATION_CODE = '123456';
 const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
+const SEND_COOLDOWN_MS = 60 * 1000;
+const MAX_VERIFY_ATTEMPTS = 5;
+
+const mockVerificationAllowed =
+  process.env.NODE_ENV !== 'production' || process.env.ALLOW_MOCK_PHONE_VERIFICATION === 'true';
+
+function requireVerificationProvider(req, res, next) {
+  if (!mockVerificationAllowed) {
+    return res.status(501).json({ error: 'phone verification is not available yet' });
+  }
+  next();
+}
+
+// In-memory only: resets on restart, which merely gives a fresh set of tries.
+const verifyAttempts = new Map(); // operatorId -> failed attempts for the pending code
 
 router.post('/', requireAuth, (req, res) => {
   const { name, description, languages, photo_url, phone, instagram } = req.body;
-  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
   if (!phone || !isValidPhone(phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
@@ -72,7 +94,7 @@ router.post('/', requireAuth, (req, res) => {
     .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, normalizeInstagram(instagram), req.user.userId);
 
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(operator);
+  res.status(201).json(ownOperator(operator));
 });
 
 // "Do I have an operator profile?" — this is what drives the
@@ -81,7 +103,7 @@ router.post('/', requireAuth, (req, res) => {
 // Must be declared before GET /:id, or Express would match "me" as :id.
 router.get('/me', requireAuth, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
-  res.json(operator ?? null);
+  res.json(ownOperator(operator) ?? null);
 });
 
 // Operator analytics for the dashboard: revenue, bookings, fill rate, views
@@ -104,13 +126,13 @@ router.post('/me/photo', requireAuth, upload.single('photo'), (req, res) => {
 
   const photoUrl = `/uploads/operators/${req.file.filename}`;
   db.prepare('UPDATE operators SET photo_url = ? WHERE id = ?').run(photoUrl, operator.id);
-  res.json(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id));
+  res.json(ownOperator(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id)));
 });
 
 // Sends (mocked - see DEV_VERIFICATION_CODE above) a verification code for
 // a phone number, ahead of it being saved as the operator's real phone -
 // so the number can be confirmed before it's committed to the profile.
-router.post('/me/phone/send-code', requireAuth, (req, res) => {
+router.post('/me/phone/send-code', requireAuth, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
 
@@ -119,19 +141,28 @@ router.post('/me/phone/send-code', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
 
+  // Cooldown: an existing pending code was issued at (expiry - TTL).
+  if (operator.phone_verification_expires_at) {
+    const issuedAt = new Date(operator.phone_verification_expires_at).getTime() - VERIFICATION_CODE_TTL_MS;
+    if (Date.now() - issuedAt < SEND_COOLDOWN_MS) {
+      return res.status(429).json({ error: 'please wait a minute before requesting another code' });
+    }
+  }
+
+  verifyAttempts.delete(operator.id);
   const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
   db.prepare(
     'UPDATE operators SET phone_verification_code = ?, phone_verification_phone = ?, phone_verification_expires_at = ? WHERE id = ?'
   ).run(DEV_VERIFICATION_CODE, phone, expiresAt, operator.id);
 
-  console.log(`[dev] verification code for ${phone}: ${DEV_VERIFICATION_CODE}`);
+  if (process.env.NODE_ENV !== 'production') console.log(`[dev] verification code for ${phone}: ${DEV_VERIFICATION_CODE}`);
   res.json({ ok: true });
 });
 
 // Confirms the code from send-code above. On success, the pending phone
 // number becomes the operator's actual phone and is marked verified -
 // this is the only place phone_verified is ever set to true.
-router.post('/me/phone/verify-code', requireAuth, (req, res) => {
+router.post('/me/phone/verify-code', requireAuth, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
 
@@ -143,9 +174,14 @@ router.post('/me/phone/verify-code', requireAuth, (req, res) => {
   if (new Date(operator.phone_verification_expires_at) < new Date()) {
     return res.status(400).json({ error: 'this code has expired - send a new one' });
   }
-  if (code !== operator.phone_verification_code) {
+  if ((verifyAttempts.get(operator.id) ?? 0) >= MAX_VERIFY_ATTEMPTS) {
+    return res.status(429).json({ error: 'too many incorrect attempts - request a new code' });
+  }
+  if (String(code) !== operator.phone_verification_code) {
+    verifyAttempts.set(operator.id, (verifyAttempts.get(operator.id) ?? 0) + 1);
     return res.status(400).json({ error: 'incorrect code' });
   }
+  verifyAttempts.delete(operator.id);
 
   db.prepare(
     `UPDATE operators SET phone = ?, phone_verified = 1,
@@ -153,17 +189,17 @@ router.post('/me/phone/verify-code', requireAuth, (req, res) => {
      WHERE id = ?`
   ).run(operator.phone_verification_phone, operator.id);
 
-  res.json(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id));
+  res.json(ownOperator(db.prepare('SELECT * FROM operators WHERE id = ?').get(operator.id)));
 });
 
 router.get('/', (req, res) => {
-  res.json(db.prepare('SELECT * FROM operators ORDER BY rating DESC').all());
+  res.json(db.prepare('SELECT * FROM operators ORDER BY rating DESC').all().map(publicOperator));
 });
 
 router.get('/:id', (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id);
   if (!operator) return res.status(404).json({ error: 'operator not found' });
-  res.json(operator);
+  res.json(publicOperator(operator));
 });
 
 router.put('/:id', requireAuth, (req, res) => {
@@ -173,7 +209,18 @@ router.put('/:id', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'you can only edit your own operator profile' });
   }
 
-  const updated = { ...existing, ...req.body };
+  // Only these fields are editable through this route. Merging the whole
+  // body let a client overwrite rating, user_id, phone_verified, etc., and
+  // `name: null` reached the NOT NULL column and returned a 500.
+  const EDITABLE = ['name', 'description', 'languages', 'photo_url', 'vehicle_features', 'phone', 'instagram'];
+  const updated = { ...existing };
+  for (const key of EDITABLE) {
+    if (req.body?.[key] !== undefined) updated[key] = req.body[key];
+  }
+  if (typeof updated.name !== 'string' || !updated.name.trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+  updated.name = updated.name.trim();
   if (!updated.phone || !isValidPhone(updated.phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
@@ -196,7 +243,7 @@ router.put('/:id', requireAuth, (req, res) => {
     req.params.id
   );
 
-  res.json(db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id));
+  res.json(ownOperator(db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id)));
 });
 
 export default router;
