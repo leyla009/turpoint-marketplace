@@ -22,6 +22,8 @@ import plannerRouter from './routes/planner.js';
 import favoritesRouter from './routes/favorites.js';
 import { UPLOADS_ROOT } from './lib/uploads.js';
 import { expirePastDueGroups } from './lib/expireGroups.js';
+import { pruneOldNotifications } from './lib/notify.js';
+import notificationsRouter from './routes/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json'), 'utf-8'));
@@ -114,6 +116,7 @@ const plannerLimiter = rateLimit({
 app.use('/api/planner/chat', plannerLimiter);
 app.use('/api/planner', plannerRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Mərhələ 4: frontend-only work from here - no more backend routers to mount.
 
@@ -137,6 +140,7 @@ app.use((err, req, res, next) => {
 // POST /api/group-formations/expire-past-due endpoint still works too.
 function runExpiry() {
   try {
+    pruneOldNotifications();
     const result = expirePastDueGroups();
     if (result.cancelled_groups.length) {
       console.log(`Expired ${result.cancelled_groups.length} unfilled group(s), cancelled ${result.cancelled_bookings.length} pending booking(s).`);

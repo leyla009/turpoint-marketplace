@@ -11,7 +11,9 @@ const operators = [
 ];
 
 const categories = ['nature', 'history', 'entertainment', 'food'];
-const locations = ['Quba', 'Şəki', 'Qəbələ', 'Bakı', 'Gəbələ', 'Lənkəran'];
+// 'Gəbələ' used to be listed here too, but it is just an older spelling of 'Qəbələ' -
+// the two showed up as separate destinations in filters. 'Qax' replaces it.
+const locations = ['Quba', 'Şəki', 'Qəbələ', 'Bakı', 'Qax', 'Lənkəran'];
 // Homepage feature-tag filter chips - see frontend/app/lib/tourFeatures.ts
 // for the slug -> Azerbaijani label mapping these must match exactly.
 const featureSlugs = ['breakfast', 'evening_tea', 'guide', 'road_games', 'hotel_stay'];

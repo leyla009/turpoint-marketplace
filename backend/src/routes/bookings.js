@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { attachActiveDeals } from './tours.js';
+import { notify, operatorUserId } from '../lib/notify.js';
  
 const router = Router();
  
@@ -55,6 +56,14 @@ router.post('/', requireAuth, (req, res) => {
   // Everything below runs atomically: a group settling and every pending
   // booking on it flipping to confirmed must not partially apply.
   const runBooking = db.transaction(() => {
+    // Notify the tour's operator (never yourself, if an operator books their own tour).
+    // Inside the transaction on purpose: a booking that fails and rolls back leaves no notice.
+    const ownerUserId = operatorUserId(tour.operator_id);
+    const tellOperator = (type, params) => {
+      if (ownerUserId && ownerUserId !== resolvedUser.id) notify(ownerUserId, type, params, '/dashboard');
+    };
+    tellOperator('new_booking', { tour_title: tour.title, seats, traveler: resolvedUser.name });
+
     const openGroup = db
       .prepare("SELECT * FROM group_formations WHERE tour_id = ? AND status IN ('waiting','forming')")
       .get(tour_id);
@@ -88,10 +97,14 @@ router.post('/', requireAuth, (req, res) => {
         // This booking tipped the group over - every earlier pending
         // booking on it was already priced flat, so just flip their status.
         const pendingBookings = db
-          .prepare("SELECT id FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
+          .prepare("SELECT id, user_id FROM bookings WHERE group_formation_id = ? AND status = 'pending'")
           .all(openGroup.id);
         const settlePending = db.prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?");
-        pendingBookings.forEach((b) => settlePending.run(b.id));
+        pendingBookings.forEach((b) => {
+          settlePending.run(b.id);
+          notify(b.user_id, 'booking_confirmed', { tour_title: tour.title }, `/bookings/${b.id}`);
+        });
+        tellOperator('group_confirmed', { tour_title: tour.title, count: newCount });
 
         const totalPrice = Math.round(flatPrice * seats * 100) / 100;
         const result = db
@@ -153,6 +166,7 @@ router.post('/', requireAuth, (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(tour_id, totalCost, tour.min_participants, seats, flatPrice, newStatus);
+    if (nowConfirmed) tellOperator('group_confirmed', { tour_title: tour.title, count: seats });
 
     const totalPrice = Math.round(flatPrice * seats * 100) / 100;
     const bookingResult = db
@@ -274,6 +288,18 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     }
   });
   cancel();
+
+  // Tell the other side. If the operator cancelled, the traveler needs to know;
+  // if the traveler cancelled, the operator's seat count just changed.
+  if (isTraveler) {
+    const opUser = tour ? db.prepare('SELECT user_id FROM operators WHERE id = ?').get(tour.operator_id)?.user_id : null;
+    if (opUser && opUser !== req.user.userId) {
+      const who = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.userId);
+      notify(opUser, 'booking_cancelled_by_traveler', { tour_title: tour.title, seats: booking.seats, traveler: who?.name ?? '' }, '/dashboard');
+    }
+  } else {
+    notify(booking.user_id, 'booking_cancelled', { tour_title: tour?.title ?? '' }, `/bookings/${booking.id}`);
+  }
 
   res.json(db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id));
 });
