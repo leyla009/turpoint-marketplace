@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# SQLite database + WAL/SHM sidecars + manual backups - these hold real
+# user data and are rebuilt with `npm run seed`.
+*.db
+*.db-wal
+*.db-shm
+*.db.backup*
+*.db-journal
+
+# Photos uploaded by operators (stored on the Railway volume in production).
+uploads/

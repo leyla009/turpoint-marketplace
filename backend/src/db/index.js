@@ -23,6 +23,14 @@ db.pragma('journal_mode = WAL'); // reduces (does not remove) SQLite's single-wr
  
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
 db.exec(schema);
+
+// One-off data fix, safe to run on every boot: 'Gəbələ' is an old spelling of
+// 'Qəbələ' (the official name), and tours saved with it appeared as a
+// separate destination in the location filter. Does nothing once fixed.
+const fixedLocations = db.prepare("UPDATE tours SET location = 'Qəbələ' WHERE location = 'Gəbələ'").run();
+if (fixedLocations.changes > 0) {
+  console.log(`Data fix applied: ${fixedLocations.changes} tour(s) moved from 'Gəbələ' to 'Qəbələ'.`);
+}
  
 // Operator/traveler dual-mode account model: operators now link back to
 // the user account that owns them via user_id. CREATE TABLE IF NOT EXISTS

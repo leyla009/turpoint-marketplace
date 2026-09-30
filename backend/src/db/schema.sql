@@ -138,4 +138,17 @@ CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_tour_id ON favorites(tour_id);
 
 CREATE INDEX IF NOT EXISTS idx_saved_trips_user_id ON saved_trips(user_id);
- 
+
+-- In-app notifications. `type` + `params` (JSON) are stored instead of a
+-- finished sentence so the frontend can render each one in the reader's own
+-- language (az/en/ru). `link` is an in-app path to open when it is clicked.
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  type TEXT NOT NULL,
+  params TEXT,
+  link TEXT,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, id);

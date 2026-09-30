@@ -4,6 +4,7 @@
 // scheduler in server.js, so expiry no longer depends on an external cron.
 
 import { db } from '../db/index.js';
+import { notify } from './notify.js';
 
 export function expirePastDueGroups() {
   const run = db.transaction(() => {
@@ -16,7 +17,10 @@ export function expirePastDueGroups() {
       .all();
 
     const cancelGroup = db.prepare("UPDATE group_formations SET status = 'cancelled' WHERE id = ?");
-    const pendingFor = db.prepare("SELECT id FROM bookings WHERE group_formation_id = ? AND status = 'pending'");
+    const pendingFor = db.prepare(
+      `SELECT b.id, b.user_id, t.title FROM bookings b JOIN tours t ON t.id = b.tour_id
+       WHERE b.group_formation_id = ? AND b.status = 'pending'`
+    );
     const cancelPending = db.prepare(
       "UPDATE bookings SET status = 'cancelled' WHERE group_formation_id = ? AND status = 'pending'"
     );
@@ -24,7 +28,10 @@ export function expirePastDueGroups() {
     const cancelledBookingIds = [];
     for (const row of expired) {
       cancelGroup.run(row.id);
-      pendingFor.all(row.id).forEach((b) => cancelledBookingIds.push(b.id));
+      pendingFor.all(row.id).forEach((b) => {
+        cancelledBookingIds.push(b.id);
+        notify(b.user_id, 'group_expired', { tour_title: b.title }, `/bookings/${b.id}`);
+      });
       cancelPending.run(row.id);
     }
     return { cancelled_groups: expired.map((r) => r.id), cancelled_bookings: cancelledBookingIds };

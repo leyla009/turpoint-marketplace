@@ -12,6 +12,7 @@ import { useLanguage } from '../context/LanguageContext';
 import type { Locale } from '../lib/translations';
 import AccountMenu, { type AccountSection } from './AccountMenu';
 import AccountDetailModal from './AccountDetailModal';
+import NotificationBell from './NotificationBell';
 
 // Plain language codes, not flag emoji - a flag maps to a country, not a
 // language (and English in particular has no single flag for it), and
@@ -193,6 +194,8 @@ export default function Nav() {
               ))}
             </div>
 
+            {!loading && user && <NotificationBell />}
+
             {!loading && user && (
               <div className="flex items-center gap-2 relative">
                 <button
@@ -254,20 +257,23 @@ export default function Nav() {
             TurPoint
           </span>
         </Link>
-        <div className="flex items-center gap-0.5 bg-white/15 rounded-full p-1">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l}
-              onClick={() => setLocale(l)}
-              title={l.toUpperCase()}
-              aria-label={l.toUpperCase()}
-              className={`h-9 px-3 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
-                locale === l ? 'bg-white text-primary shadow-sm' : 'text-white/80'
-              }`}
-            >
-              {l.toUpperCase()}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {!loading && user && <NotificationBell size="sm" />}
+          <div className="flex items-center gap-0.5 bg-white/15 rounded-full p-1">
+            {LANGUAGES.map((l) => (
+              <button
+                key={l}
+                onClick={() => setLocale(l)}
+                title={l.toUpperCase()}
+                aria-label={l.toUpperCase()}
+                className={`h-9 px-3 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
+                  locale === l ? 'bg-white text-primary shadow-sm' : 'text-white/80'
+                }`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

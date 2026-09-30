@@ -13,6 +13,7 @@
  
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { notify, operatorUserId } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
  
 const REVIEW_RATE_LIMIT_COUNT = 5;
@@ -120,6 +121,11 @@ router.post('/', requireAuth, (req, res) => {
     .run(tour_id, req.user.userId, rating, comment ?? null);
  
   const newOperatorRating = recalculateOperatorRating(tour.operator_id);
+
+  const ownerUserId = operatorUserId(tour.operator_id);
+  if (ownerUserId && ownerUserId !== req.user.userId) {
+    notify(ownerUserId, 'new_review', { tour_title: tour.title, rating }, `/tours/${tour.id}`);
+  }
  
   const review = db.prepare('SELECT * FROM reviews WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json({ ...review, operator_new_rating: newOperatorRating });

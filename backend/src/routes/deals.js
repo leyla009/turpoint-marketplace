@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { notify } from '../lib/notify.js';
 
 const router = Router();
 
@@ -32,6 +33,14 @@ router.post('/', requireAuth, (req, res) => {
   const result = db
     .prepare('INSERT INTO last_minute_deals (tour_id, discount_percent, expires_at) VALUES (?, ?, ?)')
     .run(tour_id, discount_percent, expires_at);
+
+  // Let everyone who saved this tour know it just got cheaper (not the operator themselves).
+  const savedBy = db
+    .prepare('SELECT user_id FROM favorites WHERE tour_id = ? AND user_id != ?')
+    .all(tour_id, req.user.userId);
+  for (const { user_id } of savedBy) {
+    notify(user_id, 'deal_on_favorite', { tour_title: tour.title, percent: discount_percent }, `/tours/${tour.id}`);
+  }
 
   res.status(201).json(db.prepare('SELECT * FROM last_minute_deals WHERE id = ?').get(result.lastInsertRowid));
 });
