@@ -3,9 +3,8 @@
 import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock, ChevronRight, Heart } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
-import { formatAzn } from '@/app/lib/format';
+import { photoSrc } from '../lib/photo';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Categories no longer carry their own saturated gradient - a card without
 // a real photo now falls back to one shared, muted brand treatment (see
@@ -128,7 +127,7 @@ export default function TourCard({
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {tour.photo_url ? (
           <img
-            src={`${API_URL}${tour.photo_url}`}
+            src={photoSrc(tour.photo_url) ?? ''}
             alt={tour.title}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -217,15 +216,15 @@ export default function TourCard({
             <div className="text-right">
               {hasDeal ? (
                 <>
-                  <p className="text-xs text-muted-foreground line-through">{formatAzn(tour.price)}</p>
+                  <p className="text-[10px] text-muted-foreground line-through">AZN {tour.price}</p>
                   <p className="text-sm font-bold text-primary">
-                    {formatAzn(tour.discounted_price)}
+                    AZN {tour.discounted_price}
                     <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
                   </p>
                 </>
               ) : (
                 <p className="text-sm font-bold text-primary">
-                  {formatAzn(tour.price)}
+                  AZN {tour.price}
                   <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
                 </p>
               )}

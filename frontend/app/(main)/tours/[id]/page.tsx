@@ -33,6 +33,7 @@ import WeatherForecast from '@/app/components/WeatherForecast';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 import { instagramUrl as buildInstagramUrl } from '@/app/lib/instagram';
 import Link from 'next/link';
+import { photoSrc } from '@/app/lib/photo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -354,7 +355,7 @@ export default function TourDetail() {
           {/* Hero */}
           <div className="relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden bg-muted">
             {tour.photo_url ? (
-              <img src={`${API_URL}${tour.photo_url}`} alt={tour.title} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={photoSrc(tour.photo_url) ?? ''} alt={tour.title} className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <CategoryMotif category={tour.category} />
             )}
