@@ -8,6 +8,7 @@ import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
+import { titleFromI18n, placeName } from '@/app/lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -22,7 +23,7 @@ function parseFirstStop(route: string | null): { time: string | null; text: stri
   return match ? { time: match[1], text: match[2] } : { time: null, text: firstLine };
 }
 
-function downloadICS(booking: any, pickup: { time: string | null; text: string } | null) {
+function downloadICS(booking: any, pickup: { time: string | null; text: string } | null, title: string) {
   const timeStr = pickup?.time ?? '09:00';
   const [hh, mm] = timeStr.split(':');
   const dateStr = (booking.tour.date as string).replace(/-/g, '');
@@ -32,7 +33,7 @@ function downloadICS(booking: any, pickup: { time: string | null; text: string }
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'BEGIN:VEVENT',
-    `SUMMARY:${booking.tour.title}`,
+    `SUMMARY:${title}`,
     `DTSTART:${dtStart}`,
     `LOCATION:${pickup?.text ?? booking.tour.location ?? ''}`,
     `DESCRIPTION:TurPoint ticket ${booking.ticket_code}`,
@@ -60,6 +61,7 @@ export default function ETicketPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
@@ -75,7 +77,6 @@ export default function ETicketPage() {
   }, [id, token]);
 
   const handleCancel = async () => {
-    if (!window.confirm(t('eTicket.cancelConfirm'))) return;
     setCancelling(true);
     setCancelError('');
     try {
@@ -88,7 +89,16 @@ export default function ETicketPage() {
         setCancelError(data.error || t('eTicket.cancelFailed'));
         return;
       }
-      setBooking((prev: any) => ({ ...prev, status: data.status }));
+      setBooking((prev: any) => ({
+        ...prev,
+        status: data.status,
+        payment_status: data.payment_status,
+        refund_amount: data.refund_amount,
+        refund_percent: data.refund_percent,
+        refund_preview: null,
+        cancel_refund: data.refund,
+      }));
+      setConfirmingCancel(false);
     } catch {
       setCancelError(t('eTicket.cancelFailed'));
     } finally {
@@ -104,6 +114,7 @@ export default function ETicketPage() {
   }
 
   const pickup = parseFirstStop(booking.tour.route);
+  const ticketTitle = titleFromI18n(booking.tour.title, booking.tour.title_i18n, locale);
   const isPending = booking.status === 'pending';
   const isCancelled = booking.status === 'cancelled';
 
@@ -120,7 +131,7 @@ export default function ETicketPage() {
         <div className="bg-primary text-primary-foreground px-5 py-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] tracking-wide opacity-75">{t('eTicket.eTicketLabel')}</p>
-            <p className="font-display font-bold">{booking.tour.title}</p>
+            <p className="font-display font-bold">{ticketTitle}</p>
           </div>
           <Ticket size={20} className="opacity-75" />
         </div>
@@ -140,7 +151,7 @@ export default function ETicketPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">{t('eTicket.pickup')}</p>
-              <p className="text-sm text-foreground">{pickup?.text ?? booking.tour.location}</p>
+              <p className="text-sm text-foreground">{pickup?.text ?? placeName(booking.tour.location, locale)}</p>
             </div>
             <div>
               <p className="text-[10px] font-semibold tracking-wide text-muted-foreground">{t('eTicket.seats')}</p>
@@ -175,21 +186,83 @@ export default function ETicketPage() {
         </div>
       </div>
 
+      {booking.card_last4 && (
+        <p className="text-xs text-muted-foreground text-center mt-3">
+          {t('eTicket.paidWith')} {booking.card_brand === 'visa' ? 'Visa' : booking.card_brand === 'mastercard' ? 'Mastercard' : 'Card'} •••• {booking.card_last4}
+        </p>
+      )}
+
+      {isCancelled && booking.payment_status && (
+        <div className="bg-card border border-border rounded-xl p-4 mt-3 text-sm">
+          {booking.payment_status === 'voided' ? (
+            <p className="text-muted-foreground">{t('eTicket.holdReleased')}</p>
+          ) : Number(booking.refund_amount) > 0 ? (
+            <>
+              <p className="font-semibold text-accent">{t('eTicket.refundedAmount')}: {formatAzn(booking.refund_amount)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t('eTicket.refundedOf', { amount: booking.refund_amount, percent: booking.refund_percent ?? '' })}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">{t('eTicket.noRefundIssued')}</p>
+          )}
+        </div>
+      )}
+
       <button
-        onClick={() => downloadICS(booking, pickup)}
+        onClick={() => downloadICS(booking, pickup, ticketTitle)}
         className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold rounded-xl py-2.5 mt-3 hover:bg-muted transition-colors"
       >
         <CalendarPlus size={15} /> {t('eTicket.addToCalendar')}
       </button>
 
       {booking.status !== 'cancelled' && !isPastDate(booking.tour?.date) && (
-        <button
-          onClick={handleCancel}
-          disabled={cancelling}
-          className="flex items-center justify-center w-full text-sm font-semibold text-red-600 border border-red-200 rounded-xl py-2.5 mt-2 hover:bg-red-50 transition-colors disabled:opacity-60"
-        >
-          {cancelling ? t('eTicket.cancelling') : t('eTicket.cancelBooking')}
-        </button>
+        confirmingCancel ? (
+          <div className="border border-red-200 rounded-xl p-4 mt-2 bg-red-50/50 space-y-3">
+            <p className="text-sm font-semibold text-foreground">{t('eTicket.cancelConfirm')}</p>
+            {booking.refund_preview && (
+              <p className="text-xs text-muted-foreground">
+                {isPending || booking.payment_status === 'authorized'
+                  ? t('eTicket.refundNotCharged')
+                  : booking.refund_preview.percent === 100
+                  ? t('eTicket.refundFull', { amount: booking.refund_preview.amount })
+                  : booking.refund_preview.percent > 0
+                  ? t('eTicket.refundPartial', {
+                      amount: booking.refund_preview.amount,
+                      percent: booking.refund_preview.percent,
+                      retained: booking.refund_preview.retained,
+                    })
+                  : t('eTicket.refundNone', {
+                      days: booking.refund_preview.days_before,
+                      retained: booking.refund_preview.retained,
+                    })}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmingCancel(false)}
+                disabled={cancelling}
+                className="flex-1 text-sm font-semibold border border-border rounded-lg py-2 hover:bg-muted transition-colors"
+              >
+                {t('eTicket.keepBooking')}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex-1 text-sm font-semibold text-white bg-red-600 rounded-lg py-2 hover:bg-red-700 transition-colors disabled:opacity-60"
+              >
+                {cancelling ? t('eTicket.cancelling') : t('eTicket.confirmCancel')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmingCancel(true)}
+            className="flex items-center justify-center w-full text-sm font-semibold text-red-600 border border-red-200 rounded-xl py-2.5 mt-2 hover:bg-red-50 transition-colors"
+          >
+            {t('eTicket.cancelBooking')}
+          </button>
+        )
       )}
       {cancelError && <p className="text-xs text-red-600 mt-2 text-center">{cancelError}</p>}
     </PageContainer>

@@ -7,8 +7,12 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/db/seed.js",
-    "seed:analytics": "node src/db/seedAnalyticsDemo.js", 
-    "seed:photos": "node src/db/seedPhotos.js"
+    "seed:tours": "node src/db/seedRealTours.js",
+    "seed:photos": "node src/db/seedPhotos.js",
+    "seed:analytics": "node src/db/seedAnalyticsDemo.js"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "engines": {
     "node": "20.x"

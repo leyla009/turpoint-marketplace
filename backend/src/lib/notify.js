@@ -20,11 +20,30 @@ export const NOTIFICATION_TYPES = new Set([
   'booking_cancelled_by_traveler', // operator: a traveler cancelled
   'group_confirmed',        // operator: a group reached its minimum
   'new_review',             // operator: your tour got a review
+  'refund_issued',          // traveler: operator cancelled and your money is on its way back
 ]);
+
+// Notifications are stored as type + params, not finished sentences, so each
+// reader sees them in their own language. A tour title is one of those
+// params: when it belongs to a translated tour, store all languages next to
+// it (tour_title_i18n) and let the frontend pick. One lookup here means none
+// of the ~10 call sites has to know about translations.
+function withTitleTranslations(params) {
+  if (typeof params?.tour_title !== 'string' || params.tour_title_i18n) return params;
+  try {
+    const row = db
+      .prepare('SELECT title_i18n FROM tours WHERE title = ? AND title_i18n IS NOT NULL LIMIT 1')
+      .get(params.tour_title);
+    return row ? { ...params, tour_title_i18n: JSON.parse(row.title_i18n) } : params;
+  } catch {
+    return params;
+  }
+}
 
 export function notify(userId, type, params = {}, link = null) {
   try {
     if (!userId || !NOTIFICATION_TYPES.has(type)) return;
+    params = withTitleTranslations(params);
     db.prepare('INSERT INTO notifications (user_id, type, params, link) VALUES (?, ?, ?, ?)')
       .run(userId, type, JSON.stringify(params), link);
   } catch (err) {

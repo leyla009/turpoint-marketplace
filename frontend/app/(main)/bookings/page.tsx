@@ -8,6 +8,7 @@ import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
 import { formatAzn, formatDate } from '@/app/lib/format';
+import { tourTitle, placeName, titleFromI18n } from '@/app/lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -74,7 +75,7 @@ export default function MyBookingsPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{b.tour_title}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{titleFromI18n(b.tour_title, b.tour_title_i18n, locale)}</p>
                     <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                       <MapPin size={11} /> {b.tour_location}
                       <span className="mx-1">·</span>

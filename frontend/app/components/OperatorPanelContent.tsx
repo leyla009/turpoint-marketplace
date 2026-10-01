@@ -12,6 +12,7 @@ import OperatorProfileForm from './OperatorProfileForm';
 import OperatorProfileFormModal from './OperatorProfileFormModal';
 import OperatorAnalytics from './OperatorAnalytics';
 import type { ExistingTour } from './NewTourContent';
+import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -243,7 +244,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="text-sm font-semibold text-foreground truncate">{tour.title}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{tourTitle(tour, locale)}</p>
                     {tour.active_deal && (
                       <span className="flex items-center gap-0.5 text-xs font-semibold text-accent-foreground bg-accent px-1.5 py-0.5 rounded-full shrink-0">
                         <Zap size={9} /> -{tour.active_deal.discount_percent}%
@@ -251,7 +252,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {tour.location} · {formatDate(tour.date, locale)} · {formatAzn(tour.price)}{t('tourCard.perPerson')}
+                    {placeName(tour.location, locale)} · {formatDate(tour.date, locale)} · {formatAzn(tour.price)}{t('tourCard.perPerson')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -274,7 +275,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
                     <Zap size={13} />
                   </button>
                   <button
-                    onClick={() => handleDelete(tour.id, tour.title)}
+                    onClick={() => handleDelete(tour.id, tourTitle(tour, locale))}
                     disabled={deletingId === tour.id}
                     title={t('dashboard.deleteTour')}
                     className="w-7 h-7 rounded-full bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-40 transition-colors flex items-center justify-center shrink-0"

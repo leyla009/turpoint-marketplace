@@ -27,6 +27,8 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
+import { todayInBaku } from '../lib/refundPolicy.js';
 import { attachActiveDeals, attachReviewStats } from './tours.js';
 import { groqJson, GroqError, groqConfigured, GROQ_EXTRACT_MODEL, GROQ_ITINERARY_MODEL } from '../lib/groq.js';
 
@@ -35,6 +37,28 @@ const router = Router();
 const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
 const LANGUAGE_NAMES = { az: 'Azerbaijani', en: 'English', ru: 'Russian' };
+
+// Prices in the database are AZN. The extraction step can return a budget in
+// EUR/USD, which used to be compared to AZN prices as if it were AZN. USD is
+// pegged (1.70) in practice; EUR floats, so both can be overridden by env
+// without a code change. These are approximate planning rates, not live ones.
+const AZN_PER_UNIT = {
+  AZN: 1,
+  USD: Number(process.env.RATE_USD_AZN) || 1.7,
+  EUR: Number(process.env.RATE_EUR_AZN) || 2.0,
+};
+
+function budgetInAzn(extracted) {
+  const raw = extracted?.budgetMax;
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return null;
+  const rate = AZN_PER_UNIT[extracted?.currency] ?? 1;
+  return Math.round(raw * rate * 100) / 100;
+}
+
+function travelerCount(extracted) {
+  const n = Math.floor(Number(extracted?.travelers));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 50) : 1;
+}
 
 // A handful of common English/transliterated spellings for real TurPoint
 // destinations, so "Baku"/"Gabala"/"Sheki" etc. in a user's message or the
@@ -145,7 +169,7 @@ You will be given the traveler's structured requirements and a list of REAL cand
 Build a realistic day-by-day itinerary:
 - A tour's "duration_days" occupies that many consecutive days - never schedule two full-day tours to overlap on the same day.
 - Respect the traveler count against each tour's max_participants.
-- Prefer staying within budgetMax if one was given; if you must exceed it to build a sensible trip, say so plainly in "notes".
+- budgetMax (if given) is in AZN and covers the WHOLE party; every candidate's "price_per_person" must be multiplied by "travelers" to get its real cost. Prefer staying within budgetMax; if you must exceed it to build a sensible trip, say so plainly in "notes".
 - If specific travel dates were given, prefer candidates whose own "date" falls in that window, and mention in "notes" if a good match falls outside it.
 - Match the traveler's stated travelStyle: "relaxed" means fewer, longer activities and real rest time between them; "packed" means making full use of the available days.
 - If the traveler is editing a previous itinerary (given to you as "currentItinerary"), modify it according to their new instruction rather than starting over from nothing, keeping days/activities that are still appropriate.
@@ -200,7 +224,7 @@ async function buildItinerary({ locale, extracted, candidates, currentItinerary,
       title: t.title,
       location: t.location,
       category: t.category,
-      price: t.discounted_price ?? t.price,
+      price_per_person: t.discounted_price ?? t.price,
       duration_days: t.duration_days,
       max_participants: t.max_participants,
       rating: t.rating,
@@ -221,14 +245,21 @@ async function buildItinerary({ locale, extracted, candidates, currentItinerary,
 // destination) before giving up, so a slightly-too-narrow request still
 // surfaces honest "closest" alternatives instead of an empty result on the
 // first try - real tours only, at every step.
-function findCandidateTours(extracted) {
+function findCandidateTours(extracted, { travelers = 1, budgetAzn = null } = {}) {
   const destinations = resolveDestinations(extracted?.destinations);
   const interests = (extracted?.interests ?? []).filter((i) => CATEGORIES.includes(i));
-  const budgetMax = typeof extracted?.budgetMax === 'number' ? extracted.budgetMax : null;
+  const today = todayInBaku();
 
-  function query({ useDestinations, useBudget }) {
-    let sql = 'SELECT * FROM tours WHERE 1=1';
-    const params = [];
+  // Every query only ever looks at tours that have NOT happened yet (a tour
+  // departing today is still bookable, same rule as POST /api/bookings) and,
+  // unless we are in the last-resort fallback, that have room for the party.
+  function query({ useDestinations, useBudget, useCapacity = true }) {
+    let sql = 'SELECT * FROM tours WHERE date >= ?';
+    const params = [today];
+    if (useCapacity) {
+      sql += ' AND max_participants >= ?';
+      params.push(travelers);
+    }
     if (useDestinations && destinations.length > 0) {
       sql += ` AND location IN (${destinations.map(() => '?').join(',')})`;
       params.push(...destinations);
@@ -237,9 +268,11 @@ function findCandidateTours(extracted) {
       sql += ` AND category IN (${interests.map(() => '?').join(',')})`;
       params.push(...interests);
     }
-    if (useBudget && budgetMax !== null) {
-      sql += ' AND price <= ?';
-      params.push(budgetMax * 1.15); // small headroom - a deal can bring the effective price back under budget
+    if (useBudget && budgetAzn !== null) {
+      // The budget covers the whole party, so one tour costs price x travelers.
+      // Small headroom - a deal can bring the effective price back under budget.
+      sql += ' AND price * ? <= ?';
+      params.push(travelers, budgetAzn * 1.15);
     }
     sql += ' ORDER BY date ASC LIMIT 40';
     return db.prepare(sql).all(...params);
@@ -247,7 +280,7 @@ function findCandidateTours(extracted) {
 
   let rows = query({ useDestinations: true, useBudget: true });
   let widened = null;
-  if (rows.length === 0 && budgetMax !== null) {
+  if (rows.length === 0 && budgetAzn !== null) {
     rows = query({ useDestinations: true, useBudget: false });
     if (rows.length > 0) widened = 'budget';
   }
@@ -256,7 +289,7 @@ function findCandidateTours(extracted) {
     if (rows.length > 0) widened = 'destination';
   }
   if (rows.length === 0) {
-    rows = db.prepare('SELECT * FROM tours ORDER BY date ASC LIMIT 40').all();
+    rows = db.prepare('SELECT * FROM tours WHERE date >= ? ORDER BY date ASC LIMIT 40').all(today);
     if (rows.length > 0) widened = 'everything';
   }
 
@@ -264,8 +297,13 @@ function findCandidateTours(extracted) {
 }
 
 function cheapestAlternatives(excludeIds = []) {
-  const placeholders = excludeIds.length ? `WHERE id NOT IN (${excludeIds.map(() => '?').join(',')})` : '';
-  const rows = db.prepare(`SELECT * FROM tours ${placeholders} ORDER BY price ASC LIMIT 3`).all(...excludeIds);
+  const params = [todayInBaku()];
+  let where = 'WHERE date >= ?';
+  if (excludeIds.length) {
+    where += ` AND id NOT IN (${excludeIds.map(() => '?').join(',')})`;
+    params.push(...excludeIds);
+  }
+  const rows = db.prepare(`SELECT * FROM tours ${where} ORDER BY price ASC LIMIT 3`).all(...params);
   return attachReviewStats(attachActiveDeals(rows));
 }
 
@@ -335,6 +373,7 @@ function hydrateActivity(tour) {
   return {
     tourId: tour.id,
     title: tour.title,
+    titleI18n: tour.title_i18n ?? null,
     location: tour.location,
     category: tour.category,
     durationDays: tour.duration_days,
@@ -371,7 +410,7 @@ function budgetNote(locale, estimatedCost, budgetMax) {
   return null;
 }
 
-router.post('/chat', async (req, res) => {
+router.post('/chat', asyncHandler(async (req, res) => {
   const { message, locale = 'en', structured, history, currentItinerary } = req.body ?? {};
 
   if (!message || typeof message !== 'string' || !message.trim()) {
@@ -411,7 +450,13 @@ router.post('/chat', async (req, res) => {
     });
   }
 
-  const { candidates, widened } = findCandidateTours(extracted);
+  // Normalised once, then used for filtering, for the model and for the totals
+  // - so a "USD 100 for 4 people" request is compared in AZN, for 4 people.
+  const travelers = travelerCount(extracted);
+  const budgetAzn = budgetInAzn(extracted);
+  const effective = { ...extracted, travelers, budgetMax: budgetAzn, currency: 'AZN' };
+
+  const { candidates, widened } = findCandidateTours(extracted, { travelers, budgetAzn });
 
   if (candidates.length === 0) {
     return res.json({
@@ -424,7 +469,7 @@ router.post('/chat', async (req, res) => {
 
   let modelItinerary;
   try {
-    modelItinerary = await buildItinerary({ locale: safeLocale, extracted, candidates, currentItinerary, message });
+    modelItinerary = await buildItinerary({ locale: safeLocale, extracted: effective, candidates, currentItinerary, message });
   } catch (err) {
     const reason = err instanceof GroqError ? err.reason : 'generic';
     return res.json({ phase: 'error', message: friendlyError(safeLocale, reason), error: { reason } });
@@ -465,11 +510,12 @@ router.post('/chat', async (req, res) => {
   // actually pay and visit.
   const uniqueTourIds = new Set(allActivities.map((a) => a.tourId));
   const uniqueDestinations = new Set(allActivities.map((a) => a.location).filter(Boolean));
+  // Total for the whole party (per-person price x travelers), in AZN.
   const estimatedCost =
     Math.round(
       [...uniqueTourIds]
         .map((id) => candidatesById.get(id))
-        .reduce((sum, t) => sum + (t.discounted_price ?? t.price), 0) * 100
+        .reduce((sum, t) => sum + (t.discounted_price ?? t.price) * travelers, 0) * 100
     ) / 100;
 
   const notes = Array.isArray(modelItinerary?.notes) ? modelItinerary.notes.filter((n) => typeof n === 'string') : [];
@@ -484,13 +530,13 @@ router.post('/chat', async (req, res) => {
     };
     notes.push(table[safeLocale] || table.en);
   }
-  const bNote = budgetNote(safeLocale, estimatedCost, extracted.budgetMax);
+  const bNote = budgetNote(safeLocale, estimatedCost, budgetAzn);
   if (bNote) notes.push(bNote);
 
   const itinerary = {
     tripSummary: typeof modelItinerary?.tripSummary === 'string' ? modelItinerary.tripSummary : '',
     travelerType: extracted.travelerType || 'unspecified',
-    travelers: extracted.travelers || 1,
+    travelers,
     days,
     estimatedCost,
     toursCount: uniqueTourIds.size,
@@ -499,7 +545,7 @@ router.post('/chat', async (req, res) => {
   };
 
   res.json({ phase: 'itinerary', message: itinerary.tripSummary, extracted, itinerary });
-});
+}));
 
 // --- Saved trips -----------------------------------------------------
 

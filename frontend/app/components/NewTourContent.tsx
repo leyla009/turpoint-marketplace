@@ -75,7 +75,11 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
   const [price, setPrice] = useState(tour ? String(tour.price) : '');
   const [departDate, setDepartDate] = useState(tour?.date ?? '');
   const [returnDate, setReturnDate] = useState(tour ? addDays(tour.date, tour.duration_days) : '');
+  // max = the seat count; min = how many must book for the trip to go ahead.
+  // They used to be one field sent as BOTH values, which made every tour need
+  // to sell out before it confirmed. Defaults mirror the demo seed (min 3, max 10).
   const [seatCount, setSeatCount] = useState(tour ? String(tour.max_participants) : '10');
+  const [minSeats, setMinSeats] = useState(tour ? String(tour.min_participants ?? 1) : '3');
   const [features, setFeatures] = useState<string[]>(parseCommaList(tour?.features));
   const [vehicleFeatures, setVehicleFeatures] = useState<string[]>(parseCommaList(tour?.vehicle_features));
   const [submitting, setSubmitting] = useState(false);
@@ -133,6 +137,16 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
       setError(t('tourForm.returnBeforeDepartError'));
       return;
     }
+    const maxN = Number(seatCount);
+    const minN = Number(minSeats);
+    if (!Number.isInteger(maxN) || maxN < 1 || !Number.isInteger(minN) || minN < 1) {
+      setError(t('tourForm.requiredError'));
+      return;
+    }
+    if (minN > maxN) {
+      setError(t('tourForm.minExceedsMaxError'));
+      return;
+    }
     setSubmitting(true);
     try {
       const body = {
@@ -143,8 +157,8 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
         price: Number(price),
         date: departDate,
         duration_days: Math.max(1, daysBetween(departDate, returnDate)),
-        min_participants: Number(seatCount),
-        max_participants: Number(seatCount),
+        min_participants: minN,
+        max_participants: maxN,
         interest_score: buildInterestScore(category),
         features: features.join(','),
         vehicle_features: vehicleFeatures.join(','),
@@ -295,6 +309,19 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
               className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-foreground block mb-1">{t('tourForm.minSeats')}</label>
+          <input
+            type="number"
+            min="1"
+            max={seatCount || undefined}
+            value={minSeats}
+            onChange={(e) => setMinSeats(e.target.value)}
+            className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">{t('tourForm.minSeatsHint')}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

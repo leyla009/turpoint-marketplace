@@ -5,6 +5,7 @@
 
 import { db } from '../db/index.js';
 import { notify } from './notify.js';
+import { voidHold } from './payments.js';
 
 export function expirePastDueGroups() {
   const run = db.transaction(() => {
@@ -30,9 +31,12 @@ export function expirePastDueGroups() {
       cancelGroup.run(row.id);
       pendingFor.all(row.id).forEach((b) => {
         cancelledBookingIds.push(b.id);
+        voidHold(b.id, 'group never reached its minimum');
         notify(b.user_id, 'group_expired', { tour_title: b.title }, `/bookings/${b.id}`);
       });
       cancelPending.run(row.id);
+      // (holds voided above; cancelled_by marks these as system cancellations)
+      db.prepare("UPDATE bookings SET cancelled_at = CURRENT_TIMESTAMP, cancelled_by = 'system', refund_percent = 100 WHERE group_formation_id = ? AND status = 'cancelled' AND cancelled_at IS NULL").run(row.id);
     }
     return { cancelled_groups: expired.map((r) => r.id), cancelled_bookings: cancelledBookingIds };
   });

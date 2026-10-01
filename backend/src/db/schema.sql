@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS tours (
   features TEXT,               -- comma-separated slugs: breakfast,evening_tea,guide,road_games,hotel_stay
   vehicle_features TEXT,       -- comma-separated slugs: ac,wifi,luggage,charging - set per tour, not per operator
   photo_url TEXT,
+  title_i18n TEXT,             -- JSON {"az":..,"en":..,"ru":..}; null for operator-written tours (title is used as-is)
+  description_i18n TEXT,       -- JSON, same shape: the short summary
+  details_i18n TEXT,           -- JSON {"az":{highlights,description,includes,excludes,notSuitable,bring,notAllowed,know,meeting},"en":..,"ru":..}
+  facts TEXT,                  -- JSON, language-neutral: {duration_hours, guide_languages, pickup, private}
   click_count INTEGER DEFAULT 0,   -- bumped every time GET /api/tours/:id is viewed - feeds "Populyar turlar"
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -152,3 +156,21 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, id);
+
+
+-- Payments ledger (simulated gateway, see lib/payments.js). One immutable row
+-- per money movement on a booking: charge | hold | capture | refund | void.
+-- Only the card brand + last 4 digits are kept - never the full number.
+CREATE TABLE IF NOT EXISTS payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id INTEGER NOT NULL REFERENCES bookings(id),
+  type TEXT NOT NULL,
+  amount REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'succeeded',
+  provider_ref TEXT,
+  card_last4 TEXT,
+  card_brand TEXT,
+  note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);

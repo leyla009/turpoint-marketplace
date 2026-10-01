@@ -20,6 +20,13 @@ import {
   Pencil,
   Trash2,
   Ticket,
+  Check,
+  X,
+  Clock,
+  Languages,
+  Car,
+  ShieldCheck,
+  Info,
 } from 'lucide-react';
 import { CATEGORY_STYLE, CategoryMotif } from '@/app/components/TourCard';
 import { useAuth } from '@/app/context/AuthContext';
@@ -34,6 +41,7 @@ import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 import { instagramUrl as buildInstagramUrl } from '@/app/lib/instagram';
 import Link from 'next/link';
 import { photoSrc } from '@/app/lib/photo';
+import { tourTitle, tourSummary, tourDetails, tourFacts, placeName } from '@/app/lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -42,6 +50,10 @@ interface Tour {
   operator_id: number;
   title: string;
   description: string | null;
+  title_i18n?: string | null;
+  description_i18n?: string | null;
+  details_i18n?: string | null;
+  facts?: string | null;
   location: string | null;
   category: string | null;
   price: number;
@@ -105,6 +117,7 @@ export default function TourDetail() {
   const [isFavorited, setIsFavorited] = useState(false);
 
   const [loadingTour, setLoadingTour] = useState(true);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -311,12 +324,32 @@ export default function TourDetail() {
 
   const effectivePrice = tour?.discounted_price ?? tour?.price;
   const tourFeatures = parseFeatures(tour?.features);
+  // Text in the reader's language (falls back to the plain columns for tours
+  // an operator wrote by hand - see lib/tourContent.ts).
+  const title = tour ? tourTitle(tour, locale) : '';
+  const summary = tour ? tourSummary(tour, locale) : '';
+  const details = tour ? tourDetails(tour, locale) : null;
+  const facts = tour ? tourFacts(tour) : {};
+  const factItems: { Icon: typeof Clock; text: string }[] = [];
+  if (facts.duration_hours) factItems.push({ Icon: Clock, text: t('facts.durationHours', { count: facts.duration_hours }) });
+  if (facts.guide_languages?.length) {
+    const languages = facts.guide_languages
+      .map((code) => (['az', 'en', 'ru', 'tr', 'ar'].includes(code) ? t(`lang.${code}` as TranslationKey) : code))
+      .join(', ');
+    factItems.push({ Icon: Languages, text: t('facts.guide', { languages }) });
+  }
+  if (facts.pickup) factItems.push({ Icon: Car, text: t('facts.pickup') });
+  if (facts.private) factItems.push({ Icon: Users, text: t('facts.private') });
+  // Matches the refund tiers in backend/src/lib/refundPolicy.js (7+ days = 100%).
+  factItems.push({ Icon: ShieldCheck, text: t('facts.freeCancel') });
+  const paragraphs = details?.description ?? [];
+  const visibleParagraphs = showFullDescription ? paragraphs : paragraphs.slice(0, 2);
   // Pre-filled so the operator immediately knows which tour and date the
   // message is about.
   const whatsappUrl =
     operator?.phone && /^\+994\d{9}$/.test(operator.phone)
       ? `https://wa.me/${operator.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-          t('tourDetail.whatsappPrefill', { title: tour?.title ?? '', date: formatDate(tour?.date, locale) })
+          t('tourDetail.whatsappPrefill', { title, date: formatDate(tour?.date, locale) })
         )}`
       : null;
   const instagramUrl = buildInstagramUrl(operator?.instagram);
@@ -355,7 +388,7 @@ export default function TourDetail() {
           {/* Hero */}
           <div className="relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden bg-muted">
             {tour.photo_url ? (
-              <img src={photoSrc(tour.photo_url) ?? ''} alt={tour.title} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={photoSrc(tour.photo_url) ?? ''} alt={title} className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <CategoryMotif category={tour.category} />
             )}
@@ -375,7 +408,7 @@ export default function TourDetail() {
               className="text-2xl sm:text-3xl font-bold text-foreground"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              {tour.title}
+              {title}
             </h1>
             <button
               onClick={toggleFavorite}
@@ -389,7 +422,7 @@ export default function TourDetail() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4">
             {tour.location && (
               <span className="flex items-center gap-1">
-                <MapPin size={14} /> {tour.location}
+                <MapPin size={14} /> {placeName(tour.location, locale)}
               </span>
             )}
             <span className="flex items-center gap-1">
@@ -407,6 +440,15 @@ export default function TourDetail() {
               </span>
             )}
           </div>
+
+          {/* Quick facts (duration, guide languages, pickup, cancellation) */}
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-foreground/80 mb-4">
+            {factItems.map(({ Icon, text }) => (
+              <li key={text} className="flex items-center gap-1.5">
+                <Icon size={13} className="text-primary shrink-0" /> {text}
+              </li>
+            ))}
+          </ul>
 
           {/* Operator - a compact summary; the full profile (photo,
               description, languages, phone, Instagram) opens in
@@ -442,18 +484,72 @@ export default function TourDetail() {
             <OperatorProfileModal operator={operator} onClose={() => setShowOperatorModal(false)} />
           )}
 
-          {/* Description */}
-          {tour.description && (
+          {/* About: short summary, highlights, then the full description */}
+          {(summary || details) && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.aboutTour')}</h2>
-              <p className="text-sm text-foreground/80 leading-relaxed">{tour.description}</p>
+              {summary && <p className="text-sm text-foreground/80 leading-relaxed">{summary}</p>}
+
+              {details && details.highlights.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.highlights')}</h3>
+                  <ul className="space-y-1.5">
+                    {details.highlights.map((h) => (
+                      <li key={h} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <Check size={15} className="text-primary shrink-0 mt-0.5" /> {h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {paragraphs.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {visibleParagraphs.map((p, i) => (
+                    <p key={i} className="text-sm text-foreground/80 leading-relaxed">{p}</p>
+                  ))}
+                  {paragraphs.length > 2 && (
+                    <button
+                      onClick={() => setShowFullDescription((v) => !v)}
+                      className="text-xs font-semibold text-accent hover:underline"
+                    >
+                      {showFullDescription ? t('tourDetail.showLess') : t('tourDetail.showMore')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {/* What's included - the tour's own feature tags (breakfast, guide,
               etc.), previously only used to power the homepage filter chips
               and never actually shown to someone deciding whether to book. */}
-          {tourFeatures.length > 0 && (
+          {details && (details.includes.length > 0 || details.excludes.length > 0) && (
+            <div className="mb-5">
+              <h2 className="text-sm font-semibold text-foreground mb-2">{t('tourDetail.whatsIncluded')}</h2>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                {details.includes.map((item) => (
+                  <li key={`in-${item}`} className="flex items-start gap-2 text-sm text-foreground/80">
+                    <Check size={15} className="text-primary shrink-0 mt-0.5" /> {item}
+                  </li>
+                ))}
+              </ul>
+              {details.excludes.length > 0 && (
+                <>
+                  <h3 className="text-sm font-semibold text-foreground mt-4 mb-2">{t('tourDetail.notIncluded')}</h3>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                    {details.excludes.map((item) => (
+                      <li key={`ex-${item}`} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <X size={15} className="text-danger shrink-0 mt-0.5" /> {item}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {!details && tourFeatures.length > 0 && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-foreground mb-2">{t('tourDetail.whatsIncluded')}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -469,6 +565,40 @@ export default function TourDetail() {
             </div>
           )}
 
+          {/* Important information (same sections GetYourGuide-style listings use) */}
+          {details && (
+            <div className="mb-5 space-y-4">
+              {details.meeting && (
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.meetingPoint')}</h2>
+                  <p className="flex items-start gap-2 text-sm text-foreground/80 leading-relaxed">
+                    <MapPin size={15} className="text-primary shrink-0 mt-0.5" /> {details.meeting}
+                  </p>
+                </div>
+              )}
+              {([
+                ['tourDetail.notSuitableFor', details.notSuitable],
+                ['tourDetail.whatToBring', details.bring],
+                ['tourDetail.notAllowed', details.notAllowed],
+                ['tourDetail.knowBeforeYouGo', details.know],
+              ] as [TranslationKey, string[]][])
+                .filter(([, items]) => items.length > 0)
+                .map(([key, items]) => (
+                  <div key={key}>
+                    <h2 className="text-sm font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                      {key === 'tourDetail.knowBeforeYouGo' && <Info size={14} className="text-primary" />}
+                      {t(key)}
+                    </h2>
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-foreground/80">
+                      {items.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          )}
+
           {/* Weather forecast for the tour's days (Open-Meteo, no API key).
               Renders nothing once the tour is over or the place is unknown. */}
           <WeatherForecast location={tour.location} date={tour.date} durationDays={tour.duration_days} />
@@ -478,7 +608,7 @@ export default function TourDetail() {
           {!isPast && (
             <GroupInviteCard
               tourId={tour.id}
-              tourTitle={tour.title}
+              tourTitle={title}
               minParticipants={tour.min_participants}
               maxParticipants={tour.max_participants}
             />
@@ -750,7 +880,7 @@ export default function TourDetail() {
           <div className="space-y-2 text-sm text-foreground/80 mb-4 pb-4 border-b border-border">
             {tour.location && (
               <p className="flex items-center gap-2">
-                <MapPin size={14} className="text-muted-foreground shrink-0" /> {tour.location}
+                <MapPin size={14} className="text-muted-foreground shrink-0" /> {placeName(tour.location, locale)}
               </p>
             )}
             <p className="flex items-center gap-2">
