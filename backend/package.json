@@ -9,7 +9,8 @@
     "seed": "node src/db/seed.js",
     "seed:tours": "node src/db/seedRealTours.js",
     "seed:photos": "node src/db/seedPhotos.js",
-    "seed:analytics": "node src/db/seedAnalyticsDemo.js"
+    "seed:analytics": "node src/db/seedAnalyticsDemo.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": "20.x"
@@ -35,5 +36,8 @@
   "allowScripts": {
     "@scarf/scarf@1.4.0": true,
     "better-sqlite3@12.11.1": true
+  },
+  "devDependencies": {
+    "supertest": "^7.3.0"
   }
 }
