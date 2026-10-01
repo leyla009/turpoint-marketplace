@@ -1341,6 +1341,66 @@
           }
         }
       }
+    },
+    "/bookings/{id}/ticket.pdf": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Download the booking's PDF ticket / receipt",
+        "description": "Styled A4 pass with QR code, passenger, tour, payment and refund-policy info. Only the traveler who made the booking can download it. Cancelled tickets carry a CANCELLED watermark.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "az",
+                "en",
+                "ru"
+              ],
+              "default": "az"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF file",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "description": "Not your booking"
+          },
+          "404": {
+            "description": "Booking or tour not found"
+          }
+        }
+      }
     }
   }
 }

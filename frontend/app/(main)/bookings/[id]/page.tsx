@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Ticket, CalendarPlus, Clock, CheckCircle2, FileDown } from 'lucide-react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
@@ -63,6 +63,8 @@ export default function ETicketPage() {
   const [cancelling, setCancelling] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -103,6 +105,30 @@ export default function ETicketPage() {
       setCancelError(t('eTicket.cancelFailed'));
     } finally {
       setCancelling(false);
+    }
+  };
+
+  // The PDF endpoint needs the Authorization header, so a plain <a href> can't
+  // reach it: fetch it as a blob and trigger the download from memory.
+  const handleDownloadPdf = async () => {
+    setPdfBusy(true);
+    setPdfError('');
+    try {
+      const res = await fetch(`${API_URL}/api/bookings/${id}/ticket.pdf?lang=${locale}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('pdf');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${booking.ticket_code}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setPdfError(t('eTicket.pdfFailed'));
+    } finally {
+      setPdfBusy(false);
     }
   };
 
@@ -208,6 +234,15 @@ export default function ETicketPage() {
           )}
         </div>
       )}
+
+      <button
+        onClick={handleDownloadPdf}
+        disabled={pdfBusy}
+        className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold rounded-xl py-2.5 mt-3 hover:opacity-90 transition-opacity disabled:opacity-60"
+      >
+        <FileDown size={15} /> {t('eTicket.downloadPdf')}
+      </button>
+      {pdfError && <p className="text-xs text-red-600 mt-2 text-center">{pdfError}</p>}
 
       <button
         onClick={() => downloadICS(booking, pickup, ticketTitle)}

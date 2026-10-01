@@ -15,6 +15,7 @@ import { attachActiveDeals } from './tours.js';
 import { notify, operatorUserId } from '../lib/notify.js';
 import { validateCard, authorize, recordInitialPayment, captureHold, voidHold, refundPayment } from '../lib/payments.js';
 import { computeRefund, REFUND_TIERS } from '../lib/refundPolicy.js';
+import { renderTicketPdf, TICKET_LANGS } from '../lib/ticketPdf.js';
  
 const router = Router();
  
@@ -284,6 +285,38 @@ router.get('/:id', requireAuth, (req, res) => {
   res.json({ ...booking, tour, payments, refund_preview });
 });
  
+// Downloadable PDF pass / receipt for one booking. Same ownership rule as
+// GET /:id - only the traveler who made the booking can download it.
+// ?lang=az|en|ru picks the label language (default az).
+router.get('/:id/ticket.pdf', requireAuth, (req, res) => {
+  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'booking not found' });
+  if (booking.user_id !== req.user.userId) {
+    return res.status(403).json({ error: 'you can only download your own tickets' });
+  }
+  const tour = db
+    .prepare(
+      `SELECT t.title, t.title_i18n, t.date, t.location, t.route, o.name AS operator_name
+       FROM tours t JOIN operators o ON o.id = t.operator_id WHERE t.id = ?`
+    )
+    .get(booking.tour_id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+  const user = db.prepare('SELECT name, email FROM users WHERE id = ?').get(booking.user_id);
+
+  const lang = TICKET_LANGS.includes(req.query.lang) ? req.query.lang : 'az';
+  const doc = renderTicketPdf({ booking, tour, user: user ?? { name: '' }, lang });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${booking.ticket_code}.pdf"`);
+  res.setHeader('Cache-Control', 'private, no-store');
+  doc.on('error', (err) => {
+    console.error('ticket pdf failed', err);
+    if (!res.headersSent) res.status(500).json({ error: 'could not generate ticket' });
+    else res.end();
+  });
+  doc.pipe(res);
+});
+
 // Cancel a booking. Allowed for the traveler who made it, or for the
 // operator who owns the tour (e.g. before deleting a tour). Only bookings
 // that are still confirmed/pending, on a tour that hasn't happened yet.
