@@ -12,16 +12,20 @@ import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';
 import { JWT_SECRET } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
  
 const router = Router();
 const JWT_EXPIRES_IN = '7d';
  
-router.post('/signup', async (req, res) => {
+router.post('/signup', asyncHandler(async (req, res) => {
   const { name, password } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email, and password are required' });
+  }
+  if (typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'name must be a non-empty string' });
   }
   if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'a valid email address is required' });
@@ -38,7 +42,7 @@ router.post('/signup', async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
   const result = db
     .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
-    .run(name, email, passwordHash);
+    .run(name.trim(), email, passwordHash);
  
   const user = db
     .prepare('SELECT id, name, email, created_at FROM users WHERE id = ?')
@@ -46,14 +50,19 @@ router.post('/signup', async (req, res) => {
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
  
   res.status(201).json({ user, token });
-});
+}));
  
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const { password } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
+  }
+  // A non-string here used to make bcrypt.compare / the SQLite bind throw
+  // inside this async handler and take the whole server down.
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'email and password must be strings' });
   }
  
   // lower(email) so accounts created before normalization (mixed case) can still log in.
@@ -71,7 +80,7 @@ router.post('/login', async (req, res) => {
   const { password_hash, ...safeUser } = user;
  
   res.json({ user: safeUser, token });
-});
+}));
  
 // "Who am I" - lets the frontend check login state from a stored token.
 router.get('/me', requireAuth, (req, res) => {
@@ -91,10 +100,15 @@ router.get('/me', requireAuth, (req, res) => {
 // id_number ("Sənədlərim") is the traveler's saved ID card number, kept on
 // file so it doesn't need to be retyped for every reservation - sending an
 // empty string clears it.
-router.put('/me', requireAuth, async (req, res) => {
+router.put('/me', requireAuth, asyncHandler(async (req, res) => {
   const { name, password, id_number } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
 
+  for (const [field, value] of Object.entries({ name, email, password, id_number })) {
+    if (value !== undefined && typeof value !== 'string') {
+      return res.status(400).json({ error: `${field} must be a string` });
+    }
+  }
   if (name !== undefined && !name.trim()) {
     return res.status(400).json({ error: 'name cannot be empty' });
   }
@@ -129,6 +143,6 @@ router.put('/me', requireAuth, async (req, res) => {
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
   res.json({ user, token });
-});
+}));
 
 export default router;

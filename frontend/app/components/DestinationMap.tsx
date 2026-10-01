@@ -6,6 +6,8 @@ import 'leaflet/dist/leaflet.css';
 import { Maximize2, X } from 'lucide-react';
 import type { ApiTour } from './TourCard';
 import { useLanguage } from '../context/LanguageContext';
+import type { Locale } from '../lib/translations';
+import { tourTitle, placeName } from '../lib/tourContent';
 
 // Known coordinates for Azerbaijan's common tour destinations. Keyed by a
 // normalized city name (lowercase, no country suffix) so it matches
@@ -14,6 +16,12 @@ import { useLanguage } from '../context/LanguageContext';
 // adding a new destination later is a one-line addition here.
 const CITY_COORDS: Record<string, [number, number]> = {
   baku: [40.4093, 49.8671],
+  bakı: [40.4093, 49.8671],
+  şamaxı: [40.6297, 48.6367],
+  ismayıllı: [40.7844, 48.1522],
+  'i̇smayıllı': [40.7844, 48.1522],
+  şirvan: [39.9379, 48.9206],
+  xankəndi: [39.8153, 46.7519],
   goygol: [40.5667, 46.3167],
   qobustan: [40.1145, 49.4159],
   sheki: [41.1919, 47.1706],
@@ -47,7 +55,8 @@ function createTourMap(
   container: HTMLDivElement,
   tours: ApiTour[],
   viewTourLabel: string,
-  scrollWheelZoom: boolean
+  scrollWheelZoom: boolean,
+  locale: Locale
 ) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const L = require('leaflet');
@@ -107,8 +116,8 @@ function createTourMap(
       String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
     const popupHtml = `
       <div style="font-family: 'Nunito', sans-serif; min-width: 160px;">
-        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${esc(tour.title)}</p>
-        <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${esc(tour.location)}</p>
+        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${esc(tourTitle(tour, locale))}</p>
+        <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${esc(placeName(tour.location, locale))}</p>
         <p style="font-weight:700;font-size:13px;color:#1B3D2F;margin:0 0 6px;">AZN ${esc(price)}<span style="font-weight:400;font-size:10px;color:#7A7266;">/pp</span></p>
         <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#C95E18;text-decoration:none;">${viewTourLabel}</a>
       </div>`;
@@ -144,7 +153,7 @@ export default function DestinationMap({
   // Small embedded map - scroll-to-zoom stays off here.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    mapRef.current = createTourMap(containerRef.current, tours, t('map.viewTour'), false);
+    mapRef.current = createTourMap(containerRef.current, tours, t('map.viewTour'), false, locale);
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
@@ -158,7 +167,7 @@ export default function DestinationMap({
   // touchpad without it fighting the page's own scrolling.
   useEffect(() => {
     if (!expanded || !modalContainerRef.current || modalMapRef.current) return;
-    const map = createTourMap(modalContainerRef.current, tours, t('map.viewTour'), true);
+    const map = createTourMap(modalContainerRef.current, tours, t('map.viewTour'), true, locale);
     modalMapRef.current = map;
     // The modal (and its size) only exists from this render onward, so
     // Leaflet's initial size read can be stale - nudge it once the browser

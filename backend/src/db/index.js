@@ -88,6 +88,16 @@ if (!tourVehicleColumns.includes('photo_url')) {
   console.log('Migration applied: tours.photo_url added.');
 }
 
+// Translated tour content (see db/seedTourData.js): title/summary/details in
+// az + en + ru, plus language-neutral facts. All nullable - operator-written
+// tours keep using the plain title/description columns.
+for (const col of ['title_i18n', 'description_i18n', 'details_i18n', 'facts']) {
+  if (!tourVehicleColumns.includes(col)) {
+    db.exec(`ALTER TABLE tours ADD COLUMN ${col} TEXT`);
+    console.log(`Migration applied: tours.${col} added.`);
+  }
+}
+
 // Phone verification (mocked - see routes/operators.js for the fixed dev
 // code): tracks a pending code/expiry against the operator, separate from
 // the phone column itself, so a number isn't marked verified until its
@@ -106,6 +116,31 @@ if (!tourVehicleColumns.includes('click_count')) {
   db.exec('ALTER TABLE tours ADD COLUMN click_count INTEGER DEFAULT 0');
   console.log('Migration applied: tours.click_count added.');
 }
+
+// Payments + refunds: per-booking payment state, refund outcome and who
+// cancelled. Same defensive add-if-missing pattern as above. Bookings made
+// before this migration get payment_status NULL (treated as legacy/simulated,
+// nothing to refund) - see the cancel route.
+const bookingColumns = db.prepare('PRAGMA table_info(bookings)').all().map((c) => c.name);
+const bookingAdds = [
+  ['payment_status', 'TEXT'],          // authorized | paid | partially_refunded | refunded | voided
+  ['paid_amount', 'REAL DEFAULT 0'],   // money actually captured so far
+  ['refund_amount', 'REAL DEFAULT 0'],
+  ['refund_percent', 'INTEGER'],
+  ['payment_ref', 'TEXT'],
+  ['card_last4', 'TEXT'],
+  ['card_brand', 'TEXT'],
+  ['cancelled_at', 'TEXT'],
+  ['cancelled_by', 'TEXT'],            // traveler | operator | system
+];
+let bookingMigrated = false;
+for (const [name, type] of bookingAdds) {
+  if (!bookingColumns.includes(name)) {
+    db.exec(`ALTER TABLE bookings ADD COLUMN ${name} ${type}`);
+    bookingMigrated = true;
+  }
+}
+if (bookingMigrated) console.log('Migration applied: bookings payment/refund columns added.');
 
 // Allow `node src/db/index.js` to double as a "create tables now" command.
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 import { DATE_LOCALES, formatAzn, formatDate } from '../lib/format';
+import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const TOURS_COLLAPSED = 5;
@@ -14,6 +15,7 @@ const TOURS_COLLAPSED = 5;
 interface TourStats {
   id: number;
   title: string;
+  title_i18n?: string | null;
   location: string | null;
   date: string;
   max_participants: number;
@@ -198,7 +200,7 @@ export default function OperatorAnalytics() {
                     return (
                       <div key={tour.id} className="px-4 py-3">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-foreground truncate">{tour.title}</p>
+                          <p className="text-sm font-semibold text-foreground truncate">{tourTitle(tour, locale)}</p>
                           <div className="flex items-center gap-1 shrink-0">
                             {tour.group_status && (
                               <span className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
@@ -215,7 +217,7 @@ export default function OperatorAnalytics() {
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">
-                          {[tour.location, formatDate(tour.date, locale)].filter(Boolean).join(' · ')}
+                          {[placeName(tour.location, locale), formatDate(tour.date, locale)].filter(Boolean).join(' · ')}
                         </p>
 
                         <div className="flex items-center justify-between text-xs mb-1">

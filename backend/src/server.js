@@ -152,6 +152,14 @@ function runExpiry() {
 runExpiry();
 setInterval(runExpiry, 60 * 60 * 1000).unref();
 
+// Last-resort safety net: log a stray unhandled rejection instead of letting
+// it terminate the process. Route handlers should still catch their own errors
+// (see middleware/asyncHandler.js); this only stops one missed case from
+// becoming an outage.
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandled rejection', reason);
+});
+
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`TurPoint API listening on http://localhost:${port}`);

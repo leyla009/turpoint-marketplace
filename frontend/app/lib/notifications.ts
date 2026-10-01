@@ -1,6 +1,6 @@
 // Shared bits for the in-app notification bell and page.
 
-import type { TranslationKey } from './translations';
+import type { Locale, TranslationKey } from './translations';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -16,12 +16,13 @@ export type NotificationType =
   | 'new_booking'
   | 'booking_cancelled_by_traveler'
   | 'group_confirmed'
-  | 'new_review';
+  | 'new_review'
+  | 'refund_issued';
 
 export interface AppNotification {
   id: number;
   type: NotificationType;
-  params: Record<string, string | number>;
+  params: Record<string, unknown>;
   link: string | null;
   is_read: boolean;
   created_at: string;
@@ -38,7 +39,28 @@ export const MESSAGE_KEYS: Record<NotificationType, TranslationKey> = {
   booking_cancelled_by_traveler: 'notifications.type.booking_cancelled_by_traveler',
   group_confirmed: 'notifications.type.group_confirmed',
   new_review: 'notifications.type.new_review',
+  refund_issued: 'notifications.type.refund_issued',
 };
+
+// Params as the translator should see them. Tours with translated titles
+// store every language's title next to tour_title (tour_title_i18n); pick the
+// reader's. Older notifications, and tours without translations, just keep
+// the plain tour_title.
+export function notificationParams(
+  params: Record<string, unknown> | null | undefined,
+  locale: Locale
+): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(params ?? {})) {
+    if (k === 'tour_title_i18n') continue;
+    if (typeof v === 'string' || typeof v === 'number') out[k] = v;
+  }
+  const byLocale = params?.tour_title_i18n as Record<string, string> | undefined;
+  if (byLocale && typeof byLocale === 'object') {
+    out.tour_title = byLocale[locale] ?? byLocale.en ?? byLocale.az ?? out.tour_title ?? '';
+  }
+  return out;
+}
 
 // SQLite's CURRENT_TIMESTAMP is UTC without a "Z"; without this the browser
 // would read it as local time and every "x minutes ago" would be hours off.

@@ -9,6 +9,7 @@ import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
+import { tourTitle, placeName, titleFromI18n } from '@/app/lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -24,6 +25,8 @@ export default function BookTour() {
   const [loading, setLoading] = useState(true);
   const [seats, setSeats] = useState(1);
   const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [ticket, setTicket] = useState<any>(null);
@@ -58,11 +61,23 @@ export default function BookTour() {
 
   const total = previewPricePerPerson * seats;
 
+  // Card-field helpers: group the number in 4s, and auto-insert the slash in MM/YY.
+  const onCardNumber = (v: string) =>
+    setCardNumber(v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 '));
+  const onExpiry = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 4);
+    setExpiry(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (!cardNumber) {
       setError(t('booking.pleaseEnterPayment'));
+      return;
+    }
+    if (cardNumber.replace(/\s/g, '').length !== 16 || !/^\d{2}\/\d{2}$/.test(expiry) || !/^\d{3,4}$/.test(cvc)) {
+      setError(t('booking.invalidCard'));
       return;
     }
     setSubmitting(true);
@@ -73,12 +88,12 @@ export default function BookTour() {
         body: JSON.stringify({
           tour_id: Number(id),
           seats,
-          payment: { card_number: cardNumber },
+          payment: { card_number: cardNumber.replace(/\s/g, ''), expiry, cvc },
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || t('booking.bookingFailed'));
+        setError(res.status === 402 ? data.error || t('booking.cardDeclined') : data.error || t('booking.bookingFailed'));
         return;
       }
       setTicket(data);
@@ -101,7 +116,7 @@ export default function BookTour() {
       <PageContainer maxWidth="max-w-2xl">
         <div className="bg-card border border-border rounded-xl p-6 text-center">
           <Clock size={40} className="text-muted-foreground mx-auto mb-3" />
-          <h1 className="text-lg font-bold text-foreground mb-1">{tour.title}</h1>
+          <h1 className="text-lg font-bold text-foreground mb-1">{tourTitle(tour, locale)}</h1>
           <p className="text-sm text-muted-foreground mb-5">{t('tourDetail.tourEnded')}</p>
           <button
             onClick={() => router.push('/')}
@@ -143,7 +158,7 @@ export default function BookTour() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t('booking.tour')}</span>
-              <span className="font-medium text-foreground">{ticket.tour_title}</span>
+              <span className="font-medium text-foreground">{titleFromI18n(ticket.tour_title, ticket.tour_title_i18n, locale)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t('booking.seats')}</span>
@@ -174,7 +189,7 @@ export default function BookTour() {
         <div className="mt-4 text-left">
           <GroupInviteCard
             tourId={tour.id}
-            tourTitle={tour.title}
+            tourTitle={tourTitle(tour, locale)}
             minParticipants={tour.min_participants}
             maxParticipants={tour.max_participants}
             refreshKey={ticket.id}
@@ -193,9 +208,9 @@ export default function BookTour() {
         <ChevronLeft size={16} /> {t('booking.back')}
       </button>
 
-      <h1 className="text-xl font-bold text-foreground mb-1">{tour.title}</h1>
+      <h1 className="text-xl font-bold text-foreground mb-1">{tourTitle(tour, locale)}</h1>
       <p className="text-sm text-muted-foreground mb-2">
-        {tour.location} · {formatDate(tour.date, locale)}
+        {placeName(tour.location, locale)} · {formatDate(tour.date, locale)}
       </p>
       {group && group.status === 'confirmed' && (
         <p className="flex items-center gap-1.5 text-xs font-semibold text-accent mb-4">
@@ -244,11 +259,44 @@ export default function BookTour() {
           </p>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
             placeholder={t('booking.cardPlaceholder')}
             value={cardNumber}
-            onChange={(e) => setCardNumber(e.target.value)}
+            onChange={(e) => onCardNumber(e.target.value)}
             className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
           />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={t('booking.expiryPlaceholder')}
+              value={expiry}
+              onChange={(e) => onExpiry(e.target.value)}
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={t('booking.cvcPlaceholder')}
+              value={cvc}
+              onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">{t('booking.testCardHint')}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
+          <p className="text-sm font-medium text-foreground">{t('booking.refundPolicyTitle')}</p>
+          <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-4">
+            <li>{t('booking.refundTier7')}</li>
+            <li>{t('booking.refundTier3')}</li>
+            <li>{t('booking.refundTier0')}</li>
+          </ul>
+          <p className="text-[11px] text-muted-foreground pt-1">{t('booking.refundPolicyNote')}</p>
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-1">

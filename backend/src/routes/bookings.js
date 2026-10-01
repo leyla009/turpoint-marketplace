@@ -3,7 +3,9 @@
 // verified JWT (req.user.userId), never trusted from the request body.
 // This closes the same gap operators.js and tours.js already closed: no
 // more client-supplied user_id or {name, email} guest-checkout path.
-// Payment is simulated: card details are validated for shape only, never stored.
+// Payment is simulated (lib/payments.js, Stripe-shaped): card is checked with
+// Luhn + test-card rules, only brand/last4 are kept. Cancellation refunds follow
+// lib/refundPolicy.js.
  
 import { Router } from 'express';
 import crypto from 'node:crypto';
@@ -11,6 +13,8 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { attachActiveDeals } from './tours.js';
 import { notify, operatorUserId } from '../lib/notify.js';
+import { validateCard, authorize, recordInitialPayment, captureHold, voidHold, refundPayment } from '../lib/payments.js';
+import { computeRefund, REFUND_TIERS } from '../lib/refundPolicy.js';
  
 const router = Router();
  
@@ -50,12 +54,14 @@ router.post('/', requireAuth, (req, res) => {
   if (!payment || !payment.card_number) {
     return res.status(400).json({ error: 'simulated payment details required (payment.card_number)' });
   }
+  const card = validateCard(payment);
+  if (!card.ok) return res.status(400).json({ error: card.error });
  
   const ticketCode = generateTicketCode();
  
   // Everything below runs atomically: a group settling and every pending
   // booking on it flipping to confirmed must not partially apply.
-  const runBooking = db.transaction(() => {
+  const createBooking = () => {
     // Notify the tour's operator (never yourself, if an operator books their own tour).
     // Inside the transaction on purpose: a booking that fails and rolls back leaves no notice.
     const ownerUserId = operatorUserId(tour.operator_id);
@@ -102,6 +108,7 @@ router.post('/', requireAuth, (req, res) => {
         const settlePending = db.prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?");
         pendingBookings.forEach((b) => {
           settlePending.run(b.id);
+          captureHold(b.id); // the card hold becomes a real charge now that the trip is going ahead
           notify(b.user_id, 'booking_confirmed', { tour_title: tour.title }, `/bookings/${b.id}`);
         });
         tellOperator('group_confirmed', { tour_title: tour.title, count: newCount });
@@ -176,8 +183,22 @@ router.post('/', requireAuth, (req, res) => {
       )
       .run(tour_id, resolvedUser.id, groupResult.lastInsertRowid, seats, totalPrice, nowConfirmed ? 'confirmed' : 'pending', ticketCode);
     return { bookingId: bookingResult.lastInsertRowid };
+  };
+
+  // Booking rows and the payment ledger commit together or not at all.
+  const runBooking = db.transaction(() => {
+    const out = createBooking();
+    const created = db.prepare('SELECT * FROM bookings WHERE id = ?').get(out.bookingId);
+    recordInitialPayment(created, { ref: charge.ref, last4: card.last4, brand: card.brand });
+    return out;
   });
- 
+
+  // "Bank" step happens before anything is written, so a declined card
+  // leaves no booking, no seat taken and no notification behind.
+  const chargeAmount = Math.round((attachActiveDeals(tour).discounted_price ?? tour.price) * seats * 100) / 100;
+  const charge = authorize(card, chargeAmount);
+  if (!charge.ok) return res.status(402).json({ error: charge.error });
+
   let outcome;
   try {
     outcome = runBooking();
@@ -186,7 +207,7 @@ router.post('/', requireAuth, (req, res) => {
   }
  
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(outcome.bookingId);
-  res.status(201).json({ ...booking, tour_title: tour.title, user_email: resolvedUser.email });
+  res.status(201).json({ ...booking, tour_title: tour.title, tour_title_i18n: tour.title_i18n ?? null, user_email: resolvedUser.email });
 });
  
 // Task 20: an operator's bookings across ALL of their tours, for the
@@ -198,7 +219,7 @@ router.get('/mine', requireAuth, (req, res) => {
  
   const bookings = db
     .prepare(
-      `SELECT b.*, t.title as tour_title, t.date as tour_date,
+      `SELECT b.*, t.title as tour_title, t.title_i18n as tour_title_i18n, t.date as tour_date,
               u.name as traveler_name, u.email as traveler_email
        FROM bookings b
        JOIN tours t ON t.id = b.tour_id
@@ -217,7 +238,7 @@ router.get('/mine', requireAuth, (req, res) => {
 router.get('/my-trips', requireAuth, (req, res) => {
   const bookings = db
     .prepare(
-      `SELECT b.*, t.title as tour_title, t.date as tour_date, t.location as tour_location
+      `SELECT b.*, t.title as tour_title, t.title_i18n as tour_title_i18n, t.date as tour_date, t.location as tour_location
        FROM bookings b
        JOIN tours t ON t.id = b.tour_id
        WHERE b.user_id = ?
@@ -227,6 +248,12 @@ router.get('/my-trips', requireAuth, (req, res) => {
   res.json(bookings);
 });
  
+// Public: the refund rules, so the booking page can show them before paying.
+// Must stay above GET /:id.
+router.get('/refund-policy', (_req, res) => {
+  res.json({ tiers: REFUND_TIERS, operator_cancel_percent: 100, pending_percent: 100 });
+});
+
 // Single booking detail, for the traveler's own e-ticket view. Auth +
 // ownership required — this used to be public, which meant anyone could
 // view anyone else's ticket by guessing an id.
@@ -239,21 +266,32 @@ router.get('/:id', requireAuth, (req, res) => {
  
   const tour = db
     .prepare(
-      `SELECT t.title, t.date, t.location, t.route, o.name as operator_name
+      `SELECT t.title, t.title_i18n, t.date, t.location, t.route, o.name as operator_name
        FROM tours t
        JOIN operators o ON o.id = t.operator_id
        WHERE t.id = ?`
     )
     .get(booking.tour_id);
  
-  res.json({ ...booking, tour });
+  const payments = db
+    .prepare('SELECT id, type, amount, status, provider_ref, card_last4, card_brand, note, created_at FROM payments WHERE booking_id = ? ORDER BY id')
+    .all(booking.id);
+  // What the traveler would get back if they cancelled right now.
+  const refund_preview = booking.status === 'cancelled' || !tour
+    ? null
+    : computeRefund({ totalPrice: booking.paid_amount || booking.total_price, tourDate: tour.date, bookingStatus: booking.status, cancelledBy: 'traveler' });
+
+  res.json({ ...booking, tour, payments, refund_preview });
 });
  
 // Cancel a booking. Allowed for the traveler who made it, or for the
 // operator who owns the tour (e.g. before deleting a tour). Only bookings
 // that are still confirmed/pending, on a tour that hasn't happened yet.
 // Frees the seats on the group so the capacity checks in POST / stay
-// accurate. Payment is simulated in this app, so there is nothing to refund.
+// accurate. Money side (lib/refundPolicy.js + lib/payments.js):
+//   - pending booking  -> card hold is voided, nothing was charged
+//   - confirmed, traveler cancels -> tiered refund by days before the tour
+//   - operator cancels -> always a full refund
 router.post('/:id/cancel', requireAuth, (req, res) => {
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
   if (!booking) return res.status(404).json({ error: 'booking not found' });
@@ -273,8 +311,26 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'this tour has already taken place' });
   }
 
+  const cancelledBy = isTraveler ? 'traveler' : 'operator';
+  // Refund is based on what was actually captured. Legacy bookings made
+  // before payments existed have no payment_status and nothing to refund.
+  const refund = computeRefund({
+    totalPrice: booking.paid_amount || booking.total_price,
+    tourDate: tour ? tour.date : todayInBaku,
+    bookingStatus: booking.status,
+    cancelledBy,
+  });
+
   const cancel = db.transaction(() => {
-    db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(booking.id);
+    db.prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP, cancelled_by = ?, refund_percent = ? WHERE id = ?")
+      .run(cancelledBy, refund.percent, booking.id);
+
+    if (booking.payment_status === 'authorized') {
+      voidHold(booking.id, 'booking cancelled before the group was confirmed');
+    } else if (booking.payment_status === 'paid') {
+      refundPayment(booking.id, refund.amount, `${cancelledBy} cancelled ${refund.days_before} day(s) before the tour (${refund.percent}% refund)`);
+    }
+
     if (booking.group_formation_id) {
       const group = db.prepare('SELECT * FROM group_formations WHERE id = ?').get(booking.group_formation_id);
       if (group) {
@@ -299,9 +355,13 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     }
   } else {
     notify(booking.user_id, 'booking_cancelled', { tour_title: tour?.title ?? '' }, `/bookings/${booking.id}`);
+    if (booking.payment_status === 'paid' && refund.amount > 0) {
+      notify(booking.user_id, 'refund_issued', { tour_title: tour?.title ?? '', amount: refund.amount }, `/bookings/${booking.id}`);
+    }
   }
 
-  res.json(db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id));
+  const updated = db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
+  res.json({ ...updated, refund: booking.payment_status === 'authorized' ? { ...refund, voided: true } : refund });
 });
 
 export default router;

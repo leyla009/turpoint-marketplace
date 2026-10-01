@@ -4,6 +4,7 @@ import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 import { photoSrc } from '../lib/photo';
+import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 
 // Categories no longer carry their own saturated gradient - a card without
@@ -60,6 +61,7 @@ export interface ApiTour {
   id: number;
   operator_id: number;
   title: string;
+  title_i18n?: string | null;
   location: string | null;
   category: string | null;
   price: number;
@@ -101,7 +103,8 @@ export default function TourCard({
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const title = tourTitle(tour, locale);
   const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
   const hasDeal = typeof tour.discounted_price === 'number';
   const hasRating = typeof tour.rating === 'number' && tour.rating > 0;
@@ -128,7 +131,7 @@ export default function TourCard({
         {tour.photo_url ? (
           <img
             src={photoSrc(tour.photo_url) ?? ''}
-            alt={tour.title}
+            alt={title}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
@@ -186,7 +189,7 @@ export default function TourCard({
       </div>
       <div className="p-3.5">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{tour.title}</h3>
+          <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{title}</h3>
           {hasRating && (
             <span className="flex items-center gap-0.5 shrink-0 text-xs font-bold text-foreground pt-0.5">
               <Star size={12} className="fill-rating text-rating" /> {tour.rating!.toFixed(1)}
@@ -195,7 +198,7 @@ export default function TourCard({
         </div>
         {tour.location && (
           <p className="flex items-center gap-1 text-xs text-muted-foreground mb-2.5">
-            <MapPin size={11} /> {tour.location}
+            <MapPin size={11} /> {placeName(tour.location, locale)}
             {hasRating && tour.review_count ? (
               <span className="text-muted-foreground/70">
                 · {t('tourCard.reviewCount', { count: tour.review_count })}

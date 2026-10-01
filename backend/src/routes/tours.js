@@ -330,17 +330,26 @@ router.put('/:id', requireAuth, (req, res) => {
         : tour.interest_score,
     features: features !== undefined ? features : tour.features,
     vehicle_features: vehicle_features !== undefined ? vehicle_features : tour.vehicle_features,
+    // Tours with translated content (title_i18n / description_i18n, see
+    // db/seedTourData.js) show the translation in preference to the plain
+    // columns. So when an operator really changes the plain title or
+    // description, drop that translation - otherwise their edit would be
+    // saved but never visible. Saving the form without touching the text
+    // (same value sent back) keeps the translations.
+    title_i18n: title !== undefined && title !== tour.title ? null : tour.title_i18n,
+    description_i18n: description !== undefined && description !== tour.description ? null : tour.description_i18n,
   };
 
   db.prepare(
     `UPDATE tours SET title = ?, description = ?, location = ?, category = ?,
        price = ?, date = ?, duration_days = ?, min_participants = ?, max_participants = ?, interest_score = ?,
-       features = ?, vehicle_features = ?
+       features = ?, vehicle_features = ?, title_i18n = ?, description_i18n = ?
      WHERE id = ?`
   ).run(
     updated.title, updated.description, updated.location, updated.category,
     updated.price, updated.date, updated.duration_days, updated.min_participants,
-    updated.max_participants, updated.interest_score, updated.features, updated.vehicle_features, tour.id
+    updated.max_participants, updated.interest_score, updated.features, updated.vehicle_features,
+    updated.title_i18n, updated.description_i18n, tour.id
   );
 
   res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));
@@ -387,8 +396,10 @@ router.delete('/:id', requireAuth, (req, res) => {
   // Clean up everything that references this tour so nothing is left
   // pointing at a tour_id that no longer exists.
   const deleteTour = db.transaction(() => {
+    db.prepare('DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE tour_id = ?)').run(tour.id);
     db.prepare('DELETE FROM bookings WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM group_formations WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM favorites WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM reviews WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM last_minute_deals WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM tours WHERE id = ?').run(tour.id);

@@ -8,11 +8,13 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { titleFromI18n, placeName } from '../lib/tourContent';
 import { formatAzn } from '@/app/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface PlannerActivity {
+  titleI18n?: string | null;
   tourId: number;
   title: string;
   location: string | null;
@@ -44,6 +46,7 @@ interface PlannerItinerary {
 interface AlternativeTour {
   id: number;
   title: string;
+  title_i18n?: string | null;
   location: string | null;
   duration_days: number;
   price: number;
@@ -62,6 +65,7 @@ interface ChatMessage {
 interface TourRow {
   id: number;
   title: string;
+  titleI18n?: string | null;
   location: string | null;
   durationDays: number;
   price: number;
@@ -74,6 +78,7 @@ function fromActivity(a: PlannerActivity): TourRow {
   return {
     id: a.tourId,
     title: a.title,
+    titleI18n: a.titleI18n ?? null,
     location: a.location,
     durationDays: a.durationDays,
     price: a.price,
@@ -87,6 +92,7 @@ function fromAlternative(t: AlternativeTour): TourRow {
   return {
     id: t.id,
     title: t.title,
+    titleI18n: t.title_i18n ?? null,
     location: t.location,
     durationDays: t.duration_days,
     price: t.price,
@@ -221,11 +227,11 @@ export default function PlannerModal({
         className="w-full text-left flex items-center justify-between gap-3 bg-card border border-border rounded-lg p-3 hover:border-primary/30 transition-colors"
       >
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{row.title}</p>
+          <p className="text-sm font-semibold text-foreground truncate">{titleFromI18n(row.title, row.titleI18n, locale)}</p>
           <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
             {row.location && (
               <>
-                <MapPin size={10} /> {row.location} ·{' '}
+                <MapPin size={10} /> {placeName(row.location, locale)} ·{' '}
               </>
             )}
             {t('planner.dayCount', { count: row.durationDays })}

@@ -19,14 +19,25 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     const tour = await res.json();
     if (!tour?.title) return {};
 
-    const description = tour.description
-      ? String(tour.description).slice(0, 155)
-      : `${tour.title}${tour.location ? ` — ${tour.location}` : ''}, Azərbaycanda tur. TurPoint ilə bron edin.`;
+    // Metadata is rendered on the server, which doesn't know the visitor's
+    // chosen language (it lives in localStorage), so use the site's default,
+    // Azerbaijani, when the tour has a translation - else the plain text.
+    const parse = (v: unknown): Record<string, string> | null => {
+      if (!v) return null;
+      if (typeof v === 'object') return v as Record<string, string>;
+      try { return JSON.parse(String(v)); } catch { return null; }
+    };
+    const title: string = parse(tour.title_i18n)?.az || tour.title;
+    const summary: string | undefined = parse(tour.description_i18n)?.az || tour.description || undefined;
+
+    const description = summary
+      ? String(summary).slice(0, 155)
+      : `${title}${tour.location ? ` — ${tour.location}` : ''}, Azərbaycanda tur. TurPoint ilə bron edin.`;
 
     return {
-      title: tour.title,
+      title,
       description,
-      openGraph: { title: tour.title, description },
+      openGraph: { title, description },
     };
   } catch {
     return {};

@@ -38,7 +38,7 @@ export function buildOperatorAnalytics(db, operatorId, now = new Date()) {
 
   const tourRows = db
     .prepare(
-      `SELECT t.id, t.title, t.location, t.date, t.price,
+      `SELECT t.id, t.title, t.title_i18n, t.location, t.date, t.price,
               t.min_participants, t.max_participants,
               COALESCE(t.click_count, 0) AS views,
               COALESCE(SUM(CASE WHEN b.status = 'confirmed' THEN b.seats END), 0)        AS seats_confirmed,
@@ -74,6 +74,7 @@ export function buildOperatorAnalytics(db, operatorId, now = new Date()) {
     return {
       id: t.id,
       title: t.title,
+      title_i18n: t.title_i18n ?? null,
       location: t.location,
       date: t.date,
       price: t.price,

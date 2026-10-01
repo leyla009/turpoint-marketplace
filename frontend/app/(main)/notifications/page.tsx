@@ -10,6 +10,7 @@ import { formatDate } from '@/app/lib/format';
 import {
   API_URL,
   MESSAGE_KEYS,
+  notificationParams,
   notifyChanged,
   parseServerTime,
   type AppNotification,
@@ -27,6 +28,7 @@ const ICONS: Record<NotificationType, { Icon: any; className: string }> = {
   booking_cancelled_by_traveler: { Icon: XCircle, className: 'text-danger bg-danger/10' },
   group_confirmed: { Icon: Users, className: 'text-accent bg-accent/10' },
   new_review: { Icon: Star, className: 'text-primary bg-primary/10' },
+  refund_issued: { Icon: CheckCircle2, className: 'text-accent bg-accent/10' },
 };
 
 export default function NotificationsPage() {
@@ -175,7 +177,7 @@ export default function NotificationsPage() {
                   </span>
                   <span className="min-w-0">
                     <span className={`block text-sm text-foreground ${n.is_read ? '' : 'font-semibold'}`}>
-                      {messageKey ? t(messageKey, n.params) : n.type}
+                      {messageKey ? t(messageKey, notificationParams(n.params, locale)) : n.type}
                     </span>
                     <span className="block text-[11px] text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</span>
                   </span>

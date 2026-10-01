@@ -2,15 +2,17 @@
 // enough data to produce a meaningful result — this is the fix for the
 // "not enough tour data" risk flagged in the project brief.
 //
+// The tours are real listings (22, from Seed_tours.pdf) with their title,
+// summary and full details written in az / en / ru - see seedTourData.js.
 // Each tour gets a cover image (photo_url -> /seed/tour-NN.jpg, a static file
-// shipped with the frontend). See seedPhotoData.js.
+// shipped with the frontend).
 //
 // Safe to run on a deployed database: if tours already exist it does nothing,
 // so a second `npm run seed` can't create duplicates. Use `npm run seed -- --force`
 // to add another batch on purpose.
 
 import { db } from './index.js';
-import { SEED_TOURS } from './seedPhotoData.js';
+import { SEED_TOURS, buildTourRow, seedDates } from './seedTourData.js';
 
 const existing = db.prepare('SELECT COUNT(*) AS c FROM tours').get().c;
 if (existing > 0 && !process.argv.includes('--force')) {
@@ -24,8 +26,6 @@ const operators = [
   { name: 'Caspian Adventures', description: 'Fəal istirahət və macəra', languages: 'az,en,tr', vehicle_features: 'wifi,ac,charging' },
 ];
 
-const featureSlugs = ['breakfast', 'evening_tea', 'guide', 'road_games', 'hotel_stay'];
-
 const insertOperator = db.prepare(
   `INSERT INTO operators (name, description, languages, vehicle_features)
    VALUES (@name, @description, @languages, @vehicle_features)`
@@ -33,45 +33,29 @@ const insertOperator = db.prepare(
 
 const insertTour = db.prepare(
   `INSERT INTO tours
-    (operator_id, title, description, location, category, route, price, date,
-     duration_days, min_participants, max_participants, interest_score, features, photo_url)
+    (operator_id, title, description, title_i18n, description_i18n, details_i18n, facts,
+     location, category, route, price, date, duration_days, min_participants, max_participants,
+     interest_score, features, vehicle_features, photo_url)
    VALUES
-    (@operator_id, @title, @description, @location, @category, @route, @price, @date,
-     @duration_days, @min_participants, @max_participants, @interest_score, @features, @photo_url)`
+    (@operator_id, @title, @description, @title_i18n, @description_i18n, @details_i18n, @facts,
+     @location, @category, @route, @price, @date, @duration_days, @min_participants, @max_participants,
+     @interest_score, @features, @vehicle_features, @photo_url)`
 );
+
+// Tour dates are spread over the current month (Baku time), starting tomorrow -
+// see seedDates() in seedTourData.js.
+const dates = seedDates(SEED_TOURS.length);
 
 const seed = db.transaction(() => {
   const operatorIds = operators.map((op) => insertOperator.run(op).lastInsertRowid);
+  const operatorIdByName = new Map(operators.map((op, i) => [op.name, operatorIds[i]]));
 
-  SEED_TOURS.forEach(({ number, location, category, photo }, i) => {
-    const operatorId = operatorIds[i % operatorIds.length];
-    const price = 30 + (i % 6) * 15;
-    const interestScore = {
-      nature: category === 'nature' ? 0.9 : 0.1,
-      history: category === 'history' ? 0.9 : 0.1,
-      entertainment: category === 'entertainment' ? 0.9 : 0.1,
-      food: category === 'food' ? 0.9 : 0.1,
-    };
-    const features = featureSlugs.filter((_, idx) => (i + idx) % 3 === 0).join(',');
-
-    insertTour.run({
-      operator_id: operatorId,
-      title: `${location} ${category} turu #${number}`,
-      description: `Demo tour - ${category} in ${location}`,
-      location,
-      category,
-      route: `${location} mərkəzi -> əsas nöqtə`,
-      price,
-      date: `2026-09-${String(1 + (i % 28)).padStart(2, '0')}`,
-      duration_days: 1 + (i % 3),
-      min_participants: 3,
-      max_participants: 10,
-      interest_score: JSON.stringify(interestScore),
-      features,
-      photo_url: photo,
-    });
+  SEED_TOURS.forEach((tour, i) => {
+    // The operator named in the content, so e.g. all Sheki tours share one.
+    const operatorId = operatorIdByName.get(tour.operator) ?? operatorIds[i % operatorIds.length];
+    insertTour.run(buildTourRow(tour, { operatorId, date: dates[i] }));
   });
 });
 
 seed();
-console.log('Seeded 3 operators and 20 tours with cover images.');
+console.log(`Seeded ${operators.length} operators and ${SEED_TOURS.length} tours (az/en/ru) with cover images.`);

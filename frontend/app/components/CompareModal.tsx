@@ -6,6 +6,7 @@ import { X, MapPin, Calendar, Users, Tag, Loader2 } from 'lucide-react';
 import { CATEGORY_STYLE, type ApiTour } from './TourCard';
 import { useLanguage } from '../context/LanguageContext';
 import { formatAzn, formatDate } from '@/app/lib/format';
+import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -112,7 +113,7 @@ export default function CompareModal({
                     </div>
                     <div className="p-2.5">
                       <h3 className="text-xs font-semibold text-foreground leading-snug mb-1 line-clamp-2">
-                        {tour.title}
+                        {tourTitle(tour, locale)}
                       </h3>
                       <button
                         onClick={() => onViewTour(tour.id)}
@@ -159,7 +160,7 @@ export default function CompareModal({
               </div>
               {data.map((tour) => (
                 <div key={tour.id} className="flex items-center px-1 text-sm text-foreground">
-                  {tour.location ?? '—'}
+                  {placeName(tour.location, locale) || '—'}
                 </div>
               ))}
 

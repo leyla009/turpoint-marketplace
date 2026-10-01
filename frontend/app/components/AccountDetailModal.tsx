@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { AccountSection } from './AccountMenu';
 import { formatAzn, formatDate } from '@/app/lib/format';
+import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -176,11 +177,11 @@ export default function AccountDetailModal({
                   className="flex items-center gap-2 bg-background border border-border rounded-xl p-3 hover:border-primary/40 transition-colors"
                 >
                   <Link href={`/tours/${tour.id}`} onClick={onClose} className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{tour.title}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{tourTitle(tour, locale)}</p>
                     <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                       {tour.location && (
                         <>
-                          <MapPin size={11} /> {tour.location}
+                          <MapPin size={11} /> {placeName(tour.location, locale)}
                           <span className="mx-1">·</span>
                         </>
                       )}
