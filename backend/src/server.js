@@ -33,7 +33,7 @@ const app = express();
 // Behind Railway's proxy every request otherwise appears to come from the
 // proxy's own IP - which makes the rate limiters below share ONE bucket for
 // all users, and breaks per-visitor view counting. Trust exactly one hop.
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' || process.env.CODESPACES === 'true') {
   app.set('trust proxy', 1);
 }
 

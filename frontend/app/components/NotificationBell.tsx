@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ const POLL_MS = 60_000;
 export default function NotificationBell({ size = 'md' }: { size?: 'sm' | 'md' }) {
   const { token, user } = useAuth();
   const { t } = useLanguage();
+  const pathname = usePathname();
   const [count, setCount] = useState(0);
 
   const refresh = useCallback(() => {
@@ -42,7 +44,7 @@ export default function NotificationBell({ size = 'md' }: { size?: 'sm' | 'md' }
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
     };
-  }, [token, refresh]);
+  }, [token, refresh, pathname]);
 
   if (!user) return null;
 

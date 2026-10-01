@@ -17,7 +17,9 @@ export type NotificationType =
   | 'booking_cancelled_by_traveler'
   | 'group_confirmed'
   | 'new_review'
-  | 'refund_issued';
+  | 'refund_issued'
+  | 'booking_cancelled_self'
+  | 'refund_issued_self';
 
 export interface AppNotification {
   id: number;
@@ -40,6 +42,8 @@ export const MESSAGE_KEYS: Record<NotificationType, TranslationKey> = {
   group_confirmed: 'notifications.type.group_confirmed',
   new_review: 'notifications.type.new_review',
   refund_issued: 'notifications.type.refund_issued',
+  booking_cancelled_self: 'notifications.type.booking_cancelled_self',
+  refund_issued_self: 'notifications.type.refund_issued_self',
 };
 
 // Params as the translator should see them. Tours with translated titles

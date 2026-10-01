@@ -2,7 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock } from 'lucide-react';
+import { ChevronLeft, Minus, Plus, CreditCard, CheckCircle2, Users, Clock, FileDown } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -10,6 +10,7 @@ import PageContainer from '@/app/components/PageContainer';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 import { tourTitle, placeName, titleFromI18n } from '@/app/lib/tourContent';
+import { notifyChanged } from '@/app/lib/notifications';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -30,6 +31,8 @@ export default function BookTour() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [ticket, setTicket] = useState<any>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
     fetch(`${API_URL}/api/tours/${id}`)
@@ -97,6 +100,7 @@ export default function BookTour() {
         return;
       }
       setTicket(data);
+      notifyChanged(); // refresh the bell badge now, not at the next poll
     } catch {
       setError(t('booking.couldntReachBackend'));
     } finally {
@@ -128,6 +132,30 @@ export default function BookTour() {
       </PageContainer>
     );
   }
+
+  // The PDF endpoint needs the Authorization header, so fetch it as a blob
+  // and trigger the download from memory (same approach as the e-ticket page).
+  const handleDownloadPdf = async () => {
+    setPdfBusy(true);
+    setPdfError('');
+    try {
+      const res = await fetch(`${API_URL}/api/bookings/${ticket.id}/ticket.pdf?lang=${locale}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('pdf');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${ticket.ticket_code}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setPdfError(t('eTicket.pdfFailed'));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   if (ticket) {
     const isPending = ticket.status === 'pending';
@@ -178,8 +206,24 @@ export default function BookTour() {
           </div>
 
           <button
+            onClick={handleDownloadPdf}
+            disabled={pdfBusy}
+            className="mt-5 flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-60"
+          >
+            <FileDown size={15} /> {t('eTicket.downloadPdf')}
+          </button>
+          {pdfError && <p className="text-xs text-red-600 mt-2">{pdfError}</p>}
+
+          <button
+            onClick={() => router.push(`/bookings/${ticket.id}`)}
+            className="mt-2 w-full bg-card border border-border text-foreground text-sm font-semibold rounded-lg py-2.5 hover:bg-muted transition-colors"
+          >
+            {t('booking.viewMyBooking')}
+          </button>
+
+          <button
             onClick={() => router.push('/')}
-            className="mt-5 w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5"
+            className="mt-2 w-full bg-card border border-border text-foreground text-sm font-semibold rounded-lg py-2.5 hover:bg-muted transition-colors"
           >
             {t('booking.backToTours')}
           </button>
