@@ -7,7 +7,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/db/seed.js",
-    "seed:analytics": "node src/db/seedAnalyticsDemo.js"
+    "seed:analytics": "node src/db/seedAnalyticsDemo.js", 
+    "seed:photos": "node src/db/seedPhotos.js"
   },
   "engines": {
     "node": "20.x"
