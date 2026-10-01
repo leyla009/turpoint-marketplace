@@ -8,6 +8,8 @@
 // lib/refundPolicy.js.
  
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createBookingSchema } from '../lib/schemas.js';
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -23,7 +25,7 @@ function generateTicketCode() {
   return `TP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
  
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createBookingSchema), (req, res) => {
   const { tour_id, seats, payment } = req.body;
  
   if (!tour_id || !seats) {
@@ -121,6 +123,8 @@ router.post('/', requireAuth, (req, res) => {
              VALUES (?, ?, ?, ?, ?, 'confirmed', ?)`
           )
           .run(tour_id, resolvedUser.id, openGroup.id, seats, totalPrice, ticketCode);
+        // The booker whose booking confirms the group hears about it too, not only earlier pending bookers.
+        notify(resolvedUser.id, 'booking_confirmed', { tour_title: tour.title }, `/bookings/${result.lastInsertRowid}`);
         return { bookingId: result.lastInsertRowid };
       }
 
@@ -160,6 +164,7 @@ router.post('/', requireAuth, (req, res) => {
       db.prepare('UPDATE group_formations SET current_participants = current_participants + ? WHERE id = ?')
         .run(seats, confirmedGroup.id);
 
+      notify(resolvedUser.id, 'booking_confirmed', { tour_title: tour.title }, `/bookings/${result.lastInsertRowid}`);
       return { bookingId: result.lastInsertRowid };
     }
 
@@ -183,6 +188,9 @@ router.post('/', requireAuth, (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(tour_id, resolvedUser.id, groupResult.lastInsertRowid, seats, totalPrice, nowConfirmed ? 'confirmed' : 'pending', ticketCode);
+    if (nowConfirmed) {
+      notify(resolvedUser.id, 'booking_confirmed', { tour_title: tour.title }, `/bookings/${bookingResult.lastInsertRowid}`);
+    }
     return { bookingId: bookingResult.lastInsertRowid };
   };
 
@@ -385,6 +393,11 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     if (opUser && opUser !== req.user.userId) {
       const who = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.userId);
       notify(opUser, 'booking_cancelled_by_traveler', { tour_title: tour.title, seats: booking.seats, traveler: who?.name ?? '' }, '/dashboard');
+    }
+    // The traveler gets a record of their own cancellation (and refund) as well.
+    notify(booking.user_id, 'booking_cancelled_self', { tour_title: tour?.title ?? '' }, `/bookings/${booking.id}`);
+    if (booking.payment_status === 'paid' && refund.amount > 0) {
+      notify(booking.user_id, 'refund_issued_self', { tour_title: tour?.title ?? '', amount: refund.amount }, `/bookings/${booking.id}`);
     }
   } else {
     notify(booking.user_id, 'booking_cancelled', { tour_title: tour?.title ?? '' }, `/bookings/${booking.id}`);

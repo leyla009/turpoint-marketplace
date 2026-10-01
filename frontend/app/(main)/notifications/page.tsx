@@ -29,6 +29,8 @@ const ICONS: Record<NotificationType, { Icon: any; className: string }> = {
   group_confirmed: { Icon: Users, className: 'text-accent bg-accent/10' },
   new_review: { Icon: Star, className: 'text-primary bg-primary/10' },
   refund_issued: { Icon: CheckCircle2, className: 'text-accent bg-accent/10' },
+  booking_cancelled_self: { Icon: XCircle, className: 'text-danger bg-danger/10' },
+  refund_issued_self: { Icon: CheckCircle2, className: 'text-accent bg-accent/10' },
 };
 
 export default function NotificationsPage() {

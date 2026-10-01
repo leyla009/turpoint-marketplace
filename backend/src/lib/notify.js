@@ -21,6 +21,8 @@ export const NOTIFICATION_TYPES = new Set([
   'group_confirmed',        // operator: a group reached its minimum
   'new_review',             // operator: your tour got a review
   'refund_issued',          // traveler: operator cancelled and your money is on its way back
+  'booking_cancelled_self', // traveler: confirmation that YOU cancelled your booking
+  'refund_issued_self',     // traveler: you cancelled and a refund is on its way back
 ]);
 
 // Notifications are stored as type + params, not finished sentences, so each

@@ -7,6 +7,8 @@
 // accounts created via /signup have real, working passwords.
  
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { signupSchema, loginSchema, updateMeSchema } from '../lib/schemas.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';
@@ -17,7 +19,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 const router = Router();
 const JWT_EXPIRES_IN = '7d';
  
-router.post('/signup', asyncHandler(async (req, res) => {
+router.post('/signup', validate(signupSchema), asyncHandler(async (req, res) => {
   const { name, password } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
@@ -52,7 +54,7 @@ router.post('/signup', asyncHandler(async (req, res) => {
   res.status(201).json({ user, token });
 }));
  
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const { password } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
@@ -100,7 +102,7 @@ router.get('/me', requireAuth, (req, res) => {
 // id_number ("Sənədlərim") is the traveler's saved ID card number, kept on
 // file so it doesn't need to be retyped for every reservation - sending an
 // empty string clears it.
-router.put('/me', requireAuth, asyncHandler(async (req, res) => {
+router.put('/me', requireAuth, validate(updateMeSchema), asyncHandler(async (req, res) => {
   const { name, password, id_number } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
 

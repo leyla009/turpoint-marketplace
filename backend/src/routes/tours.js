@@ -6,6 +6,8 @@
 // that profile server-side - never trusted from the request body.
  
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createTourSchema, updateTourSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { createImageUpload } from '../lib/uploads.js';
@@ -98,7 +100,7 @@ export function attachReviewStats(tours) {
   return Array.isArray(tours) ? withStats : withStats[0];
 }
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createTourSchema), (req, res) => {
   const {
     title, description, location, category,
     price, date, duration_days, min_participants, max_participants, interest_score, features, vehicle_features,
@@ -270,7 +272,7 @@ router.get('/:id', optionalAuth, (req, res) => {
 // Update a tour - auth required, and only the owning operator can do it.
 // Partial update: only fields present in the body are changed, same pattern
 // as PUT /api/reviews/:id.
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateTourSchema), (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
 

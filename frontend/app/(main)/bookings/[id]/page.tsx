@@ -9,6 +9,7 @@ import { useLanguage } from '@/app/context/LanguageContext';
 import PageContainer from '@/app/components/PageContainer';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 import { titleFromI18n, placeName } from '@/app/lib/tourContent';
+import { notifyChanged } from '@/app/lib/notifications';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -101,6 +102,7 @@ export default function ETicketPage() {
         cancel_refund: data.refund,
       }));
       setConfirmingCancel(false);
+      notifyChanged();
     } catch {
       setCancelError(t('eTicket.cancelFailed'));
     } finally {

@@ -12,6 +12,8 @@
 // rate-limit checks below still apply.
  
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createReviewSchema, updateReviewSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { notify, operatorUserId } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -65,7 +67,7 @@ router.get('/eligibility', requireAuth, (req, res) => {
   res.json(reviewEligibility(req.user.userId, tour));
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createReviewSchema), (req, res) => {
   const { tour_id, rating, comment } = req.body;
  
   if (!tour_id || !rating) {
@@ -135,7 +137,7 @@ router.post('/', requireAuth, (req, res) => {
 // Ownership-gated: identity comes from the verified JWT, never the body -
 // same pattern as everywhere else in this file. Re-runs the operator
 // rating rollup afterward since the average may have shifted.
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateReviewSchema), (req, res) => {
   const review = db.prepare('SELECT * FROM reviews WHERE id = ?').get(req.params.id);
   if (!review) return res.status(404).json({ error: 'review not found' });
   if (review.user_id !== req.user.userId) {

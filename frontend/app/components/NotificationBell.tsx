@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_URL, NOTIFICATIONS_CHANGED_EVENT } from '../lib/notifications';
 
-const POLL_MS = 60_000;
+const POLL_MS = 15_000;
 
 // Bell with an unread badge, linking to /notifications. Polls a tiny
 // endpoint once a minute, only while the tab is visible (a background tab
@@ -15,6 +16,7 @@ const POLL_MS = 60_000;
 export default function NotificationBell({ size = 'md' }: { size?: 'sm' | 'md' }) {
   const { token, user } = useAuth();
   const { t } = useLanguage();
+  const pathname = usePathname();
   const [count, setCount] = useState(0);
 
   const refresh = useCallback(() => {
@@ -42,7 +44,7 @@ export default function NotificationBell({ size = 'md' }: { size?: 'sm' | 'md' }
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
     };
-  }, [token, refresh]);
+  }, [token, refresh, pathname]);
 
   if (!user) return null;
 
