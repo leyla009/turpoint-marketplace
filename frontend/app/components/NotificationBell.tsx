@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_URL, NOTIFICATIONS_CHANGED_EVENT } from '../lib/notifications';
 
-const POLL_MS = 60_000;
+const POLL_MS = 15_000;
 
 // Bell with an unread badge, linking to /notifications. Polls a tiny
 // endpoint once a minute, only while the tab is visible (a background tab
