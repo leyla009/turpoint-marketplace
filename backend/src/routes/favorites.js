@@ -4,6 +4,8 @@
 // pattern as every other route in this app.
 
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { favoriteSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -28,7 +30,7 @@ router.get('/', requireAuth, (req, res) => {
 
 // POST /api/favorites { tour_id } - idempotent: favoriting an
 // already-favorited tour just returns the existing row instead of erroring.
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(favoriteSchema), (req, res) => {
   const { tour_id } = req.body;
   if (!tour_id) return res.status(400).json({ error: 'tour_id is required' });
 

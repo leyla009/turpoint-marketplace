@@ -6,13 +6,15 @@
 // tour before letting them attach a deal to it.
 
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createDealSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
 
 const router = Router();
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createDealSchema), (req, res) => {
   const { tour_id, discount_percent, expires_at } = req.body;
 
   if (!tour_id || !discount_percent || !expires_at) {

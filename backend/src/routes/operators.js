@@ -6,6 +6,8 @@
 // derived from the verified token, never trusted from the request body.
 
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createOperatorSchema, updateOperatorSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { normalizeInstagram } from '../lib/instagram.js';
@@ -74,7 +76,7 @@ function requireVerificationProvider(req, res, next) {
 // In-memory only: resets on restart, which merely gives a fresh set of tries.
 const verifyAttempts = new Map(); // operatorId -> failed attempts for the pending code
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createOperatorSchema), (req, res) => {
   const { name, description, languages, photo_url, phone, instagram } = req.body;
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
   if (!phone || !isValidPhone(phone)) {
@@ -202,7 +204,7 @@ router.get('/:id', (req, res) => {
   res.json(publicOperator(operator));
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateOperatorSchema), (req, res) => {
   const existing = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'operator not found' });
   if (existing.user_id !== req.user.userId) {

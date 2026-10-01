@@ -8,6 +8,8 @@
 // lib/refundPolicy.js.
  
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { createBookingSchema } from '../lib/schemas.js';
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -23,7 +25,7 @@ function generateTicketCode() {
   return `TP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
  
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createBookingSchema), (req, res) => {
   const { tour_id, seats, payment } = req.body;
  
   if (!tour_id || !seats) {

@@ -49,7 +49,8 @@ const corsOrigins = process.env.CORS_ORIGIN
   : true;
 app.use(cors({ origin: corsOrigins }));
 
-app.use(express.json());
+// 100 kb is Express's default; stated explicitly so the cap is a visible decision.
+app.use(express.json({ limit: '100kb' }));
 
 // Serves uploaded operator profile photos (see POST /api/operators/me/photo).
 // helmet's default Cross-Origin-Resource-Policy is "same-origin", which
@@ -89,6 +90,19 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/signup', authLimiter);
+
+// Card-testing protection: POST /api/bookings is the only route that takes card
+// details, so it gets its own tight ceiling (the global 300/15min is far too
+// generous for something an attacker would use to try card numbers).
+// Counts every attempt, successful or not.
+const bookingLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many booking attempts - try again in a few minutes' },
+});
+app.post('/api/bookings', bookingLimiter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

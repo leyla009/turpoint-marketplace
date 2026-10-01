@@ -25,6 +25,8 @@
 // recommend nothing, which is handled as an honest "no match" response.
 
 import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { saveTripSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -549,7 +551,7 @@ router.post('/chat', asyncHandler(async (req, res) => {
 
 // --- Saved trips -----------------------------------------------------
 
-router.post('/trips', requireAuth, (req, res) => {
+router.post('/trips', requireAuth, validate(saveTripSchema), (req, res) => {
   const { title, trip } = req.body ?? {};
   if (!title || !trip) return res.status(400).json({ error: 'title and trip are required' });
   const result = db
