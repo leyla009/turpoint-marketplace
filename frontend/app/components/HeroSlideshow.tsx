@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // next photo every 5 seconds. All 5 images are pre-rendered (opacity
 // toggled, not swapped in/out of the DOM) so nothing needs to reload
 // mid-cycle and the fade itself is a plain CSS transition.
-const SLIDES = ['/pictures/U1.jpg', '/pictures/U2.avif', '/pictures/U3.jpg', '/pictures/U4.jpg'];
+   const SLIDES = ['/pictures/U1.jpg', '/pictures/U2.jpg', '/pictures/U3.jpg', '/pictures/U4.jpg', '/pictures/U5.jpg'];
 const SLIDE_DURATION_MS = 5000;
 
 export default function HeroSlideshow() {

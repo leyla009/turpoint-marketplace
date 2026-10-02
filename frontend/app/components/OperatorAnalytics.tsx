@@ -93,9 +93,8 @@ export default function OperatorAnalytics() {
   if (state.kind === 'ready' && state.data.summary.total_tours === 0) return null; // nothing to analyze yet
 
   function monthLabel(ym: string) {
-    const [y, m] = ym.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString(DATE_LOCALES[locale], { month: 'short' });
-  }
+  return formatDate(`${ym}-01`, locale, { month: 'short' });
+}
 
   return (
     <section className="mb-6">

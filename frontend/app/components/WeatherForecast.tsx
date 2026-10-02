@@ -27,6 +27,8 @@ const LABEL_KEYS: Record<WeatherKind, TranslationKey> = {
 };
 
 const DATE_LOCALES = { az: 'az-AZ', en: 'en-GB', ru: 'ru-RU' } as const;
+const AZ_WEEKDAYS_SHORT = ['B.', 'B.E.', 'Ç.A.', 'Ç.', 'C.A.', 'C.', 'Ş.'];
+const AZ_MONTHS_SHORT = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avq', 'sen', 'okt', 'noy', 'dek'];
 
 interface Props {
   location: string | null;
@@ -85,7 +87,15 @@ export default function WeatherForecast({ location, date, durationDays }: Props)
 
   function dayLabel(iso: string) {
     const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(DATE_LOCALES[locale], {
+    const dateObj = new Date(y, m - 1, d);
+
+    if (locale === 'az') {
+      const weekday = AZ_WEEKDAYS_SHORT[dateObj.getDay()];
+      const month = AZ_MONTHS_SHORT[dateObj.getMonth()];
+      return `${weekday}, ${d} ${month}`;
+    }
+
+    return dateObj.toLocaleDateString(DATE_LOCALES[locale], {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
