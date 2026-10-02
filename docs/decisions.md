@@ -13,7 +13,7 @@ Why TurPoint works the way it does. Each section is a decision that shaped the c
 
 ## Payments and refunds (simulated gateway)
 
-- The gateway (`backend/src/lib/payments.js`) is shaped like Stripe but nothing is charged. A card is checked with Luhn, expiry and CVC shape. `4242 4242 4242 4242` succeeds; `4000 0000 0000 0002` and `4000 0000 0000 9995` are declined (HTTP 402). Only brand and last four digits are stored.
+- The gateway (`backend/src/lib/payments.js`) is a simulation, with no real payment provider behind it. Its hold, capture and void steps are modelled on Stripe's authorize and capture flow so a real provider could replace it later.
 - Every money movement is a row in the `payments` ledger: `charge`, `hold`, `capture`, `refund` or `void`.
 - A booking on a group that is not full yet is a card **hold**. It is captured when the group confirms and voided if the booking is cancelled or the group expires.
 - Refund tiers (`lib/refundPolicy.js`, whole days before the tour in Baku time): **7+ days = 100%, 3–6 days = 50%, 0–2 days = 0%.** Operator cancellations always refund 100%, and so does a held (pending) booking, because nothing was captured.

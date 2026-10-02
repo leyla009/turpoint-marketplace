@@ -30,7 +30,7 @@ Local tourism in Azerbaijan is scattered across Instagram pages, Facebook groups
 - Zod validation on every JSON route; rate limits on the API, login, booking and planner endpoints; helmet; CORS allowlist; uploads accepted only by real file signature.
 - OpenAPI docs with "Try it out" at `/api-docs`.
 - Hourly background job that expires unfilled groups.
-- Payments are **simulated** (Stripe-shaped, test cards only, nothing is charged). Real Stripe Checkout is the next planned step, see [roadmap](docs/roadmap.md).
+- Payments are **simulated**: no payment provider is connected and no money moves. The card form accepts test card numbers only. Stripe Checkout is the next planned step, see [roadmap](docs/roadmap.md).
 
 ---
 
@@ -145,3 +145,4 @@ tools/               script that generated some seed cover images (not needed at
 | [docs/roadmap.md](docs/roadmap.md) | What's next and known gaps |
 | [docs/design.md](docs/design.md) | Design-system reference the UI was modelled on |
 | [docs/figma.md](docs/figma.md) | Wireframe prompts and the prototype note |
+| [docs/demo-guide.md](docs/demo-guide.md) | What's new and a step-by-step demo script |

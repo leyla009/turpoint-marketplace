@@ -7,7 +7,7 @@ What is next and what is known to be missing. Finished work is in the [changelog
 **Real payments: Stripe Checkout (test mode)**
 - Replace the simulated card form with Stripe's hosted Checkout page. The backend prices the order itself, then verifies the Checkout Session with Stripe (`payment_status === 'paid'`) before creating the booking. The redirect alone is never trusted.
 - Cancellations and expired groups call the Stripe Refunds API.
-- A first implementation with mocked-Stripe tests exists outside `main`. It needs a full run against a real Stripe test key before it is merged.
+A first implementation with mocked-Stripe tests is prepared but not yet merged.
 - *Design note:* card authorizations (holds) expire after about 7 days, while tours are often booked weeks ahead. The real integration therefore charges immediately and refunds in full if a group never fills, instead of using hold/capture/void. This replaces the simulated hold logic.
 - *Later:* a `checkout.session.completed` webhook, to cover a traveler who pays and then closes the tab before the redirect completes. Mount its raw-body route **before** `express.json()` in `app.js`.
 
