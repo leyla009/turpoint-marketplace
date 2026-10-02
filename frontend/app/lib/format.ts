@@ -6,6 +6,9 @@ import type { Locale } from './translations';
 
 export const DATE_LOCALES: Record<Locale, string> = { az: 'az-AZ', en: 'en-GB', ru: 'ru-RU' };
 
+const AZ_MONTHS_SHORT = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avq', 'sen', 'okt', 'noy', 'dek'];
+const AZ_MONTHS_LONG = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avqust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr'];
+
 /** "AZN 120", "AZN 89.5", "AZN 1,250". Up to 2 decimals, no trailing zeros. */
 export function formatAzn(amount: number | string | null | undefined): string {
   const n = Number(amount ?? 0);
@@ -27,6 +30,12 @@ export function formatDate(
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   const d = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : new Date(value);
   if (Number.isNaN(d.getTime())) return value;
+
+  if (locale === 'az' && options.month) {
+    const names = options.month === 'long' ? AZ_MONTHS_LONG : AZ_MONTHS_SHORT;
+    return [options.day ? d.getDate() : '', names[d.getMonth()], options.year ? d.getFullYear() : ''].filter(Boolean).join(' ');
+  }
+
   return d.toLocaleDateString(DATE_LOCALES[locale], options);
 }
 

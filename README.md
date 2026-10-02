@@ -1,140 +1,148 @@
-# TurPoint — Centralized Tourism Marketplace for Azerbaijan
+# TurPoint — a tourism marketplace for Azerbaijan
 
-**Holberton School Final Portfolio Project**
-TurPoint bridges the gap between local tour operators, independent guides, and travelers in Azerbaijan through a unified marketplace platform.
+*Holberton School final portfolio project.*
 
----
+Local tourism in Azerbaijan is scattered across Instagram pages, Facebook groups and WhatsApp chats. **TurPoint** puts it in one place: tour operators and independent guides publish tours, and travelers discover, compare, group up and book them, with real prices, honest refund rules and reviews from people who actually went.
 
-## About the Project
-
-In Azerbaijan, local tourism is heavily fragmented across Instagram pages, Facebook groups, and WhatsApp chats. Finding verified tours, comparing pricing, checking real-time availability, and reading genuine reviews is time-consuming and unreliable.
-
-**TurPoint** solves this by offering a transparent two-sided marketplace where tour companies and independent guides can publish tours, manage bookings, and optimize occupancy, while travelers can discover, compare, and book verified trips seamlessly.
+**Stack:** Next.js 14 · Express · SQLite · Vercel (frontend) + Railway (backend) · GitHub Actions CI
 
 ---
 
-## Key Features & Key Differentiators
+## What it does
 
-### Core Differentiators
-1. **Dynamic Group Formation & Group Discount Model**
-   - Solo travelers or small groups reserve spots on tours that require a minimum capacity threshold.
-   - Booking *is* what advances the group — there's no separate "join" action disconnected from an actual reservation. A booking against a group that hasn't hit its minimum goes in as `pending`; the moment any booking tips the group over its minimum, that booking **and every earlier pending booking on the same group** settle together at the same final per-person price:
-     `Per Person Cost = Total Tour Cost / Number of Participants`
-   - If a group never fills before the tour date, it's cancelled automatically and any pending bookings on it cancel with it.
-2. **Smart Travel Planner**
-   - An algorithmic itinerary generator that builds tour combinations given a user's budget, day count, and interest preferences.
-   - Deliberately a **greedy heuristic** (rank by interest-match-per-price, fill budget) rather than a full solver — the underlying problem is a variant of the Team Orienteering Problem with Time Windows (TOPTW), which is NP-complete. A knapsack/local-search upgrade is a documented stretch goal.
-### Standard Features
-- **Dual-mode accounts:** every user can be a traveler, an operator, or both — a mode toggle in the UI switches between traveler nav and an operator dashboard. Operator profiles are owned by the authenticated account (`operators.user_id`); ownership is always derived from the verified JWT, never trusted from a request body.
-- **Operator Dashboard:** create/edit an operator profile, list and delete your tours, and view incoming bookings across them — all from a dedicated `/dashboard` UI.
-- **Tour Management & Comparison:** filter by location, date, price, and category; compare 2–3 tours side-by-side in a dedicated comparison view.
-- **Reviews & Ratings:** travelers rate completed tours (1–5 stars); an operator's average rating rolls up automatically. Restricted to verified buyers — only a traveler with a `confirmed` booking on that specific tour can review it, one review per user per tour, with a rolling-window rate limit to curb spam. Reviewers can edit or delete their own review afterward.
-- **Last-Minute Deals:** discounted pricing for upcoming tours with open capacity, restricted to the owning operator.
-- **Booking & E-Ticketing:** authenticated booking flow with a unique text `ticket_code` per booking, rendered as a scannable QR code (`qrcode.react`'s `QRCodeSVG`) on both the post-booking confirmation view and the e-ticket detail page — generated client-side from the ticket code, no backend QR library needed.
-- **"My Trips":** a traveler's own bookings, past and upcoming (`GET /api/bookings/my-trips`).
-- **Smart Planner UI:** budget/day/interest form wired directly to the planner endpoint, returning a ready-made itinerary.
-- **Authentication:** email/password sign-up and login with bcrypt-hashed passwords and JWT sessions, with client-side session persistence and re-validation on load.
----
+**Travelers**
+- **Discover:** search and filter by location, date, price and category; interactive Leaflet map; compare 2–3 tours side by side; save favorites; popular tours and last-minute deals.
+- **Tour pages:** full details in Azerbaijani, English and Russian, reviews, a weather forecast for the tour dates (Open-Meteo), and WhatsApp / Instagram contact.
+- **Group booking:** a tour runs once its minimum group size is reached. Bookings stay `pending` until then and all confirm together. If the group never fills, it is cancelled automatically and the bookings are refunded.
+- **E-tickets:** unique ticket code, QR code and downloadable PDF. *My Bookings* shows past and upcoming trips.
+- **Cancellation with refunds:** 7+ days before = 100%, 3–6 days = 50%, 0–2 days = 0%. Operator cancellations and unfilled groups always refund 100%.
+- **AI Smart Planner:** a conversational trip planner (Groq LLM) that can only recommend tours that really exist in the database. Prices and totals are recomputed server-side. Trips can be saved.
+- **Reviews:** only travelers with a confirmed booking can review, and only after the tour date.
+- **In-app notifications** and a language switcher (AZ / EN / RU).
 
-## Tech Stack
+**Operators**
+- One account can be traveler and operator, with a mode toggle in the UI.
+- Operator profile (photo, languages, vehicle features, phone, Instagram).
+- Dashboard: create, edit and delete tours with photos, run last-minute deals, see and cancel incoming bookings, and view analytics (views, bookings, favorites, reviews).
 
-| Tier | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | Next.js 14.2.35, React 18, TypeScript, Tailwind CSS | Responsive UI, App Router |
-| **Backend** | Node.js, Express.js | RESTful API endpoints, state management |
-| **Database** | SQLite (better-sqlite3) | Lightweight relational database engine |
-| **Auth** | bcryptjs, jsonwebtoken | Password hashing, JWT session tokens, ownership-scoped routes |
-| **API Docs** | swagger-ui-express | Interactive, testable OpenAPI documentation at `/api-docs` |
-| **Icons** | lucide-react | UI iconography |
-| **Maps & Location** | Leaflet | Interactive homepage destination map, pinning tours by city — replaces the originally-planned Google Maps API, no paid key required |
-| **Design & Prototyping** | AI-generated clickable prototype (React/TypeScript) | UI/UX reference — see `docs/figma-prototype/` and the [decision note](docs/figma.md) |
-| **Payments** | Simulated (card number presence only, nothing charged) | Real Stripe integration is Sprint 3 scope |
-| **Hosting & CI/CD** | Vercel / Railway | *Planned, not yet deployed* |
+**Under the hood**
+- JWT auth with bcrypt; identity always comes from the verified token, never the request body.
+- Zod validation on every JSON route; rate limits on the API, login, booking and planner endpoints; helmet; CORS allowlist; uploads accepted only by real file signature.
+- OpenAPI docs with "Try it out" at `/api-docs`.
+- Hourly background job that expires unfilled groups.
+- Payments are **simulated**: no payment provider is connected and no money moves. The card form accepts test card numbers only. Stripe Checkout is the next planned step, see [roadmap](docs/roadmap.md).
 
 ---
 
-## Architecture & Flow
+## Tech stack
+
+| Area | Technology |
+| :--- | :--- |
+| Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Leaflet, lucide-react, qrcode.react |
+| Backend | Node.js 20, Express 4, better-sqlite3 (WAL), Zod, jsonwebtoken + bcryptjs, helmet, express-rate-limit, multer, pdfkit + qrcode |
+| External services | Groq API (planner), Open-Meteo (weather, no key needed) |
+| API docs | swagger-ui-express (`/api-docs`) |
+| Tests / CI | node:test + supertest, GitHub Actions (backend tests + frontend build) |
+| Hosting | Vercel (frontend), Railway with a persistent volume (backend + SQLite) |
 
 ```
-+-------------------+        +--------------------+        +---------------------+
-|  Next.js Frontend | <----> | Express REST API   | <----> |   SQLite Database   |
-| (App Router, TS)  |        | (Auth, Logic, Ops) |        | (Tours, Users, Ops) |
-+-------------------+        +--------------------+        +---------------------+
-                                       |
-                                       v
-                              +------------------+
-                              | Swagger / OpenAPI|
-                              |   (/api-docs)    |
-                              +------------------+
+Next.js frontend  <──REST──>  Express API  <────>  SQLite
+ (Vercel)                      (Railway)           (Railway volume)
 ```
 
 ---
 
-## Getting Started
+## Quick start
 
-### Prerequisites
-- Node.js (v18.x or higher)
-- npm
-### Installation
+Requires **Node.js 20**.
 
-1. **Clone the repository:**
 ```bash
-   git clone https://github.com/leyla009/turpoint-marketplace.git
-   cd turpoint-marketplace
+git clone https://github.com/leyla009/turpoint-marketplace.git
+cd turpoint-marketplace
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-2. **Install dependencies for backend & frontend separately:**
-```bash
-   cd backend && npm install
-   cd ../frontend && npm install
-```
-   `better-sqlite3` compiles a native module on install. On Windows this requires the "Desktop development with C++" workload from Visual Studio Build Tools; on Linux/macOS a standard build toolchain (`make`, a C++ compiler, Python) is normally already present.
+`better-sqlite3` compiles a native module on install. Windows needs the "Desktop development with C++" workload from Visual Studio Build Tools; Linux and macOS usually have the toolchain already.
 
-3. **Configure environment variables** — two separate files, each inside its own folder:
-   `backend/.env` (copy from `backend/.env.example`):
+**Environment files**
+
+`backend/.env` (copy from `backend/.env.example`):
 ```env
-   PORT=4000
-   JWT_SECRET=your_own_secret_here
+PORT=4000
+JWT_SECRET=your_own_secret_here
+GROQ_API_KEY=            # optional, enables the AI planner (free key: console.groq.com)
 ```
-   `JWT_SECRET` falls back to an insecure development default if unset — replace it before deploying anywhere real.
-
-   `frontend/.env.local`:
+`frontend/.env.local`:
 ```env
-   NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
-   **If developing in GitHub Codespaces**, `localhost` will NOT work here — see the Codespaces note below.
+The full list of backend variables is documented in `backend/.env.example`.
 
-4. **Create the schema and seed demo data:**
+**Create the database and demo data** (the schema is applied automatically on boot):
 ```bash
-   cd backend
-   node src/db/index.js
-   npm run seed
+cd backend
+npm run seed
 ```
-   The schema step also applies a safe, idempotent migration adding `operators.user_id` if it isn't already there — fine to run repeatedly.
+This adds 22 real, translated tours with dates relative to today, so every refund tier can be demoed. It refuses to run twice on the same database.
 
-5. **Start both dev servers, in two separate terminals:**
+**Run both servers** in two terminals:
 ```bash
-   # Terminal 1
-   cd backend && npm run dev
-
-   # Terminal 2
-   cd frontend && npm run dev
+cd backend && npm run dev      # http://localhost:4000  (API docs at /api-docs)
+cd frontend && npm run dev     # http://localhost:3000
 ```
-   Open `http://localhost:3000` for the app, and `http://localhost:4000/api-docs` for the interactive API docs.
 
-### A note on GitHub Codespaces
+Other seed scripts: `seed:tours -- --prices` (refresh tours on an existing database), `seed:photos`, `seed:analytics -- you@example.com` (demo analytics for an operator account).
 
-This project has been primarily developed inside GitHub Codespaces. API calls happen in your **browser**, not inside the container — so `localhost` refers to your own machine, not the Codespace, and will fail to connect for anything you open in-browser, including `/api-docs`.
+**Test cards (simulated payments):** `4242 4242 4242 4242` succeeds, `4000 0000 0000 0002` is declined.
 
-1. Open the **Ports** tab in VS Code, find port `4000`, set its visibility to **Public**.
-2. Copy the forwarded URL shown there (e.g. `https://your-codespace-name-4000.app.github.dev`) — use this for `NEXT_PUBLIC_API_URL` in `frontend/.env.local`, **and** use it directly in your browser instead of typing `localhost:4000` by hand.
-3. Restart the frontend dev server after any change to `.env.local` — Next.js only reads it at startup, not live.
+**In GitHub Codespaces**, `localhost` in the browser points at your own machine, not the Codespace. Set port 4000 to *Public* in the Ports tab, use that forwarded URL for `NEXT_PUBLIC_API_URL`, and restart the frontend after changing `.env.local`.
+
 ---
 
-## API Documentation
+## Tests and CI
 
-Every endpoint is documented and directly testable via Swagger UI once the backend is running:
+```bash
+cd backend && npm test
 ```
-http://localhost:4000/api-docs
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests and a production frontend build on every push to `main` and on every pull request. Vercel and Railway redeploy automatically from `main`, so the usual flow is branch, pull request, green CI, merge.
+
+---
+
+## Project structure
+
 ```
-(or the Codespaces-forwarded equivalent, per the note above). Covers auth, operators, tours, group formations, bookings, reviews, deals, and the planner — kept current with the actual route set as of the last hardening pass (see TASKS.md).
+backend/
+  src/app.js         Express app (exported, so tests can import it)
+  src/server.js      Entry point: starts the server and the hourly expiry job
+  src/routes/        auth, operators, tours, bookings, group-formations, reviews,
+                     deals, planner, favorites, notifications
+  src/lib/           payments (simulated), refundPolicy, expireGroups, notify,
+                     schemas (Zod), uploads, groq, ticketPdf, analytics
+  src/db/            schema.sql, boot-time migrations, seed scripts
+  src/openapi.json   API documentation
+  test/              API tests
+frontend/
+  app/(main)/        pages: home, tour detail and booking, bookings, dashboard, notifications
+  app/(auth)/        login / signup page
+  app/components/    UI components
+  app/lib/           translations (az/en/ru), date/price formatting, photo, weather and notification helpers
+  public/seed/       tour cover photos
+  public/pictures/   hero slideshow and site images
+docs/                see below
+tools/               script that generated some seed cover images (not needed at runtime)
+```
+
+---
+
+## Documentation
+
+| Document | What's in it |
+| :--- | :--- |
+| [docs/deployment.md](docs/deployment.md) | Railway + Vercel setup, environment variables, post-deploy checklist |
+| [docs/decisions.md](docs/decisions.md) | Why things work the way they do: group rules, refunds, security, content |
+| [docs/changelog.md](docs/changelog.md) | What changed, version by version |
+| [docs/roadmap.md](docs/roadmap.md) | What's next and known gaps |
+| [docs/design.md](docs/design.md) | Design-system reference the UI was modelled on |
+| [docs/figma.md](docs/figma.md) | Wireframe prompts and the prototype note |
+| [docs/demo-guide.md](docs/demo-guide.md) | What's new and a step-by-step demo script |

@@ -116,7 +116,7 @@ export default function TourCard({
     // documented tier, not an arbitrary Tailwind shadow-lg.
     <div
       onClick={onClick}
-      className={`bg-card rounded-xl overflow-hidden transition-shadow duration-300 cursor-pointer group ${
+      className={`bg-card rounded-xl overflow-hidden transition-shadow duration-300 cursor-pointer group h-full flex flex-col ${
         compareSelected
           ? 'ring-accent ring-2'
           : 'hover:shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)]'
@@ -127,7 +127,7 @@ export default function TourCard({
           over typographic weight - at every card width this renders at
           (grid columns, the w-64 horizontal scrollers, compare mode), not
           just the one width it was tuned for. */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted shrink-0">
         {tour.photo_url ? (
           <img
             src={photoSrc(tour.photo_url) ?? ''}
@@ -187,7 +187,7 @@ export default function TourCard({
           <span className="bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">{t(style.labelKey)}</span>
         </div>
       </div>
-      <div className="p-3.5">
+      <div className="p-3.5 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{title}</h3>
           {hasRating && (
@@ -206,7 +206,7 @@ export default function TourCard({
             ) : null}
           </p>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-auto">
           <div className="min-w-0">
             <p className="text-xs font-medium truncate text-foreground">
               {operatorName ?? t('tourCard.defaultOperator')}
