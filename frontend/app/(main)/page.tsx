@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   Search, MapPinned, Calendar, LayoutGrid, Zap,
   ShieldCheck, MessageCircle, ChevronDown, MapPin, LogIn, X,
-  Sparkles, Gift, Unlock,
+  Sparkles, Gift, Unlock, Check,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import Greeting from '@/app/components/Greeting';
@@ -836,144 +836,97 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Operator story - the /pictures/4.jpeg mountain-valley photo behind
-          a near-black cinematic scrim (borrowed from DESIGN-sequel.md's
-          pure-black-canvas mood, deliberately deeper than the dark-GREEN
-          tint this used to be) so this one section reads as a distinct
-          premium moment for operators, strong enough on the left (where the
-          heading/body copy sits) to keep text legible, fading out toward
-          the right where the benefit cards already carry their own
-          background. Only describes capabilities that actually exist: the
-          public marketplace listing, the operator dashboard's bookings
-          view, and real photo uploads on a tour listing. */}
-      <div
-        className="relative overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: "url('/pictures/4.jpeg')" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/90 to-black/75" />
-        <div className="relative px-4 sm:px-6 py-20 md:py-28 max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-start">
-            <div>
-              <p className="text-xs font-bold tracking-[0.2em] uppercase text-white/60 mb-3">
-                {t('home.operatorEyebrow')}
-              </p>
-              {/* Big, bold, confident display type instead of the
-                  same modest text-2xl/3xl scale the rest of the page
-                  uses - matching an actual Airbnb host-page headline's
-                  scale, which is what made the old version of this
-                  section feel timid by comparison. */}
+      {/* Operator pitch - an inset forest-green panel in the brand's own
+          palette (primary green, cream text, clay CTA) so it reads as part
+          of TurPoint rather than a separate near-black cinematic band.
+          Copy on the left, the /pictures/4.jpeg landscape on the right,
+          and the three operator perks as a strip along the bottom.
+          Only describes things that are true today: open marketplace
+          listing, the operator dashboard, real photo uploads, no listing
+          fee, direct WhatsApp/Instagram contact. */}
+      <section className="px-4 sm:px-6 lg:px-8 pb-16 md:pb-24 max-w-[1600px] mx-auto">
+        <div className="overflow-hidden rounded-[28px] bg-primary text-primary-foreground shadow-[0_30px_60px_-30px_rgba(27,61,47,0.55)]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
+            <div className="order-2 lg:order-1 px-6 py-10 sm:px-12 sm:py-14 lg:px-16 lg:py-20 flex flex-col justify-center">
               <h2
-                className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-5 leading-[1.05] tracking-tight"
+                className="text-[2rem] sm:text-[2.5rem] lg:text-[3.25rem] font-bold leading-[1.18] mb-5 max-w-xl"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 {t('home.operatorTitle')}
               </h2>
-              <p className="text-base sm:text-lg text-white/75 mb-6 leading-relaxed max-w-md">
+              <p className="text-base sm:text-lg text-white/75 leading-relaxed max-w-lg mb-9">
                 {t('home.operatorBody')}
               </p>
 
-              {/* Real platform-wide stat (tours.length / operatorCount are
-                  both straight from the same /api/tours + /api/operators
-                  fetch every other real number on this page uses) - the
-                  honest equivalent of Airbnb's "your home could make $X"
-                  concrete-number hook, without inventing a per-operator
-                  earnings estimate TurPoint has no feature to produce. */}
-              {!loading && tours.length > 0 && (
-                <p className="text-sm font-bold text-[#f5f5f0] mb-8">
-                  {t('home.operatorStat', { tourCount: tours.length, operatorCount })}
-                </p>
-              )}
+              <ul className="space-y-5 mb-10 max-w-lg">
+                {(
+                  [
+                    { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
+                    { titleKey: 'home.operatorBenefit2Title', bodyKey: 'home.operatorBenefit2Body' },
+                    { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
+                  ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
+                ).map(({ titleKey, bodyKey }) => (
+                  <li key={titleKey} className="flex gap-4">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#F3D9C2] shrink-0 mt-0.5">
+                      <Check size={15} strokeWidth={3} className="text-accent" />
+                    </span>
+                    <div>
+                      <p className="text-base font-semibold text-white">{t(titleKey)}</p>
+                      <p className="text-sm text-white/65 mt-1 leading-relaxed">{t(bodyKey)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
-              {/* Cream pill CTA (Sequel's #f5f5f0-on-black is the one loud
-                  element in its whole system) rather than the plain white
-                  rounded-xl rectangle this used to be - against the new
-                  near-black scrim this reads as the one thing to press. */}
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 bg-[#f5f5f0] text-black text-base font-bold px-7 py-3.5 rounded-full hover:bg-white transition-colors"
-              >
-                {t('dashboard.becomeOperator')}
-              </Link>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center bg-accent text-accent-foreground text-base font-bold px-7 py-3.5 rounded-full hover:bg-[#9A4D23] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                >
+                  {t('dashboard.becomeOperator')}
+                </Link>
+                {/* Real platform-wide numbers from the same /api/tours +
+                    /api/operators fetch the rest of this page uses. */}
+                {!loading && tours.length > 0 && (
+                  <p className="text-sm text-white/70">
+                    {t('home.operatorStat', { tourCount: tours.length, operatorCount })}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div>
-              {/* Real product screenshot (literally captured from this
-                  site's own tour-detail review section, not a stock photo
-                  or mockup) in a plain browser-chrome frame - the same
-                  "show the actual product" pattern Airbnb's own operator-
-                  facing page uses instead of describing features in the
-                  abstract. Tour photo galleries aren't populated yet (every
-                  seeded tour still falls back to the abstract category
-                  motif), so this deliberately showcases the reviews UI
-                  rather than a listing card that would show that same
-                  placeholder art operators are being pitched to replace. */}
-              <div className="rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/10 mb-6">
-                <div className="bg-[#1a1a1a] px-4 py-2.5 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                </div>
-                <img
-                  src="/pictures/product-showcase.png"
-                  alt={t('home.operatorScreenshotAlt')}
-                  className="w-full h-auto block"
-                />
-              </div>
-
-              <div className="space-y-5">
-              {(
-                [
-                  { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
-                  { titleKey: 'home.operatorBenefit2Title', bodyKey: 'home.operatorBenefit2Body' },
-                  { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
-                ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
-              ).map(({ titleKey, bodyKey }, i) => (
-                /* Sequel's signature dark-card elevation - a soft drop
-                   shadow paired with a 1px inset white top-highlight at 8%
-                   alpha - instead of a flat blurred panel with a border.
-                   Reads as "lit from above" against the black scrim rather
-                   than a bordered box sitting on it. */
-                <div
-                  key={i}
-                  className="flex gap-4 bg-black/60 backdrop-blur-sm rounded-xl px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)]"
-                >
-                  <span className="text-sm font-bold text-accent shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                  <div>
-                    <p className="text-sm font-bold text-white">{t(titleKey)}</p>
-                    <p className="text-xs text-white/70 mt-1 leading-relaxed">{t(bodyKey)}</p>
-                  </div>
-                </div>
-              ))}
-              </div>
+            <div className="order-1 lg:order-2 relative h-56 sm:h-72 lg:h-auto">
+              <img
+                src="/pictures/4.jpeg"
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* Blends the photo into the green panel along its inner edge. */}
+              <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-primary via-primary/10 to-transparent lg:via-transparent" />
             </div>
           </div>
 
-          {/* Operator-specific perk trio - mirrors an actual Airbnb host
-              page's "It's easy / It's worth it / You're protected" row
-              (a DIFFERENT, more visceral trio than the general traveler-
-              facing "Why TurPoint" section elsewhere on this page), but
-              every claim here is literally true of TurPoint today: there is
-              no listing fee anywhere in the codebase, and contact is a
-              direct WhatsApp/Instagram link with no in-app middleman. */}
-          <div className="mt-16 md:mt-20 pt-12 md:pt-14 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-10 text-center">
+          <div className="border-t border-white/10 bg-black/15 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-white/10">
             {(
               [
                 { Icon: Sparkles, titleKey: 'home.operatorPerk1Title', bodyKey: 'home.operatorPerk1Body' },
                 { Icon: Gift, titleKey: 'home.operatorPerk2Title', bodyKey: 'home.operatorPerk2Body' },
                 { Icon: Unlock, titleKey: 'home.operatorPerk3Title', bodyKey: 'home.operatorPerk3Body' },
               ] satisfies { Icon: typeof Sparkles; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-            ).map(({ Icon, titleKey, bodyKey }, i) => (
-              <div key={i}>
-                <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white/10 mb-4 mx-auto">
-                  <Icon size={22} className="text-[#f5f5f0]" />
+            ).map(({ Icon, titleKey, bodyKey }) => (
+              <div key={titleKey} className="flex items-start gap-4 px-6 sm:px-8 lg:px-12 py-6 sm:py-7">
+                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 shrink-0">
+                  <Icon size={18} className="text-[#F3D9C2]" />
                 </span>
-                <h3 className="text-base font-bold text-white mb-1.5">{t(titleKey)}</h3>
-                <p className="text-sm text-white/70 leading-relaxed">{t(bodyKey)}</p>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{t(titleKey)}</h3>
+                  <p className="text-sm text-white/65 mt-0.5 leading-relaxed">{t(bodyKey)}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Floating compare tray - only while compare mode is on and at
           least one card is selected; mirrors the old /compare page's

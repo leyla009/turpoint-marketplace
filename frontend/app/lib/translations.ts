@@ -647,6 +647,16 @@ const az = {
   'footer.terms': 'İstifadə şərtləri',
   'footer.privacy': 'Məxfilik siyasəti',
   'footer.rights': '© {year} TurPoint. Bütün hüquqlar qorunur.',
+  'footer.description': 'Azərbaycanın hər bölgəsində yerli operatorların turlarını tapın, müqayisə edin və rezerv edin.',
+  'footer.explore': 'Kəşf et',
+  'footer.allTours': 'Bütün turlar',
+  'footer.addTour': 'Tur əlavə et',
+  'footer.company': 'Şirkət',
+  'footer.emergency': 'Təcili əlaqə',
+  'footer.emergencyGeneral': 'Ümumi təcili xidmət',
+  'footer.emergencyPolice': 'Polis',
+  'footer.emergencyAmbulance': 'Təcili yardım',
+  'footer.emergencyFire': 'Yanğın xidməti',
 
   // About / Terms / Privacy pages
   'about.title': 'Haqqımızda',
@@ -681,6 +691,7 @@ const az = {
   'privacy.section3Body': 'Rezervasiya etdiyiniz turun operatoru ilə yalnız rezervasiya üçün zəruri məlumatlar paylaşılır.',
   'privacy.section4Title': 'Əlaqə',
   'privacy.section4Body': 'Məxfiliklə bağlı suallarınız üçün bizimlə {email} vasitəsilə əlaqə saxlaya bilərsiniz.',
+  'privacy.englishOnly': 'Məxfilik siyasətinin hüquqi mətni hazırda yalnız ingilis dilindədir. Azərbaycan dilində versiya hazırlanır.',
 
   // Account panel (floating, opened by clicking the avatar/name in the nav)
   'account.personalInfo': 'Şəxsi məlumatlarım',
@@ -1318,6 +1329,16 @@ const en: Record<TranslationKey, string> = {
   'footer.terms': 'Terms of use',
   'footer.privacy': 'Privacy policy',
   'footer.rights': '© {year} TurPoint. All rights reserved.',
+  'footer.description': 'Find, compare and book tours run by local operators in every region of Azerbaijan.',
+  'footer.explore': 'Explore',
+  'footer.allTours': 'All tours',
+  'footer.addTour': 'Add a tour',
+  'footer.company': 'Company',
+  'footer.emergency': 'Emergency contacts',
+  'footer.emergencyGeneral': 'General emergencies',
+  'footer.emergencyPolice': 'Police',
+  'footer.emergencyAmbulance': 'Ambulance',
+  'footer.emergencyFire': 'Fire service',
 
   // About / Terms / Privacy pages
   'about.title': 'About us',
@@ -1352,6 +1373,7 @@ const en: Record<TranslationKey, string> = {
   'privacy.section3Body': 'Only the information needed to fulfil a booking is shared with the tour operator you book with.',
   'privacy.section4Title': 'Contact',
   'privacy.section4Body': 'For privacy questions, you can reach us at {email}.',
+  'privacy.englishOnly': 'This Privacy Policy is currently available in English only.',
 
   'account.personalInfo': 'My personal info',
   'account.favorites': 'Favorites',
@@ -1985,6 +2007,16 @@ const ru: Record<TranslationKey, string> = {
   'footer.terms': 'Условия использования',
   'footer.privacy': 'Политика конфиденциальности',
   'footer.rights': '© {year} TurPoint. Все права защищены.',
+  'footer.description': 'Находите, сравнивайте и бронируйте туры местных операторов во всех регионах Азербайджана.',
+  'footer.explore': 'Обзор',
+  'footer.allTours': 'Все туры',
+  'footer.addTour': 'Добавить тур',
+  'footer.company': 'Компания',
+  'footer.emergency': 'Экстренные службы',
+  'footer.emergencyGeneral': 'Единая служба спасения',
+  'footer.emergencyPolice': 'Полиция',
+  'footer.emergencyAmbulance': 'Скорая помощь',
+  'footer.emergencyFire': 'Пожарная служба',
 
   // About / Terms / Privacy pages
   'about.title': 'О нас',
@@ -2019,6 +2051,7 @@ const ru: Record<TranslationKey, string> = {
   'privacy.section3Body': 'Туроператору, у которого вы бронируете тур, передаётся только информация, необходимая для бронирования.',
   'privacy.section4Title': 'Контакты',
   'privacy.section4Body': 'По вопросам конфиденциальности вы можете связаться с нами по адресу {email}.',
+  'privacy.englishOnly': 'Юридический текст политики конфиденциальности пока доступен только на английском языке. Русская версия готовится.',
 
   'account.personalInfo': 'Личные данные',
   'account.favorites': 'Избранное',
