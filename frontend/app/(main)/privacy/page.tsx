@@ -130,7 +130,7 @@ export default function PrivacyPage() {
                 </h2>
 
                 <aside className="rounded-xl bg-surface-moss border-l-4 border-primary px-5 py-4 mb-7">
-                  <p className="text-sm font-bold text-primary mb-1">Plain English summary</p>
+                  <p className="text-sm font-bold text-primary mb-1">Summary</p>
                   <p className="text-[15px] text-foreground/85 leading-relaxed">{section.summary}</p>
                 </aside>
 
