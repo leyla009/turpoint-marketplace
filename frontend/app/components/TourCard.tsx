@@ -1,6 +1,6 @@
 'use client';
 
-import { Leaf, Landmark, Music, Utensils, MapPin, Zap, Check, Star, Heart, Clock, Languages } from 'lucide-react';
+import { Mountain, Landmark, Flower2, Wine, FerrisWheel, MapPin, Zap, Check, Star, Heart, Clock, Languages } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 import { photoSrc } from '../lib/photo';
@@ -9,12 +9,16 @@ import { tourTitle, placeName, tourFacts } from '../lib/tourContent';
 
 // Category labels/icons - drives the category filters and the homepage
 // "Explore by category" tiles as well as the photo-less card fallback.
-export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; labelKey: TranslationKey }> = {
-  nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, labelKey: 'category.nature' },
-  history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, labelKey: 'category.history' },
-  entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: Music, labelKey: 'category.entertainment' },
-  food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, labelKey: 'category.food' },
+export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; emoji: string; labelKey: TranslationKey }> = {
+  nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Mountain, emoji: '🏔️', labelKey: 'category.nature' },
+  history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, emoji: '🏛️', labelKey: 'category.history' },
+  wellness: { gradient: 'from-teal-400 to-teal-600', Icon: Flower2, emoji: '🧘', labelKey: 'category.wellness' },
+  food: { gradient: 'from-orange-400 to-red-500', Icon: Wine, emoji: '🍷', labelKey: 'category.food' },
+  entertainment: { gradient: 'from-violet-400 to-violet-600', Icon: FerrisWheel, emoji: '🎡', labelKey: 'category.entertainment' },
 };
+
+/** "Multi-day Tours" isn't a stored category - it's tours lasting 2+ days. */
+export const MULTIDAY_EMOJI = '🗺️';
 
 // Muted mountain-silhouette fallback for a tour without a real photo yet,
 // tinted per category in the brand's teal/navy family.
@@ -23,6 +27,7 @@ const CATEGORY_MOTIF: Record<string, { base: string; ridge: string; crest: strin
   history: { base: '#1E3348', ridge: '#28425B', crest: '#33516E' },
   entertainment: { base: '#2A2F52', ridge: '#373D66', crest: '#454C7A' },
   food: { base: '#3D2E2A', ridge: '#4D3B35', crest: '#5E4941' },
+  wellness: { base: '#1D4440', ridge: '#255751', crest: '#2E6A63' },
 };
 const MOTIF_RIDGE = 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z';
 const MOTIF_CREST = 'M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z';
@@ -57,6 +62,8 @@ export interface ApiTour {
   facts?: string | null;
   rating?: number | null;
   review_count?: number;
+  click_count?: number;
+  created_at?: string;
 }
 
 /** Guide languages from the tour's facts as short codes, e.g. "EN / AZ". */

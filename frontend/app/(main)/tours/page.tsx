@@ -10,6 +10,7 @@ import CompareModal from '@/app/components/CompareModal';
 import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
 import { VEHICLE_FEATURES, parseVehicleFeatures } from '@/app/lib/vehicleFeatures';
 import { tourTitle, placeName, tourFacts } from '@/app/lib/tourContent';
+import { ECONOMIC_REGIONS, regionOfPlace, regionShortLabel } from '@/app/lib/destinations';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { useFavorites } from '@/app/lib/useFavorites';
 import type { TranslationKey } from '@/app/lib/translations';
@@ -123,11 +124,24 @@ export default function ExplorePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Only destinations that actually have tours.
-  const locations = useMemo(
-    () => Array.from(new Set(tours.map((t) => t.location).filter(Boolean) as string[])).sort(),
-    [tours]
-  );
+  // Destinations that actually have tours - plus whatever the search bar
+  // sent in ?location=, so a place with no tours yet still shows as the
+  // selected value (with the empty state below) instead of "All locations".
+  const locations = useMemo(() => {
+    const set = new Set(tours.map((t) => t.location).filter(Boolean) as string[]);
+    if (locationFilter !== 'all') set.add(locationFilter);
+    return Array.from(set).sort();
+  }, [tours, locationFilter]);
+
+  const locationGroups = useMemo(() => {
+    const groups = ECONOMIC_REGIONS.map((r) => ({
+      heading: regionShortLabel(r.label[locale]),
+      places: r.places.filter((p) => locations.includes(p)),
+    }));
+    const other = locations.filter((l) => !regionOfPlace(l));
+    if (other.length) groups.push({ heading: t('ui.search.otherPlaces'), places: other });
+    return groups.filter((g) => g.places.length > 0);
+  }, [locations, locale, t]);
 
   const priceSliderMax = useMemo(() => {
     const prices = tours.map((t) => t.discounted_price ?? t.price);
@@ -233,10 +247,15 @@ export default function ExplorePage() {
       <FilterGroup title={t('ui.explore.destination')}>
         <SelectField value={locationFilter} onChange={setLocationFilter} label={t('ui.explore.destination')}>
           <option value="all">{t('ui.explore.allLocations')}</option>
-          {locations.map((l) => (
-            <option key={l} value={l}>
-              {placeName(l, locale)}
-            </option>
+          {/* Places that have tours, grouped under their economic region. */}
+          {locationGroups.map(({ heading, places }) => (
+            <optgroup key={heading} label={heading}>
+              {places.map((l) => (
+                <option key={l} value={l}>
+                  {placeName(l, locale)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </SelectField>
       </FilterGroup>

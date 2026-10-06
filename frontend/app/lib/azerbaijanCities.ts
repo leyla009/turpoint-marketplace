@@ -10,8 +10,8 @@
 // API either - Intl case folding for the dotted/dotless İ/I pair is itself
 // ICU-version-dependent, which is exactly the kind of environment
 // difference this function exists to avoid.
-const AZ_ALPHABET_LOWER = 'abcçdeəfgğhxıijklmnoöprsştuüvyz';
-const AZ_ALPHABET_UPPER = 'ABCÇDEƏFGĞHXIİJKLMNOÖPRSŞTUÜVYZ';
+const AZ_ALPHABET_LOWER = 'abcçdeəfgğhxıijkqlmnoöprsştuüvyz';
+const AZ_ALPHABET_UPPER = 'ABCÇDEƏFGĞHXIİJKQLMNOÖPRSŞTUÜVYZ';
 function azRank(char: string): number {
   const i = AZ_ALPHABET_LOWER.indexOf(char);
   if (i !== -1) return i;

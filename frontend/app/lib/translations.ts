@@ -147,10 +147,11 @@ const az = {
   'common.scrollRight': 'Sağa sürüşdür',
 
   // Category labels (tour cards, compare, planner, tour forms)
-  'category.nature': 'Təbiət',
-  'category.history': 'Tarix',
-  'category.entertainment': 'Əyləncə',
-  'category.food': 'Qastronomiya',
+  'category.nature': 'Dağlar və təbiət',
+  'category.history': 'Tarix və mədəniyyət',
+  'category.entertainment': 'Əyləncə və asudə vaxt',
+  'category.food': 'Qastronomiya və şərab',
+  'category.wellness': 'Sağlamlıq və relaksasiya',
 
   // Tour feature/inclusion tags (search chips + tour create/edit forms)
   'feature.breakfast': 'Səhər yeməyi',
@@ -847,10 +848,11 @@ const en: Record<TranslationKey, string> = {
   'common.scrollLeft': 'Scroll left',
   'common.scrollRight': 'Scroll right',
 
-  'category.nature': 'Nature',
-  'category.history': 'History',
-  'category.entertainment': 'Entertainment',
-  'category.food': 'Gastronomy',
+  'category.nature': 'Mountains & Nature',
+  'category.history': 'History & Culture',
+  'category.entertainment': 'Entertainment & Leisure',
+  'category.food': 'Gastronomy & Wine',
+  'category.wellness': 'Health & Wellness',
 
   'feature.breakfast': 'Breakfast',
   'feature.eveningTea': 'Evening tea spread',
@@ -1526,10 +1528,11 @@ const ru: Record<TranslationKey, string> = {
   'common.scrollLeft': 'Прокрутить влево',
   'common.scrollRight': 'Прокрутить вправо',
 
-  'category.nature': 'Природа',
-  'category.history': 'История',
-  'category.entertainment': 'Развлечения',
-  'category.food': 'Гастрономия',
+  'category.nature': 'Горы и природа',
+  'category.history': 'История и культура',
+  'category.entertainment': 'Развлечения и досуг',
+  'category.food': 'Гастрономия и вино',
+  'category.wellness': 'Здоровье и велнес',
 
   'feature.breakfast': 'Завтрак',
   'feature.eveningTea': 'Вечернее чаепитие',

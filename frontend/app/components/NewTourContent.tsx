@@ -12,7 +12,7 @@ import type { TranslationKey } from '../lib/translations';
 import { photoSrc } from '../lib/photo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
+const CATEGORIES = ['nature', 'history', 'wellness', 'food', 'entertainment'];
 
 export interface ExistingTour {
   id: number;

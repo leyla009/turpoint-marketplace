@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 
-export const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
+export const CATEGORIES = ['nature', 'history', 'wellness', 'food', 'entertainment'];
 
 // ---- small building blocks -------------------------------------------------
 

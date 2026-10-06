@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { translations, type Locale, type TranslationKey } from '../lib/translations';
 
 const LOCALE_KEY = 'turpoint_locale';
@@ -36,6 +36,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       setLocaleState(stored);
     }
   }, []);
+
+  // Keep <html lang> in step with the chosen language - screen readers pick
+  // their voice from it, and CSS text-transform follows its casing rules
+  // (an `az` page uppercases English "i" to a dotted "İ").
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const setLocale = (next: Locale) => {
     localStorage.setItem(LOCALE_KEY, next);

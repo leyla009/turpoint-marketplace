@@ -26,7 +26,7 @@
 
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
-import { saveTripSchema } from '../lib/schemas.js';
+import { saveTripSchema, CATEGORIES } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -36,7 +36,6 @@ import { groqJson, GroqError, groqConfigured, GROQ_EXTRACT_MODEL, GROQ_ITINERARY
 
 const router = Router();
 
-const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
 const LANGUAGE_NAMES = { az: 'Azerbaijani', en: 'English', ru: 'Russian' };
 

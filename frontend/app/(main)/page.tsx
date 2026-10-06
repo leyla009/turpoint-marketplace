@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
-  Search, MapPin, Calendar, LayoutGrid, ChevronDown, ChevronRight, MessageCircle, ShieldCheck,
+  MapPin, ChevronRight, MessageCircle, ShieldCheck,
   Sparkles, Star, CalendarRange, Zap,
 } from 'lucide-react';
-import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
+import { type ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import HeroSlideshow from '@/app/components/HeroSlideshow';
+import HeroSearchBar from '@/app/components/HeroSearchBar';
+import DestinationMosaic from '@/app/components/home/DestinationMosaic';
+import PopularNow from '@/app/components/home/PopularNow';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { useFavorites } from '@/app/lib/useFavorites';
-import { photoSrc } from '@/app/lib/photo';
 import { formatDate } from '@/app/lib/format';
 import { placeName, titleFromI18n } from '@/app/lib/tourContent';
 import type { TranslationKey } from '@/app/lib/translations';
@@ -62,13 +64,9 @@ export default function Home() {
   const { favoriteIds, toggleFavorite } = useFavorites();
 
   const [tours, setTours] = useState<ApiTour[]>([]);
-  const [popularTours, setPopularTours] = useState<ApiTour[]>([]);
   const [reviews, setReviews] = useState<RecentReview[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [where, setWhere] = useState('');
-  const [when, setWhen] = useState('');
-  const [category, setCategory] = useState('');
 
   useEffect(() => {
     fetch(`${API_URL}/api/tours`)
@@ -76,39 +74,11 @@ export default function Home() {
       .then((data) => setTours(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
-    fetch(`${API_URL}/api/tours/popular?limit=3`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setPopularTours(Array.isArray(data) ? data : []))
-      .catch(() => {});
     fetch(`${API_URL}/api/reviews/recent?limit=3`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setReviews(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
-
-  // Destination tiles come from the real tour list: the places with the
-  // most tours, each shown with a photo from one of ITS OWN tours - so the
-  // picture always really depicts the place named under it.
-  const destinations = useMemo(() => {
-    const byPlace = new Map<string, { count: number; photo: string | null }>();
-    tours.forEach((tour) => {
-      if (!tour.location) return;
-      const entry = byPlace.get(tour.location) ?? { count: 0, photo: null };
-      entry.count += 1;
-      if (!entry.photo && tour.photo_url) entry.photo = tour.photo_url;
-      byPlace.set(tour.location, entry);
-    });
-    return Array.from(byPlace.entries())
-      .filter(([, v]) => v.photo)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 6)
-      .map(([name, v]) => ({ name, ...v }));
-  }, [tours]);
-
-  const locations = useMemo(
-    () => Array.from(new Set(tours.map((t) => t.location).filter(Boolean) as string[])).sort(),
-    [tours]
-  );
 
   const dealCount = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number').length, [tours]);
   const multiDayCount = useMemo(() => tours.filter((t) => t.duration_days > 1).length, [tours]);
@@ -120,138 +90,37 @@ export default function Home() {
     return counts;
   }, [tours]);
 
-  const handleSearch = (e: FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (where) params.set('location', where);
-    if (when) params.set('date', when);
-    if (category) params.set('category', category);
-    const qs = params.toString();
-    router.push(`/tours${qs ? `?${qs}` : ''}`);
-  };
-
   const firstName = user?.name?.split(' ')[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-12 space-y-10 md:space-y-14">
-      {/* Hero */}
-      <section className="relative rounded-2xl overflow-hidden bg-navy">
-        <div className="absolute inset-0">
-          <HeroSlideshow />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
+      {/* Hero - photo panel with the search bar overlapping its bottom edge.
+          The bar sits outside the photo's overflow-hidden box so it isn't
+          clipped where it straddles the edge. */}
+      <section className="relative">
+        <div className="relative rounded-2xl overflow-hidden bg-navy">
+          <div className="absolute inset-0">
+            <HeroSlideshow />
+            <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
+          </div>
+          <div className="relative px-5 sm:px-10 pt-12 pb-20 sm:pt-20 sm:pb-24 md:pt-24 md:pb-28">
+            {firstName && <p className="text-sm font-medium text-white/80 mb-2">{t('ui.home.hello', { name: firstName })}</p>}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight max-w-3xl drop-shadow-sm">
+              {t('ui.home.heroTitle1')}
+              <br />
+              {t('ui.home.heroTitle2')}
+            </h1>
+            <p className="text-sm sm:text-base text-white/85 mt-3 max-w-md">{t('ui.home.heroSubtitle')}</p>
+          </div>
         </div>
-        <div className="relative px-5 sm:px-10 pt-12 pb-6 sm:pt-20 sm:pb-10 md:pt-24">
-          {firstName && <p className="text-sm font-medium text-white/80 mb-2">{t('ui.home.hello', { name: firstName })}</p>}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight max-w-3xl drop-shadow-sm">
-            {t('ui.home.heroTitle1')}
-            <br />
-            {t('ui.home.heroTitle2')}
-          </h1>
-          <p className="text-sm sm:text-base text-white/85 mt-3 max-w-md">{t('ui.home.heroSubtitle')}</p>
-
-          <form
-            onSubmit={handleSearch}
-            className="mt-8 sm:mt-14 bg-card rounded-xl shadow-lift p-2 flex flex-col md:flex-row md:items-center gap-1 md:gap-0 max-w-4xl"
-          >
-            <label className="flex items-center gap-2 px-3 py-2 md:flex-[1.4] md:border-r border-border">
-              <MapPin size={16} className="text-muted-foreground shrink-0" />
-              <select
-                value={where}
-                onChange={(e) => setWhere(e.target.value)}
-                aria-label={t('ui.home.where')}
-                className={`w-full bg-transparent text-sm outline-none cursor-pointer ${where ? 'text-foreground' : 'text-muted-foreground'}`}
-              >
-                <option value="">{t('ui.home.where')}</option>
-                {locations.map((l) => (
-                  <option key={l} value={l}>
-                    {placeName(l, locale)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 px-3 py-2 md:flex-1 md:border-r border-border">
-              <Calendar size={16} className="text-muted-foreground shrink-0" />
-              <input
-                type="date"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-                aria-label={t('ui.home.when')}
-                className={`w-full bg-transparent text-sm outline-none ${when ? 'text-foreground' : 'text-muted-foreground'}`}
-              />
-            </label>
-            <label className="relative flex items-center gap-2 px-3 py-2 md:flex-1">
-              <LayoutGrid size={16} className="text-muted-foreground shrink-0" />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                aria-label={t('ui.explore.category')}
-                className={`w-full appearance-none bg-transparent text-sm outline-none cursor-pointer pr-5 ${
-                  category ? 'text-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                <option value="">{t('ui.explore.category')}</option>
-                {Object.entries(CATEGORY_STYLE).map(([key, s]) => (
-                  <option key={key} value={key}>
-                    {t(s.labelKey)}
-                  </option>
-                ))}
-                <option value="multiday">{t('ui.category.multiday')}</option>
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 text-muted-foreground" />
-            </label>
-            <button
-              type="submit"
-              className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-6 py-3 rounded-lg transition-colors"
-            >
-              <Search size={16} /> {t('ui.home.searchTours')}
-            </button>
-          </form>
+        <div className="relative z-10 -mt-14 md:-mt-11 px-2 sm:px-4 lg:px-6">
+          <HeroSearchBar />
         </div>
       </section>
 
-      {/* Popular destinations */}
-      {destinations.length > 0 && (
-        <section id="destinations" className="scroll-mt-24">
-          <SectionHeader title={t('home.popularDestinations')} href="/tours" linkLabel={t('ui.home.viewAll')} />
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {destinations.map((d) => (
-              <Link key={d.name} href={`/tours?location=${encodeURIComponent(d.name)}`} className="group">
-                <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted">
-                  <img
-                    src={photoSrc(d.photo) ?? ''}
-                    alt={placeName(d.name, locale)}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
-                <p className="mt-2 text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {placeName(d.name, locale)}
-                </p>
-                <p className="text-xs text-muted-foreground">{t('ui.home.tourCount', { count: d.count })}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      <DestinationMosaic tours={tours} />
 
-      {/* Popular tours */}
-      {popularTours.length > 0 && (
-        <section>
-          <SectionHeader title={t('home.popularTours')} href="/tours" linkLabel={t('ui.home.viewAll')} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {popularTours.map((tour) => (
-              <TourCard
-                key={tour.id}
-                tour={tour}
-                showCta
-                onClick={() => router.push(`/tours/${tour.id}`)}
-                isFavorited={favoriteIds.has(tour.id)}
-                onToggleFavorite={() => toggleFavorite(tour.id)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <PopularNow tours={tours} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
 
       {/* Last-minute deals banner - only when real deals exist */}
       {dealCount > 0 && (
@@ -278,7 +147,7 @@ export default function Home() {
       {/* Explore by category */}
       <section>
         <SectionHeader title={t('ui.home.exploreByCategory')} />
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             ...Object.entries(CATEGORY_STYLE).map(([key, s]) => ({
               key,
