@@ -79,6 +79,12 @@ export default function ETicketPage() {
       .finally(() => setLoading(false));
   }, [id, token]);
 
+  // "Cancel booking" on the My Bookings list links here with #cancel -
+  // open the confirmation straight away instead of making them find it.
+  useEffect(() => {
+    if (window.location.hash === '#cancel') setConfirmingCancel(true);
+  }, []);
+
   const handleCancel = async () => {
     setCancelling(true);
     setCancelError('');
@@ -159,7 +165,7 @@ export default function ETicketPage() {
         <div className="bg-primary text-primary-foreground px-5 py-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] tracking-wide opacity-75">{t('eTicket.eTicketLabel')}</p>
-            <p className="font-display font-bold">{ticketTitle}</p>
+            <p className="font-bold">{ticketTitle}</p>
           </div>
           <Ticket size={20} className="opacity-75" />
         </div>
@@ -255,7 +261,7 @@ export default function ETicketPage() {
 
       {booking.status !== 'cancelled' && !isPastDate(booking.tour?.date) && (
         confirmingCancel ? (
-          <div className="border border-red-200 rounded-xl p-4 mt-2 bg-red-50/50 space-y-3">
+          <div id="cancel" className="border border-red-200 rounded-xl p-4 mt-2 bg-red-50/50 space-y-3">
             <p className="text-sm font-semibold text-foreground">{t('eTicket.cancelConfirm')}</p>
             {booking.refund_preview && (
               <p className="text-xs text-muted-foreground">

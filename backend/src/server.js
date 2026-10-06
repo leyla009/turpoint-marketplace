@@ -6,6 +6,7 @@ import 'dotenv/config';
 import app from './app.js';
 import { expirePastDueGroups } from './lib/expireGroups.js';
 import { pruneOldNotifications } from './lib/notify.js';
+import { checkGroqKey } from './lib/groq.js';
 
 // Expire unfilled groups whose tour date has passed, without needing an
 // external cron. Runs at boot and then hourly; the manual
@@ -35,4 +36,6 @@ process.on('unhandledRejection', (reason) => {
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`TurPoint API listening on http://localhost:${port}`);
+  // Report Smart Planner (Groq) status once at boot - informational only.
+  checkGroqKey().then(({ ok, message }) => (ok ? console.log(message) : console.warn(`[planner] ${message}`)));
 });

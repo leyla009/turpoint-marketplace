@@ -78,7 +78,6 @@ export default function CompareModal({
 
         <h2
           className="text-lg sm:text-xl font-bold text-foreground mb-4 pr-10"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           {t('compare.comparing', { count: tourIds.length })}
         </h2>

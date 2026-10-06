@@ -1,311 +1,117 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import {
-  Search, MapPinned, Calendar, LayoutGrid, Zap,
-  ShieldCheck, MessageCircle, ChevronDown, MapPin, LogIn, X,
-  Sparkles, Gift, Unlock, Check,
+  Search, MapPin, Calendar, LayoutGrid, ChevronDown, ChevronRight, MessageCircle, ShieldCheck,
+  Sparkles, Star, CalendarRange, Zap,
 } from 'lucide-react';
 import TourCard, { ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
-import Greeting from '@/app/components/Greeting';
 import HeroSlideshow from '@/app/components/HeroSlideshow';
-import HeroSearchCard from '@/app/components/HeroSearchCard';
-import HorizontalScroller from '@/app/components/HorizontalScroller';
-import PriceRangeSlider from '@/app/components/PriceRangeSlider';
-import CompareModal from '@/app/components/CompareModal';
-import PlannerModal from '@/app/components/PlannerModal';
-import CityMarquee from '@/app/components/CityMarquee';
-import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
-import { VEHICLE_FEATURES, parseVehicleFeatures } from '@/app/lib/vehicleFeatures';
-import { todayLocalISODate } from '@/app/lib/date';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { useFavorites } from '@/app/lib/useFavorites';
+import { photoSrc } from '@/app/lib/photo';
+import { formatDate } from '@/app/lib/format';
+import { placeName, titleFromI18n } from '@/app/lib/tourContent';
 import type { TranslationKey } from '@/app/lib/translations';
-import Link from 'next/link';
 
-// Leaflet touches `window` at import time, so it can only run in the
-// browser — ssr: false keeps Next from trying to render it server-side.
 const DestinationMap = dynamic(() => import('@/app/components/DestinationMap'), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-64 sm:h-80 rounded-xl border border-border bg-card animate-pulse" />
-  ),
+  loading: () => <div className="w-full h-72 rounded-xl border border-border bg-muted animate-pulse" />,
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+interface RecentReview {
+  id: number;
+  tour_id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  reviewer_name: string;
+  tour_title: string;
+  tour_title_i18n?: string | null;
+}
+
+function SectionHeader({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) {
+  return (
+    <div className="flex items-end justify-between gap-4 mb-4">
+      <h2 className="text-lg sm:text-xl font-bold text-foreground">{title}</h2>
+      {href && linkLabel && (
+        <Link href={href} className="flex items-center gap-0.5 text-sm font-semibold text-primary hover:underline shrink-0">
+          {linkLabel} <ChevronRight size={15} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// "Sarah K." style - first name plus last initial, never a full surname.
+function shortName(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+}
 
 export default function Home() {
   const router = useRouter();
-  const { user, token, loading: authLoading } = useAuth();
-  const { t } = useLanguage();
+  const { user } = useAuth();
+  const { t, locale } = useLanguage();
+  const { favoriteIds, toggleFavorite } = useFavorites();
+
   const [tours, setTours] = useState<ApiTour[]>([]);
-  // "Populyar turlar" - actual tours ranked by popularity (favorites +
-  // views), not tours grouped by destination city like the old section
-  // was (that just duplicated the "Hara?" filter). Fetched once,
-  // separately from the main tour list/search results.
   const [popularTours, setPopularTours] = useState<ApiTour[]>([]);
+  const [reviews, setReviews] = useState<RecentReview[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [where, setWhere] = useState('');
+  const [when, setWhen] = useState('');
+  const [category, setCategory] = useState('');
+
   useEffect(() => {
-    fetch(`${API_URL}/api/tours/popular?limit=8`)
+    fetch(`${API_URL}/api/tours`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTours(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    fetch(`${API_URL}/api/tours/popular?limit=3`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setPopularTours(Array.isArray(data) ? data : []))
       .catch(() => {});
-  }, []);
-  // Heart icon on tour cards - saved tours also show up in the account
-  // menu's "Sevimlilər" section. Loaded once per login; toggling updates
-  // this set optimistically so the heart flips instantly, then confirms
-  // (or reverts) against the backend.
-  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    if (!token) {
-      setFavoriteIds(new Set());
-      return;
-    }
-    fetch(`${API_URL}/api/favorites`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/reviews/recent?limit=3`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setFavoriteIds(new Set(Array.isArray(data) ? data.map((f: any) => f.id) : [])))
+      .then((data) => setReviews(Array.isArray(data) ? data : []))
       .catch(() => {});
-  }, [token]);
-
-  function toggleFavorite(tourId: number) {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    const alreadyFavorited = favoriteIds.has(tourId);
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (alreadyFavorited) next.delete(tourId);
-      else next.add(tourId);
-      return next;
-    });
-    const request = alreadyFavorited
-      ? fetch(`${API_URL}/api/favorites/${tourId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-      : fetch(`${API_URL}/api/favorites`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ tour_id: tourId }),
-        });
-    request.catch(() => {
-      // Revert the optimistic update if the request itself failed (e.g.
-      // backend unreachable) - a non-ok response still leaves the toggle
-      // as the user intended, since the failure modes there (already
-      // favorited, tour not found) don't warrant flipping it back.
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (alreadyFavorited) next.add(tourId);
-        else next.delete(tourId);
-        return next;
-      });
-    });
-  }
-  const [operators, setOperators] = useState<Record<number, string>>({});
-  // Operator vehicle_features (raw comma-separated string), keyed by
-  // operator id - drives the "Vehicle filters" section below, which
-  // filters tours by their OWNING OPERATOR's vehicle, not the tour itself.
-  const [operatorVehicleFeatures, setOperatorVehicleFeatures] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  // Multi-select feature/inclusion tags (breakfast, guide, ...) - a tour
-  // must have EVERY selected tag to match, same convention as an amenity
-  // filter (not "any of").
-  const [activeFeatures, setActiveFeatures] = useState<string[]>([]);
-  const [activeVehicleFeatures, setActiveVehicleFeatures] = useState<string[]>([]);
-  // Inline compare, replacing what used to be a separate /compare page -
-  // toggled on from the sidebar, selects up to 3 cards from the results
-  // grid, and opens a floating side-by-side modal instead of navigating
-  // away (see CompareModal.tsx).
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareSelectedIds, setCompareSelectedIds] = useState<number[]>([]);
-  const [showCompareModal, setShowCompareModal] = useState(false);
-  // Smart Planner, also inlined instead of a separate /planner page - a
-  // persistent corner button opens it as a floating modal from anywhere
-  // on the homepage.
-  const [showPlannerModal, setShowPlannerModal] = useState(false);
-  // The floating Planner button sits at a fixed viewport position, so on a
-  // phone it would otherwise sit permanently on top of whatever the
-  // (now taller, more spacious) hero + search card happens to render at
-  // that exact spot before the visitor has scrolled at all - covering the
-  // search card's own capacity field and Search button. Hidden on mobile
-  // until the page has scrolled a bit; desktop's hero is short relative to
-  // the button's corner position, so it never needs this there.
-  const [scrolledPastSearch, setScrolledPastSearch] = useState(false);
-  const [locationFilter, setLocationFilter] = useState('all');
-  // Kateqoriyalar - multi-select like the feature/vehicle checklists below
-  // it (a tour matches if its category is ANY of the checked ones; empty
-  // means no filter applied), replacing the old single-select tab row.
-  const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
-
-  // Hero search card state. "Haradan?" is fixed to Bakı (not stateful -
-  // see HeroSearchCard's comment). departDate/returnDate are a date-range
-  // filter, not a literal round trip - both default to today, set
-  // client-side after mount to avoid a server/client render mismatch on
-  // the initial date.
-  const [departDate, setDepartDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [travelers, setTravelers] = useState('');
-  // Both date fields show today by default, but that shouldn't immediately
-  // hide every tour that isn't happening today - the date filter only
-  // actually applies once the traveler changes a date themselves.
-  const [datesTouched, setDatesTouched] = useState(false);
-
-  useEffect(() => {
-    const today = todayLocalISODate();
-    setDepartDate(today);
-    setReturnDate(today);
   }, []);
 
-  useEffect(() => {
-    const onScroll = () => setScrolledPastSearch(window.scrollY > 420);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Deep-linking for the footer's category links and any shared/bookmarked
-  // homepage URL - reads plain window.location instead of Next's
-  // useSearchParams() so this stays a one-time client-side read with no
-  // Suspense-boundary requirement, matching how the rest of this page
-  // already treats itself as fully client-rendered.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const category = params.get('category');
-    const location = params.get('location');
-    if (category) setActiveCategories([category]);
-    if (location) setLocationFilter(location);
-    if (category || location) {
-      setTimeout(() => document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
-    }
-  }, []);
-
-  const handleDepartDateChange = (value: string) => {
-    setDepartDate(value);
-    setDatesTouched(true);
-  };
-  const handleReturnDateChange = (value: string) => {
-    setReturnDate(value);
-    setDatesTouched(true);
-  };
-
-  const toggleCategory = (cat: string) => {
-    setActiveCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
-  };
-  const toggleFeature = (slug: string) => {
-    setActiveFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
-  };
-  const toggleVehicleFeature = (slug: string) => {
-    setActiveVehicleFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
-  };
-
-  const toggleCompareMode = () => {
-    setCompareMode((prev) => {
-      if (prev) setCompareSelectedIds([]);
-      return !prev;
+  // Destination tiles come from the real tour list: the places with the
+  // most tours, each shown with a photo from one of ITS OWN tours - so the
+  // picture always really depicts the place named under it.
+  const destinations = useMemo(() => {
+    const byPlace = new Map<string, { count: number; photo: string | null }>();
+    tours.forEach((tour) => {
+      if (!tour.location) return;
+      const entry = byPlace.get(tour.location) ?? { count: 0, photo: null };
+      entry.count += 1;
+      if (!entry.photo && tour.photo_url) entry.photo = tour.photo_url;
+      byPlace.set(tour.location, entry);
     });
-  };
-  const toggleCompareSelect = (id: number) => {
-    setCompareSelectedIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 3) return prev; // matches backend's 2-3 id limit
-      return [...prev, id];
-    });
-  };
+    return Array.from(byPlace.entries())
+      .filter(([, v]) => v.photo)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 6)
+      .map(([name, v]) => ({ name, ...v }));
+  }, [tours]);
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`${API_URL}/api/tours`).then((r) => r.json()),
-      fetch(`${API_URL}/api/operators`).then((r) => r.json()),
-    ])
-      .then(([toursData, operatorsData]) => {
-        setTours(toursData);
-        const map: Record<number, string> = {};
-        const vehicleMap: Record<number, string> = {};
-        operatorsData.forEach((op: any) => {
-          map[op.id] = op.name;
-          vehicleMap[op.id] = op.vehicle_features ?? '';
-        });
-        setOperators(map);
-        setOperatorVehicleFeatures(vehicleMap);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
+  const locations = useMemo(
+    () => Array.from(new Set(tours.map((t) => t.location).filter(Boolean) as string[])).sort(),
+    [tours]
+  );
 
-
-  const filtered = useMemo(() => {
-    const min = minPrice === '' ? null : Number(minPrice);
-    const max = maxPrice === '' ? null : Number(maxPrice);
-    const minSeats = travelers === '' ? null : Number(travelers);
-
-    return tours.filter((t) => {
-      const tourFeatures = parseFeatures(t.features);
-      const matchFeatures = activeFeatures.every((f) => tourFeatures.includes(f));
-      const vehicleFeatures = parseVehicleFeatures(t.vehicle_features || operatorVehicleFeatures[t.operator_id]);
-      const matchVehicleFeatures = activeVehicleFeatures.every((f) => vehicleFeatures.includes(f));
-      const matchLocation = locationFilter === 'all' || t.location === locationFilter;
-      const matchCategory = activeCategories.length === 0 || (!!t.category && activeCategories.includes(t.category));
-      const effectivePrice = t.discounted_price ?? t.price;
-      const matchMin = min === null || effectivePrice >= min;
-      const matchMax = max === null || effectivePrice <= max;
-      // ISO 'YYYY-MM-DD' strings compare lexicographically in date order.
-      // Both dates default to today for display, so the range filter only
-      // kicks in once the traveler has actually touched one of them.
-      const matchDepart = !datesTouched || departDate === '' || t.date >= departDate;
-      const matchReturn = !datesTouched || returnDate === '' || t.date <= returnDate;
-      const matchTravelers = minSeats === null || t.max_participants >= minSeats;
-      return (
-        matchFeatures &&
-        matchVehicleFeatures &&
-        matchLocation &&
-        matchCategory &&
-        matchMin &&
-        matchMax &&
-        matchDepart &&
-        matchReturn &&
-        matchTravelers
-      );
-    });
-  }, [
-    tours,
-    activeFeatures,
-    activeVehicleFeatures,
-    operatorVehicleFeatures,
-    locationFilter,
-    activeCategories,
-    minPrice,
-    maxPrice,
-    departDate,
-    returnDate,
-    datesTouched,
-    travelers,
-  ]);
-
-  // Client-side sort - all the data needed (price, discounted_price, rating)
-  // is already on each tour from the list response, so there's no reason to
-  // round-trip to the backend just to reorder what's already in memory.
-  const sortedFiltered = useMemo(() => {
-    const list = [...filtered];
-    const effective = (t: ApiTour) => t.discounted_price ?? t.price;
-    switch (sortBy) {
-      case 'price-asc':
-        return list.sort((a, b) => effective(a) - effective(b));
-      case 'price-desc':
-        return list.sort((a, b) => effective(b) - effective(a));
-      case 'rating-desc':
-        return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-      default:
-        return list;
-    }
-  }, [filtered, sortBy]);
-
-  // Real categories actually present in the loaded tours, with counts - no
-  // point offering a "Food" pill if not a single tour is tagged that way.
+  const dealCount = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number').length, [tours]);
+  const multiDayCount = useMemo(() => tours.filter((t) => t.duration_days > 1).length, [tours]);
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     tours.forEach((t) => {
@@ -314,672 +120,269 @@ export default function Home() {
     return counts;
   }, [tours]);
 
-  const dealTours = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number'), [tours]);
-
-  const scrollToResults = () => {
-    document.getElementById('tour-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (where) params.set('location', where);
+    if (when) params.set('date', when);
+    if (category) params.set('category', category);
+    const qs = params.toString();
+    router.push(`/tours${qs ? `?${qs}` : ''}`);
   };
 
-  // Price slider bounds adapt to whatever tours are actually loaded,
-  // instead of a hardcoded ceiling that could clip real prices.
-  const priceSliderMax = useMemo(() => {
-    const prices = tours.map((t) => t.discounted_price ?? t.price);
-    const highest = prices.length ? Math.max(...prices) : 100;
-    return Math.max(100, Math.ceil(highest / 10) * 10);
-  }, [tours]);
-  const sliderMinValue = minPrice === '' ? 0 : Number(minPrice);
-  const sliderMaxValue = maxPrice === '' ? priceSliderMax : Number(maxPrice);
-
-  const featureCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    TOUR_FEATURES.forEach((f) => {
-      counts[f.slug] = tours.filter((t) => parseFeatures(t.features).includes(f.slug)).length;
-    });
-    return counts;
-  }, [tours]);
-
-  const vehicleFeatureCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    VEHICLE_FEATURES.forEach((f) => {
-      counts[f.slug] = tours.filter((t) =>
-        parseVehicleFeatures(t.vehicle_features || operatorVehicleFeatures[t.operator_id]).includes(f.slug)
-      ).length;
-    });
-    return counts;
-  }, [tours, operatorVehicleFeatures]);
-
-  // Real, already-fetched counts (see the /api/tours + /api/operators
-  // Promise.all above) - not an estimate, so the operator band's stat line
-  // can show a genuine platform-wide number the same way a "your home
-  // could make $X" hook needs a real number, without TurPoint having (or
-  // faking) a per-operator earnings-prediction feature it doesn't have.
-  const operatorCount = Object.keys(operators).length;
+  const firstName = user?.name?.split(' ')[0];
 
   return (
-    <div className="min-h-full">
-      {/* Hero - a background photo slideshow (5 photos, 5s each) with the
-          heading/search card overlaid at the bottom, readable over any
-          photo thanks to the dark gradient scrim. bg-surface-sand stays as
-          the fallback color underneath while the first photo loads.
-          The photo layer is its own absolutely-positioned wrapper, offset
-          upward by exactly Nav's sticky header height (-mt-12/-mt-16, see
-          Nav.tsx) so it still bleeds up behind that header when it's
-          transparent - without moving the hero box itself out of normal
-          flow. That distinction matters: an earlier version pulled the
-          whole hero div up with a negative margin, which also dragged the
-          NEXT section (the city marquee) up into overlapping the search
-          card. Being absolutely positioned, this wrapper's own
-          overflow-hidden (for clipping the photo/gradient) has no effect
-          on anything outside it either - the search card below is a
-          sibling, not a child, so its dropdowns (From/To/travelers) can
-          extend past the hero's box without being clipped. */}
-      <div className="relative min-h-[360px] md:min-h-[440px] flex flex-col justify-end bg-surface-sand">
-        <div className="absolute -top-12 md:-top-16 inset-x-0 bottom-0 overflow-hidden">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-12 space-y-10 md:space-y-14">
+      {/* Hero */}
+      <section className="relative rounded-2xl overflow-hidden bg-navy">
+        <div className="absolute inset-0">
           <HeroSlideshow />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
         </div>
-        <div className="relative w-full px-4 sm:px-6 max-w-[1600px] mx-auto pt-10 pb-6 md:pt-12 md:pb-8">
-          <Greeting />
+        <div className="relative px-5 sm:px-10 pt-12 pb-6 sm:pt-20 sm:pb-10 md:pt-24">
+          {firstName && <p className="text-sm font-medium text-white/80 mb-2">{t('ui.home.hello', { name: firstName })}</p>}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight max-w-3xl drop-shadow-sm">
+            {t('ui.home.heroTitle1')}
+            <br />
+            {t('ui.home.heroTitle2')}
+          </h1>
+          <p className="text-sm sm:text-base text-white/85 mt-3 max-w-md">{t('ui.home.heroSubtitle')}</p>
 
-          <div className="mt-5 md:mt-6">
-            <HeroSearchCard
-              toLocation={locationFilter}
-              onToLocationChange={setLocationFilter}
-              departDate={departDate}
-              onDepartDateChange={handleDepartDateChange}
-              returnDate={returnDate}
-              onReturnDateChange={handleReturnDateChange}
-              travelers={travelers}
-              onTravelersChange={setTravelers}
-              onSearch={scrollToResults}
-            />
-          </div>
-        </div>
-      </div>
-
-      <CityMarquee />
-
-      {/* Last-minute deals - surfaces tours that already have an active
-          last_minute_deals row (real discount data, same discounted_price
-          the cards below already show) as their own dedicated strip instead
-          of leaving them to blend into the general grid. */}
-      {!loading && dealTours.length > 0 && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-12 md:mt-16">
-          <h2
-            className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-foreground mb-5"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          <form
+            onSubmit={handleSearch}
+            className="mt-8 sm:mt-14 bg-card rounded-xl shadow-lift p-2 flex flex-col md:flex-row md:items-center gap-1 md:gap-0 max-w-4xl"
           >
-            <Zap size={18} className="text-accent" /> {t('home.lastMinuteDeals')}
-          </h2>
-          <HorizontalScroller>
-            {dealTours.map((tour) => (
-              <div key={tour.id} className="w-64 shrink-0 snap-start">
-                <TourCard
-                  tour={tour}
-                  operatorName={operators[tour.operator_id]}
-                  onClick={() => router.push(`/tours/${tour.id}`)}
-                  isFavorited={favoriteIds.has(tour.id)}
-                  onToggleFavorite={() => toggleFavorite(tour.id)}
-                />
-              </div>
-            ))}
-          </HorizontalScroller>
-        </div>
-      )}
-
-      {/* Popular tours - ranked by real popularity (favorites + views),
-          not grouped by destination city like the old section was (that
-          just duplicated the "Hara?" filter above). Sits on its own soft
-          sand band so it reads as a deliberate "moment" rather than more
-          cards on the same white canvas as everything else. */}
-      {popularTours.length > 0 && (
-        <div
-          className={`bg-surface-sand py-10 md:py-14 ${
-            !loading && dealTours.length > 0 ? 'mt-12 md:mt-16' : ''
-          }`}
-        >
-          <div className="px-4 sm:px-6 max-w-[1600px] mx-auto">
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-accent mb-2">
-              {t('home.discoverEyebrow')}
-            </p>
-            <h2
-              className="text-xl sm:text-2xl font-bold text-foreground mb-6"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              {t('home.popularTours')}
-            </h2>
-            <HorizontalScroller>
-              {popularTours.map((tour) => (
-                <div key={tour.id} className="w-64 shrink-0 snap-start">
-                  <TourCard
-                    tour={tour}
-                    operatorName={operators[tour.operator_id]}
-                    onClick={() => router.push(`/tours/${tour.id}`)}
-                    isFavorited={favoriteIds.has(tour.id)}
-                    onToggleFavorite={() => toggleFavorite(tour.id)}
-                  />
-                </div>
-              ))}
-            </HorizontalScroller>
-          </div>
-        </div>
-      )}
-
-      {/* Warm textured backdrop for the sign-in banner + filters/listing
-          section below - a gradient from the sand tone the Popular Tours
-          band already ends on, through a soft moss tint, into the page's
-          base cream, with a faint topographic-line texture over it so the
-          area doesn't read as a flat, empty off-white void. Purely a
-          background layer (absolute, behind everything at z-0); the actual
-          content keeps its existing layout untouched inside the relative
-          wrapper. */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-surface-sand via-surface-moss/50 to-background" />
-        <div
-          className="absolute inset-0 opacity-[0.05]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cpath d='M0 40 Q50 20 100 40 T200 40' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 90 Q50 70 100 90 T200 90' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 140 Q50 120 100 140 T200 140' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3Cpath d='M0 180 Q50 165 100 180 T200 180' stroke='%231B3D2F' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
-            backgroundSize: '260px 260px',
-          }}
-        />
-        <div className="relative">
-      {/* Sign-in prompt - only for logged-out visitors, and only ever
-          points at real functionality (managing bookings, faster
-          checkout) - no fabricated "member discounts" like a booking
-          site's loyalty program would claim, since we don't have one.
-          A quiet card with an accent rule rather than a solid green
-          block, so it reads as a gentle nudge, not another banner. */}
-      {!authLoading && !user && (
-        <div className="px-4 sm:px-6 max-w-[1600px] mx-auto mt-10 md:mt-12">
-          <div className="bg-card border-l-4 border-accent rounded-r-xl px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <span className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <LogIn size={16} className="text-primary" />
-              </span>
-              <div>
-                <p className="text-sm font-bold text-foreground">{t('home.signInBannerTitle')}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('home.signInBannerBody')}</p>
-              </div>
-            </div>
-            <Link
-              href="/login"
-              className="shrink-0 bg-primary text-primary-foreground text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
-            >
-              {t('nav.signIn')}
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content - left sidebar (map + filters) alongside the results
-          grid on the right, matching a standard listing-site layout. */}
-      <div className="px-4 sm:px-6 pt-8 md:pt-10 pb-12 max-w-[1600px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-          {/* Sidebar */}
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-            {!loading && tours.length > 0 && (
-              <div>
-                <h2 className="flex items-center gap-1.5 text-xs font-bold tracking-[0.12em] uppercase text-accent mb-2">
-                  <MapPinned size={13} /> {t('home.exploreOnMap')}
-                </h2>
-                <DestinationMap tours={tours} heightClassName="h-48" />
-              </div>
-            )}
-
-            <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground">{t('home.compareProperties')}</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={compareMode}
-                onClick={toggleCompareMode}
-                className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${
-                  compareMode ? 'bg-primary' : 'bg-muted'
+            <label className="flex items-center gap-2 px-3 py-2 md:flex-[1.4] md:border-r border-border">
+              <MapPin size={16} className="text-muted-foreground shrink-0" />
+              <select
+                value={where}
+                onChange={(e) => setWhere(e.target.value)}
+                aria-label={t('ui.home.where')}
+                className={`w-full bg-transparent text-sm outline-none cursor-pointer ${where ? 'text-foreground' : 'text-muted-foreground'}`}
+              >
+                <option value="">{t('ui.home.where')}</option>
+                {locations.map((l) => (
+                  <option key={l} value={l}>
+                    {placeName(l, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 px-3 py-2 md:flex-1 md:border-r border-border">
+              <Calendar size={16} className="text-muted-foreground shrink-0" />
+              <input
+                type="date"
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+                aria-label={t('ui.home.when')}
+                className={`w-full bg-transparent text-sm outline-none ${when ? 'text-foreground' : 'text-muted-foreground'}`}
+              />
+            </label>
+            <label className="relative flex items-center gap-2 px-3 py-2 md:flex-1">
+              <LayoutGrid size={16} className="text-muted-foreground shrink-0" />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                aria-label={t('ui.explore.category')}
+                className={`w-full appearance-none bg-transparent text-sm outline-none cursor-pointer pr-5 ${
+                  category ? 'text-foreground' : 'text-muted-foreground'
                 }`}
               >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                    compareMode ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-1">{t('home.budget')}</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                AZN {sliderMinValue} – AZN {sliderMaxValue}
-              </p>
-              <PriceRangeSlider
-                min={0}
-                max={priceSliderMax}
-                valueMin={sliderMinValue}
-                valueMax={sliderMaxValue}
-                onChangeMin={(v) => setMinPrice(String(v))}
-                onChangeMax={(v) => setMaxPrice(String(v))}
-              />
-
-              <div className="h-px bg-border my-4" />
-
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
-                <LayoutGrid size={14} /> {t('home.categories')}
-              </h3>
-              <div className="space-y-2">
-                {Object.keys(CATEGORY_STYLE).map((cat) => {
-                  const style = CATEGORY_STYLE[cat];
-                  const CatIcon = style.Icon;
-                  const active = activeCategories.includes(cat);
-                  return (
-                    <label key={cat} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={() => toggleCategory(cat)}
-                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                      />
-                      <CatIcon size={14} className="text-muted-foreground shrink-0" />
-                      <span className="flex-1">{t(style.labelKey)}</span>
-                      <span className="text-xs text-muted-foreground">{categoryCounts[cat] ?? 0}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="h-px bg-border my-4" />
-
-              <h3 className="text-sm font-semibold text-foreground mb-2">{t('home.popularFilters')}</h3>
-              <div className="space-y-2">
-                {TOUR_FEATURES.map((feature) => {
-                  const active = activeFeatures.includes(feature.slug);
-                  const Icon = feature.Icon;
-                  return (
-                    <label
-                      key={feature.slug}
-                      className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={() => toggleFeature(feature.slug)}
-                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                      />
-                      <Icon size={14} className="text-muted-foreground shrink-0" />
-                      <span className="flex-1">{t(feature.labelKey)}</span>
-                      <span className="text-xs text-muted-foreground">{featureCounts[feature.slug] ?? 0}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="h-px bg-border my-4" />
-
-              <h3 className="text-sm font-semibold text-foreground mb-2">{t('home.vehicleFilters')}</h3>
-              <div className="space-y-2">
-                {VEHICLE_FEATURES.map((feature) => {
-                  const active = activeVehicleFeatures.includes(feature.slug);
-                  const Icon = feature.Icon;
-                  return (
-                    <label
-                      key={feature.slug}
-                      className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={() => toggleVehicleFeature(feature.slug)}
-                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                      />
-                      <Icon size={14} className="text-muted-foreground shrink-0" />
-                      <span className="flex-1">{t(feature.labelKey)}</span>
-                      <span className="text-xs text-muted-foreground">{vehicleFeatureCounts[feature.slug] ?? 0}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {(activeCategories.length > 0 ||
-                activeFeatures.length > 0 ||
-                activeVehicleFeatures.length > 0 ||
-                minPrice !== '' ||
-                maxPrice !== '') && (
-                <button
-                  onClick={() => {
-                    setActiveCategories([]);
-                    setActiveFeatures([]);
-                    setActiveVehicleFeatures([]);
-                    setMinPrice('');
-                    setMaxPrice('');
-                  }}
-                  className="mt-3 text-xs text-muted-foreground hover:text-foreground underline"
-                >
-                  {t('home.clearFilters')}
-                </button>
-              )}
-            </div>
-          </aside>
-
-          {/* Results */}
-          <div id="tour-results" className="scroll-mt-20">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h2
-                className="text-lg sm:text-xl font-bold text-foreground"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                {loading ? t('home.loadingTours') : t('home.toursAvailable', { count: sortedFiltered.length })}
-              </h2>
-              {!loading && sortedFiltered.length > 0 && (
-                <div className="relative shrink-0">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    aria-label={t('home.sortBy')}
-                    className="appearance-none text-xs font-semibold bg-card border border-border rounded-full pl-3.5 pr-7 py-2 shadow-sm outline-none cursor-pointer hover:border-primary/40"
-                  >
-                    <option value="recommended">{t('home.sortRecommended')}</option>
-                    <option value="price-asc">{t('home.sortPriceAsc')}</option>
-                    <option value="price-desc">{t('home.sortPriceDesc')}</option>
-                    <option value="rating-desc">{t('home.sortRatingDesc')}</option>
-                  </select>
-                  <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-
-            {/* Active-filter chips - a quick-glance confirmation of what's
-                currently narrowing the grid, each removable on its own
-                without opening the sidebar. Mirrors the same filter state
-                the sidebar checkboxes/slider already control, so clicking a
-                chip's × is just calling the exact same toggle/setter. */}
-            {(activeCategories.length > 0 ||
-              activeFeatures.length > 0 ||
-              activeVehicleFeatures.length > 0 ||
-              minPrice !== '' ||
-              maxPrice !== '') && (
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {activeCategories.map((cat) => (
-                  <button
-                    key={`cat-${cat}`}
-                    onClick={() => toggleCategory(cat)}
-                    className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
-                  >
-                    {t(CATEGORY_STYLE[cat]?.labelKey ?? 'category.history')} <X size={12} />
-                  </button>
+                <option value="">{t('ui.explore.category')}</option>
+                {Object.entries(CATEGORY_STYLE).map(([key, s]) => (
+                  <option key={key} value={key}>
+                    {t(s.labelKey)}
+                  </option>
                 ))}
-                {activeFeatures.map((slug) => {
-                  const feature = TOUR_FEATURES.find((f) => f.slug === slug);
-                  if (!feature) return null;
-                  return (
-                    <button
-                      key={`feat-${slug}`}
-                      onClick={() => toggleFeature(slug)}
-                      className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
-                    >
-                      {t(feature.labelKey)} <X size={12} />
-                    </button>
-                  );
-                })}
-                {activeVehicleFeatures.map((slug) => {
-                  const feature = VEHICLE_FEATURES.find((f) => f.slug === slug);
-                  if (!feature) return null;
-                  return (
-                    <button
-                      key={`vfeat-${slug}`}
-                      onClick={() => toggleVehicleFeature(slug)}
-                      className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
-                    >
-                      {t(feature.labelKey)} <X size={12} />
-                    </button>
-                  );
-                })}
-                {(minPrice !== '' || maxPrice !== '') && (
-                  <button
-                    onClick={() => {
-                      setMinPrice('');
-                      setMaxPrice('');
-                    }}
-                    className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-semibold pl-3 pr-2 py-1.5 rounded-full hover:bg-primary/15 transition-colors"
-                  >
-                    AZN {minPrice === '' ? 0 : minPrice}–{maxPrice === '' ? priceSliderMax : maxPrice} <X size={12} />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {error && (
-              <div className="text-center py-14 text-muted-foreground">
-                <p className="text-sm">{t('home.couldntReachBackend')}</p>
-              </div>
-            )}
-
-            {loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-hidden>
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-card rounded-2xl overflow-hidden border border-border animate-pulse">
-                    <div className="aspect-[4/3] bg-muted" />
-                    <div className="p-3.5 space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-3 bg-muted rounded w-1/2" />
-                      <div className="h-3 bg-muted rounded w-2/3" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!error && !loading && sortedFiltered.length === 0 && (
-              <div className="text-center py-14 text-muted-foreground">
-                <Search size={30} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">{t('home.noToursMatch')}</p>
-              </div>
-            )}
-
-            {!error && !loading && sortedFiltered.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {sortedFiltered.map((tour) => (
-                  <TourCard
-                    key={tour.id}
-                    tour={tour}
-                    operatorName={operators[tour.operator_id]}
-                    onClick={() => router.push(`/tours/${tour.id}`)}
-                    compareMode={compareMode}
-                    compareSelected={compareSelectedIds.includes(tour.id)}
-                    compareDisabled={!compareSelectedIds.includes(tour.id) && compareSelectedIds.length >= 3}
-                    onToggleCompare={() => toggleCompareSelect(tour.id)}
-                    isFavorited={favoriteIds.has(tour.id)}
-                    onToggleFavorite={() => toggleFavorite(tour.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-        </div>
-      </div>
-
-      {/* Why TurPoint - real product mechanics only (direct WhatsApp/
-          Instagram contact with the operator, genuine traveler reviews,
-          operators who own their listings), nothing fabricated like award
-          badges or made-up guest counts. Replaces the old "How it works"
-          band that used to sit here, which described the group-buying
-          booking flow this product no longer has. A plain list rather than
-          three bordered/shadowed boxes. Sits before the operator pitch now
-          (traveler-facing content first, operator pitch second). */}
-      <div className="px-4 sm:px-6 py-14 md:py-20 max-w-[1600px] mx-auto">
-        <h2
-          className="text-xl sm:text-2xl font-bold text-foreground text-center mb-10"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          {t('home.whyUsTitle')}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          {(
-            [
-              { Icon: MessageCircle, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
-              { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
-              { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
-            ] satisfies { Icon: typeof MessageCircle; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-          ).map(({ Icon, titleKey, bodyKey }, i) => (
-            // Icon sits in a soft rounded badge instead of floating bare -
-            // the single biggest gap versus a real reference (Airbnb's own
-            // "why host" section wraps every icon in a rounded-square
-            // surface) that made this read as thin/unfinished before.
-            <div key={i} className="text-center">
-              <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 mb-4 mx-auto">
-                <Icon size={22} className="text-accent" />
-              </span>
-              <h3 className="text-base font-bold text-foreground mb-1.5">{t(titleKey)}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{t(bodyKey)}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Operator pitch - an inset forest-green panel in the brand's own
-          palette (primary green, cream text, clay CTA) so it reads as part
-          of TurPoint rather than a separate near-black cinematic band.
-          Copy on the left, the /pictures/4.jpeg landscape on the right,
-          and the three operator perks as a strip along the bottom.
-          Only describes things that are true today: open marketplace
-          listing, the operator dashboard, real photo uploads, no listing
-          fee, direct WhatsApp/Instagram contact. */}
-      <section className="px-4 sm:px-6 lg:px-8 pb-16 md:pb-24 max-w-[1600px] mx-auto">
-        <div className="overflow-hidden rounded-[28px] bg-primary text-primary-foreground shadow-[0_30px_60px_-30px_rgba(27,61,47,0.55)]">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
-            <div className="order-2 lg:order-1 px-6 py-10 sm:px-12 sm:py-14 lg:px-16 lg:py-20 flex flex-col justify-center">
-              <h2
-                className="text-[2rem] sm:text-[2.5rem] lg:text-[3.25rem] font-bold leading-[1.18] mb-5 max-w-xl"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                {t('home.operatorTitle')}
-              </h2>
-              <p className="text-base sm:text-lg text-white/75 leading-relaxed max-w-lg mb-9">
-                {t('home.operatorBody')}
-              </p>
-
-              <ul className="space-y-5 mb-10 max-w-lg">
-                {(
-                  [
-                    { titleKey: 'home.operatorBenefit1Title', bodyKey: 'home.operatorBenefit1Body' },
-                    { titleKey: 'home.operatorBenefit2Title', bodyKey: 'home.operatorBenefit2Body' },
-                    { titleKey: 'home.operatorBenefit3Title', bodyKey: 'home.operatorBenefit3Body' },
-                  ] satisfies { titleKey: TranslationKey; bodyKey: TranslationKey }[]
-                ).map(({ titleKey, bodyKey }) => (
-                  <li key={titleKey} className="flex gap-4">
-                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#F3D9C2] shrink-0 mt-0.5">
-                      <Check size={15} strokeWidth={3} className="text-accent" />
-                    </span>
-                    <div>
-                      <p className="text-base font-semibold text-white">{t(titleKey)}</p>
-                      <p className="text-sm text-white/65 mt-1 leading-relaxed">{t(bodyKey)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center bg-accent text-accent-foreground text-base font-bold px-7 py-3.5 rounded-full hover:bg-[#9A4D23] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
-                >
-                  {t('dashboard.becomeOperator')}
-                </Link>
-                {/* Real platform-wide numbers from the same /api/tours +
-                    /api/operators fetch the rest of this page uses. */}
-                {!loading && tours.length > 0 && (
-                  <p className="text-sm text-white/70">
-                    {t('home.operatorStat', { tourCount: tours.length, operatorCount })}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="order-1 lg:order-2 relative h-56 sm:h-72 lg:h-auto">
-              <img
-                src="/pictures/4.jpeg"
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              {/* Blends the photo into the green panel along its inner edge. */}
-              <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-primary via-primary/10 to-transparent lg:via-transparent" />
-            </div>
-          </div>
-
-          <div className="border-t border-white/10 bg-black/15 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-white/10">
-            {(
-              [
-                { Icon: Sparkles, titleKey: 'home.operatorPerk1Title', bodyKey: 'home.operatorPerk1Body' },
-                { Icon: Gift, titleKey: 'home.operatorPerk2Title', bodyKey: 'home.operatorPerk2Body' },
-                { Icon: Unlock, titleKey: 'home.operatorPerk3Title', bodyKey: 'home.operatorPerk3Body' },
-              ] satisfies { Icon: typeof Sparkles; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-            ).map(({ Icon, titleKey, bodyKey }) => (
-              <div key={titleKey} className="flex items-start gap-4 px-6 sm:px-8 lg:px-12 py-6 sm:py-7">
-                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 shrink-0">
-                  <Icon size={18} className="text-[#F3D9C2]" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-white">{t(titleKey)}</h3>
-                  <p className="text-sm text-white/65 mt-0.5 leading-relaxed">{t(bodyKey)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                <option value="multiday">{t('ui.category.multiday')}</option>
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 text-muted-foreground" />
+            </label>
+            <button
+              type="submit"
+              className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-6 py-3 rounded-lg transition-colors"
+            >
+              <Search size={16} /> {t('ui.home.searchTours')}
+            </button>
+          </form>
         </div>
       </section>
 
-      {/* Floating compare tray - only while compare mode is on and at
-          least one card is selected; mirrors the old /compare page's
-          "N selected" pill but stays on this page instead of navigating. */}
-      {compareMode && compareSelectedIds.length > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-40 bg-primary text-primary-foreground rounded-full shadow-lg px-5 py-3 flex items-center gap-4">
-          <span className="text-sm font-semibold">{t('compare.selected', { count: compareSelectedIds.length })}</span>
-          {compareSelectedIds.length >= 2 ? (
-            <button
-              onClick={() => setShowCompareModal(true)}
-              className="text-sm font-bold bg-accent text-accent-foreground rounded-full px-4 py-1.5 hover:opacity-90"
+      {/* Popular destinations */}
+      {destinations.length > 0 && (
+        <section id="destinations" className="scroll-mt-24">
+          <SectionHeader title={t('home.popularDestinations')} href="/tours" linkLabel={t('ui.home.viewAll')} />
+          <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {destinations.map((d) => (
+              <Link key={d.name} href={`/tours?location=${encodeURIComponent(d.name)}`} className="group">
+                <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted">
+                  <img
+                    src={photoSrc(d.photo) ?? ''}
+                    alt={placeName(d.name, locale)}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <p className="mt-2 text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {placeName(d.name, locale)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t('ui.home.tourCount', { count: d.count })}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Popular tours */}
+      {popularTours.length > 0 && (
+        <section>
+          <SectionHeader title={t('home.popularTours')} href="/tours" linkLabel={t('ui.home.viewAll')} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {popularTours.map((tour) => (
+              <TourCard
+                key={tour.id}
+                tour={tour}
+                showCta
+                onClick={() => router.push(`/tours/${tour.id}`)}
+                isFavorited={favoriteIds.has(tour.id)}
+                onToggleFavorite={() => toggleFavorite(tour.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Last-minute deals banner - only when real deals exist */}
+      {dealCount > 0 && (
+        <section className="relative rounded-2xl overflow-hidden bg-navy">
+          <img src="/pictures/U3.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
+          <div className="relative px-6 sm:px-10 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="flex items-center gap-2 text-lg sm:text-xl font-bold text-white">
+                <Zap size={18} className="text-rating" /> {t('home.lastMinuteDeals')}
+              </p>
+              <p className="text-sm text-white/80 mt-1">{t('ui.home.dealsBody', { count: dealCount })}</p>
+            </div>
+            <Link
+              href="/tours?deals=1"
+              className="self-start sm:self-auto bg-white text-navy text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-white/90 transition-colors"
             >
-              {t('compare.compareNow')}
-            </button>
-          ) : (
-            <span className="text-xs text-primary-foreground/80">{t('home.selectMoreToCompare')}</span>
-          )}
+              {t('ui.home.viewDeals')}
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Explore by category */}
+      <section>
+        <SectionHeader title={t('ui.home.exploreByCategory')} />
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {[
+            ...Object.entries(CATEGORY_STYLE).map(([key, s]) => ({
+              key,
+              Icon: s.Icon,
+              label: t(s.labelKey),
+              count: categoryCounts[key] ?? 0,
+            })),
+            { key: 'multiday', Icon: CalendarRange, label: t('ui.category.multiday'), count: multiDayCount },
+          ].map(({ key, Icon, label, count }) => (
+            <Link
+              key={key}
+              href={`/tours?category=${key}`}
+              className="group flex flex-col items-center gap-2 bg-card border border-border rounded-xl px-3 py-5 hover:border-primary/40 hover:shadow-card transition-all"
+            >
+              <span className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <Icon size={20} className="text-primary" />
+              </span>
+              <span className="text-sm font-medium text-foreground text-center">{label}</span>
+              <span className="text-[11px] text-muted-foreground -mt-1.5">{t('ui.home.tourCount', { count })}</span>
+            </Link>
+          ))}
         </div>
+      </section>
+
+      {/* Map */}
+      {!loading && tours.length > 0 && (
+        <section>
+          <SectionHeader title={t('ui.home.exploreOnMap')} href="/tours?view=map" linkLabel={t('ui.home.openMap')} />
+          <DestinationMap tours={tours} heightClassName="h-64 sm:h-80" />
+        </section>
       )}
 
-      {showCompareModal && (
-        <CompareModal
-          tourIds={compareSelectedIds}
-          operators={operators}
-          onClose={() => setShowCompareModal(false)}
-          onViewTour={(id) => router.push(`/tours/${id}`)}
-        />
-      )}
+      {/* Why TurPoint + Smart Planner */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
+        <div className="bg-surface-sand rounded-2xl p-6 sm:p-8">
+          <h2 className="text-lg font-bold text-foreground mb-5">{t('home.whyUsTitle')}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {(
+              [
+                { Icon: MessageCircle, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
+                { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
+                { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
+              ] satisfies { Icon: typeof MapPin; titleKey: TranslationKey; bodyKey: TranslationKey }[]
+            ).map(({ Icon, titleKey, bodyKey }) => (
+              <div key={titleKey} className="flex sm:flex-col gap-3">
+                <span className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
+                  <Icon size={18} className="text-primary" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">{t(titleKey)}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t(bodyKey)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      {/* Persistent Smart Planner button - replaces the old separate
-          /planner page with a floating modal, opened from anywhere on
-          the homepage. Hidden on mobile while the compare tray above is
-          showing (both are fixed-bottom pills that would otherwise
-          collide), and until the page has scrolled a little (see
-          scrolledPastSearch - otherwise it sits fixed on top of the
-          search card's own capacity field and Search button before the
-          visitor has scrolled at all). Desktop's shorter hero doesn't
-          have either problem, so it stays visible there regardless. */}
-      <button
-        onClick={() => setShowPlannerModal(true)}
-        className={`fixed bottom-20 md:bottom-4 right-4 z-40 items-center gap-2 bg-accent text-accent-foreground rounded-full shadow-lg px-4 py-3 hover:opacity-90 transition-opacity md:flex ${
-          (compareMode && compareSelectedIds.length > 0) || !scrolledPastSearch ? 'hidden' : 'flex'
-        }`}
-      >
-        <Calendar size={16} />
-        <span className="text-sm font-semibold">{t('nav.planner')}</span>
-      </button>
+        <div className="bg-surface-moss border border-primary/15 rounded-2xl p-6 sm:p-8 flex flex-col">
+          <p className="flex items-center gap-2 text-base font-bold text-primary">
+            <Sparkles size={18} /> {t('planner.title')}
+          </p>
+          <p className="text-sm text-foreground/75 mt-2 leading-relaxed flex-1">{t('ui.home.plannerBody')}</p>
+          <Link
+            href="/planner"
+            className="mt-5 self-start bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+          >
+            {t('ui.home.tryPlanner')}
+          </Link>
+        </div>
+      </section>
 
-      {showPlannerModal && (
-        <PlannerModal
-          onClose={() => setShowPlannerModal(false)}
-          onViewTour={(id) => router.push(`/tours/${id}`)}
-        />
+      {/* Traveler stories - real reviews only, hidden when there are none */}
+      {reviews.length > 0 && (
+        <section>
+          <SectionHeader title={t('ui.home.travelerStories')} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {reviews.map((r) => (
+              <Link
+                key={r.id}
+                href={`/tours/${r.tour_id}`}
+                className="bg-card border border-border rounded-xl p-5 flex flex-col hover:shadow-card transition-shadow"
+              >
+                <div className="flex items-center gap-0.5 mb-3">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} size={14} className={n <= r.rating ? 'fill-rating text-rating' : 'text-border'} />
+                  ))}
+                </div>
+                <p className="text-sm text-foreground/85 leading-relaxed line-clamp-4 flex-1">“{r.comment}”</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                    {r.reviewer_name?.[0]?.toUpperCase() ?? '?'}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{shortName(r.reviewer_name)}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {titleFromI18n(r.tour_title, r.tour_title_i18n, locale)} ·{' '}
+                      {formatDate(r.created_at, locale, { month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

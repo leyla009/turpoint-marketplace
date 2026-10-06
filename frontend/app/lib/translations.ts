@@ -10,6 +10,8 @@
 // across 3 languages, count-based strings are phrased as "Label: {count}"
 // rather than "{count} label(s)" wherever natural.
 
+import { uiAz, uiEn, uiRu } from './translationsUi';
+
 const az = {
   // Nav
   'nav.tagline': 'Azərbaycan Tur Marketplace',
@@ -376,8 +378,8 @@ const az = {
   'booking.cardPlaceholder': 'Kart nömrəsi (məs. 4242 4242 4242 4242)',
   'booking.total': 'Cəmi',
   'booking.processing': 'İcra edilir...',
-  'booking.confirmBooking': 'Bronu təsdiqlə · AZN {total}',
-  'booking.reserveSeat': 'Yer ayır (qrup gözlənilir) · ~AZN {total}',
+  'booking.confirmBooking': 'Bronu təsdiqlə · ₼{total}',
+  'booking.reserveSeat': 'Yer ayır (qrup gözlənilir) · ~₼{total}',
   'booking.pleaseEnterPayment': 'Zəhmət olmasa ödəniş məlumatlarını daxil edin.',
   'booking.bookingFailed': 'Bron alınmadı.',
   'booking.couldntReachBackend': 'Backend-ə qoşulmaq mümkün olmadı.',
@@ -413,9 +415,9 @@ const az = {
   'eTicket.notYours': 'Bu bilet sizə aid deyil.',
   'eTicket.notFound': 'Bilet tapılmadı.',
   'eTicket.seatsCount': '{count} nəfər',
-  'notifications.type.refund_issued': 'Operator "{tour_title}" turunu ləğv etdi. AZN {amount} məbləğində geri ödəniş kartınıza qaytarılır.',
+  'notifications.type.refund_issued': 'Operator "{tour_title}" turunu ləğv etdi. ₼{amount} məbləğində geri ödəniş kartınıza qaytarılır.',
   'notifications.type.booking_cancelled_self': 'Siz "{tour_title}" turu üzrə bronunuzu ləğv etdiniz.',
-  'notifications.type.refund_issued_self': '"{tour_title}" turu üzrə bronun ləğvi: AZN {amount} məbləğində geri ödəniş kartınıza qaytarılır.',
+  'notifications.type.refund_issued_self': '"{tour_title}" turu üzrə bronun ləğvi: ₼{amount} məbləğində geri ödəniş kartınıza qaytarılır.',
   'booking.expiryPlaceholder': 'AA/İİ',
   'booking.cvcPlaceholder': 'CVC',
   'booking.testCardHint': 'Demo rejim: real pul tutulmur. Uğurlu test kartı 4242 4242 4242 4242, rədd edilən kart 4000 0000 0000 0002.',
@@ -427,14 +429,14 @@ const az = {
   'booking.refundTier0': 'Turdan 0–2 gün əvvəl: geri ödəniş yoxdur',
   'booking.refundPolicyNote': 'Operator turu ləğv edərsə və ya qrup tamamlanmazsa, 100% geri qaytarılır.',
   'eTicket.paidWith': 'Ödəniş kartı',
-  'eTicket.refundFull': 'Ləğv etsəniz, AZN {amount} (100%) kartınıza qaytarılacaq.',
-  'eTicket.refundPartial': 'Ləğv etsəniz, AZN {amount} ({percent}%) qaytarılacaq; AZN {retained} tutulacaq.',
-  'eTicket.refundNone': 'Tura {days} gün qalıb: ləğv etsəniz geri ödəniş olmayacaq (AZN {retained} tutulacaq).',
+  'eTicket.refundFull': 'Ləğv etsəniz, ₼{amount} (100%) kartınıza qaytarılacaq.',
+  'eTicket.refundPartial': 'Ləğv etsəniz, ₼{amount} ({percent}%) qaytarılacaq; ₼{retained} tutulacaq.',
+  'eTicket.refundNone': 'Tura {days} gün qalıb: ləğv etsəniz geri ödəniş olmayacaq (₼{retained} tutulacaq).',
   'eTicket.refundNotCharged': 'Qrup hələ tamamlanmayıb, kartınızdan pul çıxılmayıb. Ləğv etsəniz, rezerv sadəcə silinəcək.',
   'eTicket.confirmCancel': 'Bəli, ləğv et',
   'eTicket.keepBooking': 'Bronu saxla',
   'eTicket.refundedAmount': 'Geri ödənilib',
-  'eTicket.refundedOf': 'AZN {amount} ({percent}%) kartınıza qaytarıldı.',
+  'eTicket.refundedOf': '₼{amount} ({percent}%) kartınıza qaytarıldı.',
   'eTicket.noRefundIssued': 'Gec ləğv olduğu üçün geri ödəniş edilmədi.',
   'eTicket.holdReleased': 'Kartınızdan pul çıxılmamışdı, rezerv ləğv edildi.',
 
@@ -708,6 +710,7 @@ const az = {
   'account.idNumberPlaceholder': 'Məsələn: AZE1234567',
   'account.idNumberHint': 'Bir dəfə yadda saxlayın, rezervasiya edərkən hər dəfə yenidən yazmayın.',
   'account.idNumberSaved': 'Sənəd məlumatı yadda saxlanıldı',
+  ...uiAz,
 } as const;
 
 export type Locale = 'az' | 'en' | 'ru';
@@ -769,7 +772,7 @@ const en: Record<TranslationKey, string> = {
   'home.lastMinuteDeals': 'Last-minute deals',
   'home.popularDestinations': 'Popular destinations',
   'home.popularTours': 'Popular tours',
-  'home.fromPrice': 'from AZN {price}',
+  'home.fromPrice': 'from ₼{price}',
   'home.sortBy': 'Sort',
   'home.sortRecommended': 'Default',
   'home.sortPriceAsc': 'Price: low to high',
@@ -1067,8 +1070,8 @@ const en: Record<TranslationKey, string> = {
   'booking.cardPlaceholder': 'Card number (e.g. 4242 4242 4242 4242)',
   'booking.total': 'Total',
   'booking.processing': 'Processing...',
-  'booking.confirmBooking': 'Confirm booking · AZN {total}',
-  'booking.reserveSeat': 'Reserve seat (pending group) · ~AZN {total}',
+  'booking.confirmBooking': 'Confirm booking · ₼{total}',
+  'booking.reserveSeat': 'Reserve seat (pending group) · ~₼{total}',
   'booking.pleaseEnterPayment': 'Please enter payment details.',
   'booking.bookingFailed': 'Booking failed.',
   'booking.couldntReachBackend': "Could not reach the backend.",
@@ -1102,9 +1105,9 @@ const en: Record<TranslationKey, string> = {
   'eTicket.notYours': "This ticket isn't yours.",
   'eTicket.notFound': 'Ticket not found.',
   'eTicket.seatsCount': '{count} seat(s)',
-  'notifications.type.refund_issued': 'The operator cancelled "{tour_title}". A refund of AZN {amount} is on its way back to your card.',
+  'notifications.type.refund_issued': 'The operator cancelled "{tour_title}". A refund of ₼{amount} is on its way back to your card.',
   'notifications.type.booking_cancelled_self': 'You cancelled your booking for "{tour_title}".',
-  'notifications.type.refund_issued_self': 'Your cancellation of "{tour_title}" is refunded: AZN {amount} is on its way back to your card.',
+  'notifications.type.refund_issued_self': 'Your cancellation of "{tour_title}" is refunded: ₼{amount} is on its way back to your card.',
   'booking.expiryPlaceholder': 'MM/YY',
   'booking.cvcPlaceholder': 'CVC',
   'booking.testCardHint': 'Demo mode: no real money is charged. Test card 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 is declined.',
@@ -1116,14 +1119,14 @@ const en: Record<TranslationKey, string> = {
   'booking.refundTier0': '0–2 days before: no refund',
   'booking.refundPolicyNote': 'If the operator cancels, or the group never fills, you get 100% back.',
   'eTicket.paidWith': 'Paid with',
-  'eTicket.refundFull': 'If you cancel now, AZN {amount} (100%) goes back to your card.',
-  'eTicket.refundPartial': 'If you cancel now, AZN {amount} ({percent}%) is refunded and AZN {retained} is kept.',
-  'eTicket.refundNone': 'The tour is {days} day(s) away: cancelling now gives no refund (AZN {retained} is kept).',
+  'eTicket.refundFull': 'If you cancel now, ₼{amount} (100%) goes back to your card.',
+  'eTicket.refundPartial': 'If you cancel now, ₼{amount} ({percent}%) is refunded and ₼{retained} is kept.',
+  'eTicket.refundNone': 'The tour is {days} day(s) away: cancelling now gives no refund (₼{retained} is kept).',
   'eTicket.refundNotCharged': "The group isn't full yet and your card hasn't been charged. Cancelling simply releases the hold.",
   'eTicket.confirmCancel': 'Yes, cancel booking',
   'eTicket.keepBooking': 'Keep booking',
   'eTicket.refundedAmount': 'Refunded',
-  'eTicket.refundedOf': 'AZN {amount} ({percent}%) was returned to your card.',
+  'eTicket.refundedOf': '₼{amount} ({percent}%) was returned to your card.',
   'eTicket.noRefundIssued': 'No refund was issued because the booking was cancelled too close to the tour.',
   'eTicket.holdReleased': 'Your card was never charged; the hold was released.',
 
@@ -1389,6 +1392,7 @@ const en: Record<TranslationKey, string> = {
   'account.idNumberPlaceholder': 'e.g. AZE1234567',
   'account.idNumberHint': 'Save it once and skip retyping it for every reservation.',
   'account.idNumberSaved': 'Document details saved',
+  ...uiEn,
 };
 
 const ru: Record<TranslationKey, string> = {
@@ -1745,8 +1749,8 @@ const ru: Record<TranslationKey, string> = {
   'booking.cardPlaceholder': 'Номер карты (напр. 4242 4242 4242 4242)',
   'booking.total': 'Итого',
   'booking.processing': 'Обработка...',
-  'booking.confirmBooking': 'Подтвердить бронь · AZN {total}',
-  'booking.reserveSeat': 'Забронировать место (группа набирается) · ~AZN {total}',
+  'booking.confirmBooking': 'Подтвердить бронь · ₼{total}',
+  'booking.reserveSeat': 'Забронировать место (группа набирается) · ~₼{total}',
   'booking.pleaseEnterPayment': 'Пожалуйста, введите платёжные данные.',
   'booking.bookingFailed': 'Не удалось оформить бронь.',
   'booking.couldntReachBackend': 'Не удалось подключиться к серверу.',
@@ -1780,9 +1784,9 @@ const ru: Record<TranslationKey, string> = {
   'eTicket.notYours': 'Этот билет не ваш.',
   'eTicket.notFound': 'Билет не найден.',
   'eTicket.seatsCount': 'мест: {count}',
-  'notifications.type.refund_issued': 'Оператор отменил тур «{tour_title}». Возврат AZN {amount} отправлен на вашу карту.',
+  'notifications.type.refund_issued': 'Оператор отменил тур «{tour_title}». Возврат ₼{amount} отправлен на вашу карту.',
   'notifications.type.booking_cancelled_self': 'Вы отменили бронь на тур «{tour_title}».',
-  'notifications.type.refund_issued_self': 'Возврат за отменённую бронь на тур «{tour_title}»: AZN {amount} отправлен на вашу карту.',
+  'notifications.type.refund_issued_self': 'Возврат за отменённую бронь на тур «{tour_title}»: ₼{amount} отправлен на вашу карту.',
   'booking.expiryPlaceholder': 'ММ/ГГ',
   'booking.cvcPlaceholder': 'CVC',
   'booking.testCardHint': 'Демо-режим: реальные деньги не списываются. Тестовая карта 4242 4242 4242 4242 проходит, 4000 0000 0000 0002 отклоняется.',
@@ -1794,14 +1798,14 @@ const ru: Record<TranslationKey, string> = {
   'booking.refundTier0': 'За 0–2 дня: возврата нет',
   'booking.refundPolicyNote': 'Если оператор отменит тур или группа не наберётся, вы получите 100% обратно.',
   'eTicket.paidWith': 'Оплачено картой',
-  'eTicket.refundFull': 'Если отменить сейчас, AZN {amount} (100%) вернётся на карту.',
-  'eTicket.refundPartial': 'Если отменить сейчас, вернётся AZN {amount} ({percent}%), удержано AZN {retained}.',
-  'eTicket.refundNone': 'До тура {days} дн.: при отмене возврата не будет (удерживается AZN {retained}).',
+  'eTicket.refundFull': 'Если отменить сейчас, ₼{amount} (100%) вернётся на карту.',
+  'eTicket.refundPartial': 'Если отменить сейчас, вернётся ₼{amount} ({percent}%), удержано ₼{retained}.',
+  'eTicket.refundNone': 'До тура {days} дн.: при отмене возврата не будет (удерживается ₼{retained}).',
   'eTicket.refundNotCharged': 'Группа ещё не набрана, деньги с карты не списаны. Отмена просто снимет резерв.',
   'eTicket.confirmCancel': 'Да, отменить',
   'eTicket.keepBooking': 'Оставить бронь',
   'eTicket.refundedAmount': 'Возвращено',
-  'eTicket.refundedOf': 'AZN {amount} ({percent}%) возвращено на вашу карту.',
+  'eTicket.refundedOf': '₼{amount} ({percent}%) возвращено на вашу карту.',
   'eTicket.noRefundIssued': 'Возврат не произведён: бронь отменена слишком близко к дате тура.',
   'eTicket.holdReleased': 'Деньги с карты не списывались, резерв снят.',
 
@@ -2067,6 +2071,7 @@ const ru: Record<TranslationKey, string> = {
   'account.idNumberPlaceholder': 'Например: AZE1234567',
   'account.idNumberHint': 'Сохраните один раз и не вводите заново при каждом бронировании.',
   'account.idNumberSaved': 'Данные документа сохранены',
+  ...uiRu,
 };
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { az, en, ru };

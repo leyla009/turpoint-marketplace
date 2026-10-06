@@ -57,7 +57,7 @@ const pct = (n: number | null, digits = 0) => (n === null ? '—' : `${(n * 100)
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-card rounded-xl shadow-md p-3.5">
+    <div className="bg-card rounded-xl border border-border p-3.5">
       <p className="text-xs text-muted-foreground truncate">{label}</p>
       <p className="text-xl font-bold text-foreground leading-tight mt-0.5">{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
@@ -102,13 +102,12 @@ export default function OperatorAnalytics() {
           on the dark forest photo, so it was effectively invisible - only
           the icon showed. It now sits on its own card surface, same
           treatment as the "Turlarınız" tab below. */}
-      <div className="inline-flex items-center gap-2 bg-card rounded-full pl-1.5 pr-4 py-1.5 mb-3 shadow-md">
+      <div className="inline-flex items-center gap-2 bg-card rounded-full pl-1.5 pr-4 py-1.5 mb-3 border border-border">
         <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <BarChart3 size={14} className="text-primary" />
         </span>
         <h2
           className="text-base sm:text-lg font-bold text-foreground leading-tight"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           {t('analytics.title')}
         </h2>
@@ -117,13 +116,13 @@ export default function OperatorAnalytics() {
       {state.kind === 'loading' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-[74px] rounded-xl bg-card shadow-md animate-pulse" />
+            <div key={i} className="h-[74px] rounded-xl bg-card border border-border animate-pulse" />
           ))}
         </div>
       )}
 
       {state.kind === 'error' && (
-        <div className="bg-card rounded-xl shadow-md p-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-2 text-sm text-muted-foreground">
           <AlertCircle size={16} className="shrink-0" /> {t('analytics.loadError')}
         </div>
       )}
@@ -166,7 +165,7 @@ export default function OperatorAnalytics() {
                 />
               </div>
 
-              <div className="bg-card rounded-xl shadow-md p-4 mb-3">
+              <div className="bg-card rounded-xl border border-border p-4 mb-3">
                 <h3 className="text-sm font-semibold text-foreground mb-3">{t('analytics.monthly')}</h3>
                 {hasMonthly ? (
                   <div className="flex items-end gap-2 h-28">
@@ -190,7 +189,7 @@ export default function OperatorAnalytics() {
                 )}
               </div>
 
-              <div className="bg-card rounded-xl shadow-md overflow-hidden">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <h3 className="text-sm font-semibold text-foreground px-4 pt-4 pb-2">{t('analytics.perTour')}</h3>
                 <div className="divide-y divide-border">
                   {visibleTours.map((tour) => {

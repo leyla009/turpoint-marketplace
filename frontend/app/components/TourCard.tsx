@@ -1,19 +1,14 @@
 'use client';
 
-import { Leaf, Landmark, Music, Utensils, MapPin, Users, Zap, Check, Star, Clock, ChevronRight, Heart } from 'lucide-react';
+import { Leaf, Landmark, Music, Utensils, MapPin, Zap, Check, Star, Heart, Clock, Languages } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 import { photoSrc } from '../lib/photo';
-import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
+import { formatAzn } from '../lib/format';
+import { tourTitle, placeName, tourFacts } from '../lib/tourContent';
 
-
-// Categories no longer carry their own saturated gradient - a card without
-// a real photo now falls back to one shared, muted brand treatment (see
-// PLACEHOLDER_VARIANTS) instead of a category-colored block, so the grid
-// reads as "real listings, some without a photo yet" rather than "four
-// kinds of colored icon tiles". The Icon here is used only as a small
-// corner mark on that fallback, and CATEGORY_STYLE itself still drives the
-// category tabs/labels elsewhere on the homepage.
+// Category labels/icons - drives the category filters and the homepage
+// "Explore by category" tiles as well as the photo-less card fallback.
 export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; labelKey: TranslationKey }> = {
   nature: { gradient: 'from-emerald-400 to-emerald-600', Icon: Leaf, labelKey: 'category.nature' },
   history: { gradient: 'from-amber-400 to-amber-700', Icon: Landmark, labelKey: 'category.history' },
@@ -21,23 +16,17 @@ export const CATEGORY_STYLE: Record<string, { gradient: string; Icon: any; label
   food: { gradient: 'from-orange-400 to-red-500', Icon: Utensils, labelKey: 'category.food' },
 };
 
-// Same muted mountain-silhouette motif the "Populyar istiqamətlər"/
-// "Populyar turlar" cards use for a photo-less destination, just
-// recolored per category instead of picked randomly from a seed - green
-// for nature (like Qəbələ's card), brown for history (like Quba's), and
-// two more in the same family for the remaining categories. One shared
-// ridge/crest shape keeps every photo-less card visually consistent.
+// Muted mountain-silhouette fallback for a tour without a real photo yet,
+// tinted per category in the brand's teal/navy family.
 const CATEGORY_MOTIF: Record<string, { base: string; ridge: string; crest: string }> = {
-  nature: { base: '#1B3D2F', ridge: '#234A39', crest: '#2C5A46' },
-  history: { base: '#5C4630', ridge: '#6C563C', crest: '#7C6448' },
-  entertainment: { base: '#3B2F52', ridge: '#493C62', crest: '#584A73' },
-  food: { base: '#5C2A1F', ridge: '#6C362A', crest: '#7C4436' },
+  nature: { base: '#0F3B47', ridge: '#14505F', crest: '#1A6677' },
+  history: { base: '#1E3348', ridge: '#28425B', crest: '#33516E' },
+  entertainment: { base: '#2A2F52', ridge: '#373D66', crest: '#454C7A' },
+  food: { base: '#3D2E2A', ridge: '#4D3B35', crest: '#5E4941' },
 };
 const MOTIF_RIDGE = 'M0 100 L35 55 L60 85 L95 40 L130 90 L160 60 L200 100 L200 140 L0 140 Z';
 const MOTIF_CREST = 'M0 120 L50 85 L85 110 L120 75 L155 105 L200 80 L200 140 L0 140 Z';
 
-// Exported so the tour detail page's larger hero uses the exact same
-// photo-less treatment instead of its own separate gradient+icon design.
 export function CategoryMotif({ category }: { category: string | null }) {
   const colors = CATEGORY_MOTIF[category ?? ''] ?? CATEGORY_MOTIF.history;
   return (
@@ -48,14 +37,6 @@ export function CategoryMotif({ category }: { category: string | null }) {
     </svg>
   );
 }
-
-// Photography is meant to be the card's whole visual argument - a tour
-// without a real photo yet shouldn't compete for attention with a colorful
-// (or even a muted-but-still-bold) painted panel of its own. This falls
-// back to the same quiet neutral surface the rest of the page's own empty
-// states use, with only a small line icon - it recedes instead of trying
-// to manufacture visual interest a listing without a photo doesn't
-// actually have yet.
 
 export interface ApiTour {
   id: number;
@@ -73,14 +54,22 @@ export interface ApiTour {
   features?: string | null;
   vehicle_features?: string | null;
   photo_url?: string | null;
+  facts?: string | null;
   rating?: number | null;
   review_count?: number;
+}
+
+/** Guide languages from the tour's facts as short codes, e.g. "EN / AZ". */
+export function tourLanguageCodes(tour: Pick<ApiTour, 'facts'>): string {
+  const langs = tourFacts({ facts: tour.facts ?? null }).guide_languages ?? [];
+  return langs.slice(0, 3).map((l) => l.toUpperCase()).join(' / ');
 }
 
 export default function TourCard({
   tour,
   operatorName,
   onClick,
+  showCta = false,
   compareMode = false,
   compareSelected = false,
   compareDisabled = false,
@@ -91,57 +80,44 @@ export default function TourCard({
   tour: ApiTour;
   operatorName?: string;
   onClick: () => void;
-  /** Show the compare checkbox overlay (homepage's "Compare properties" toggle). */
+  /** Full-width "View tour" button under the price (homepage cards). */
+  showCta?: boolean;
   compareMode?: boolean;
   compareSelected?: boolean;
-  /** True once the compare cap (3) is hit and this card isn't already selected. */
   compareDisabled?: boolean;
   onToggleCompare?: () => void;
-  /** Heart icon overlay - shares the same corner as the compare checkbox,
-   * so it only shows when compareMode is off. Omit onToggleFavorite to
-   * hide the heart entirely (e.g. while auth state is still loading). */
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
 }) {
   const { t, locale } = useLanguage();
   const title = tourTitle(tour, locale);
-  const style = CATEGORY_STYLE[tour.category ?? ''] ?? CATEGORY_STYLE.history;
   const hasDeal = typeof tour.discounted_price === 'number';
   const hasRating = typeof tour.rating === 'number' && tour.rating > 0;
+  const languages = tourLanguageCodes(tour);
 
   return (
-    // Flat at rest, elevated only on hover - matching Airbnb's DESIGN.md
-    // elevation model (one shadow tier, used nowhere else) rather than a
-    // permanent resting border. The exact rgba stack below is that same
-    // documented tier, not an arbitrary Tailwind shadow-lg.
     <div
       onClick={onClick}
-      className={`bg-card rounded-xl overflow-hidden transition-shadow duration-300 cursor-pointer group h-full flex flex-col ${
-        compareSelected
-          ? 'ring-accent ring-2'
-          : 'hover:shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)]'
+      className={`bg-card rounded-xl overflow-hidden border cursor-pointer group h-full flex flex-col transition-shadow duration-300 ${
+        compareSelected ? 'border-primary ring-2 ring-primary' : 'border-border hover:shadow-lift'
       }`}
     >
-      {/* aspect-[4/3] (not a fixed px height) so the photo stays
-          photo-dominant - the DESIGN.md principle of trusting photography
-          over typographic weight - at every card width this renders at
-          (grid columns, the w-64 horizontal scrollers, compare mode), not
-          just the one width it was tuned for. */}
       <div className="relative aspect-[4/3] overflow-hidden bg-muted shrink-0">
         {tour.photo_url ? (
           <img
             src={photoSrc(tour.photo_url) ?? ''}
             alt={title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <CategoryMotif category={tour.category} />
         )}
 
-        <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between gap-1.5">
           {hasDeal ? (
-            <span className="flex items-center gap-1 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm">
-              <Zap size={9} /> {t('tourCard.lastMinuteDeal')}
+            <span className="flex items-center gap-1 bg-warning text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+              <Zap size={10} /> {t('tourCard.lastMinuteDeal')}
             </span>
           ) : (
             <span />
@@ -154,9 +130,9 @@ export default function TourCard({
               }}
               disabled={compareDisabled}
               title={t('home.compareProperties')}
-              className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors shrink-0 ${
+              className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors shrink-0 ${
                 compareSelected
-                  ? 'bg-accent border-accent'
+                  ? 'bg-primary border-primary'
                   : compareDisabled
                   ? 'bg-white/60 border-white/60 cursor-not-allowed'
                   : 'bg-white/90 border-white hover:bg-white'
@@ -172,72 +148,58 @@ export default function TourCard({
                   onToggleFavorite();
                 }}
                 title={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
-                className="w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center transition-colors shrink-0"
+                aria-label={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
+                className="w-8 h-8 rounded-full bg-white/95 hover:bg-white shadow-sm flex items-center justify-center transition-colors shrink-0"
               >
-                <Heart size={14} className={isFavorited ? 'fill-danger text-danger' : 'text-foreground/60'} />
+                <Heart size={15} className={isFavorited ? 'fill-danger text-danger' : 'text-navy/70'} />
               </button>
             )
           )}
         </div>
-
-        <div className="absolute bottom-2 inset-x-2 flex items-center justify-between gap-1.5">
-          <span className="flex items-center gap-1 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">
-            <Clock size={9} /> {t('tourDetail.duration', { count: tour.duration_days })}
-          </span>
-          <span className="bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">{t(style.labelKey)}</span>
-        </div>
       </div>
+
       <div className="p-3.5 flex-1 flex flex-col">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{title}</h3>
-          {hasRating && (
-            <span className="flex items-center gap-0.5 shrink-0 text-xs font-bold text-foreground pt-0.5">
-              <Star size={12} className="fill-rating text-rating" /> {tour.rating!.toFixed(1)}
-            </span>
+        <div className="flex items-center gap-1 text-xs mb-1 h-4">
+          {hasRating ? (
+            <>
+              <Star size={12} className="fill-rating text-rating" />
+              <span className="font-semibold text-foreground">{tour.rating!.toFixed(1)}</span>
+              {tour.review_count ? <span className="text-muted-foreground">({tour.review_count})</span> : null}
+            </>
+          ) : (
+            <span className="text-muted-foreground">{t('ui.card.new')}</span>
           )}
         </div>
+
+        <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{title}</h3>
+
         {tour.location && (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground mb-2.5">
-            <MapPin size={11} /> {placeName(tour.location, locale)}
-            {hasRating && tour.review_count ? (
-              <span className="text-muted-foreground/70">
-                · {t('tourCard.reviewCount', { count: tour.review_count })}
-              </span>
-            ) : null}
+          <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
+            <MapPin size={12} className="shrink-0" /> {placeName(tour.location, locale)}
           </p>
         )}
-        <div className="flex items-center justify-between mt-auto">
-          <div className="min-w-0">
-            <p className="text-xs font-medium truncate text-foreground">
-              {operatorName ?? t('tourCard.defaultOperator')}
-            </p>
-            <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-              <Users size={10} /> {t('search.travelers')}: {tour.max_participants}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <div className="text-right">
-              {hasDeal ? (
-                <>
-                  <p className="text-[10px] text-muted-foreground line-through">AZN {tour.price}</p>
-                  <p className="text-sm font-bold text-primary">
-                    AZN {tour.discounted_price}
-                    <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm font-bold text-primary">
-                  AZN {tour.price}
-                  <span className="text-[10px] font-normal text-muted-foreground">{t('tourCard.perPerson')}</span>
-                </p>
-              )}
-            </div>
-            <ChevronRight
-              size={16}
-              className="text-muted-foreground/40 -mr-1 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
-            />
-          </div>
+        <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+          <Clock size={12} className="shrink-0" /> {t('tourDetail.duration', { count: tour.duration_days })}
+          {languages && (
+            <>
+              <span className="mx-0.5">·</span>
+              <Languages size={12} className="shrink-0" /> {languages}
+            </>
+          )}
+        </p>
+        {operatorName && <p className="text-[11px] text-muted-foreground/80 mt-1 truncate">{operatorName}</p>}
+
+        <div className="mt-auto pt-3 flex items-baseline gap-1.5">
+          {hasDeal && <span className="text-xs text-muted-foreground line-through">{formatAzn(tour.price)}</span>}
+          <span className="text-base font-bold text-foreground">{formatAzn(hasDeal ? tour.discounted_price : tour.price)}</span>
+          <span className="text-xs text-muted-foreground">{t('ui.card.perPerson')}</span>
         </div>
+
+        {showCta && (
+          <span className="mt-3 block w-full text-center bg-primary group-hover:bg-primary-hover text-primary-foreground text-sm font-semibold py-2 rounded-lg transition-colors">
+            {t('ui.card.viewTour')}
+          </span>
+        )}
       </div>
     </div>
   );

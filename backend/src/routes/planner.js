@@ -335,7 +335,7 @@ const FRIENDLY_ERRORS = {
     unreachable: 'Не удалось подключиться к ИИ-сервису. Попробуйте ещё раз через момент.',
     unauthorized: 'Доступ к ИИ-сервису настроен некорректно.',
     rate_limited: 'ИИ-сервис сейчас перегружен. Попробуйте немного позже.',
-    provider_error: 'Во ИИ-сервисе произошла временная ошибка.',
+    provider_error: 'В ИИ-сервисе произошла временная ошибка.',
     empty_response: 'ИИ не вернул ответ. Попробуйте ещё раз.',
     malformed_json: 'Не удалось обработать ответ ИИ. Попробуйте ещё раз.',
     generic: 'Что-то пошло не так. Попробуйте ещё раз.',
@@ -436,6 +436,7 @@ router.post('/chat', asyncHandler(async (req, res) => {
     requirements = await extractRequirements({ message, locale: safeLocale, structured, history, currentItinerary });
   } catch (err) {
     const reason = err instanceof GroqError ? err.reason : 'generic';
+    if (!(err instanceof GroqError)) console.error('[planner] unexpected error', err);
     return res.json({ phase: 'error', message: friendlyError(safeLocale, reason), error: { reason } });
   }
 
@@ -474,6 +475,7 @@ router.post('/chat', asyncHandler(async (req, res) => {
     modelItinerary = await buildItinerary({ locale: safeLocale, extracted: effective, candidates, currentItinerary, message });
   } catch (err) {
     const reason = err instanceof GroqError ? err.reason : 'generic';
+    if (!(err instanceof GroqError)) console.error('[planner] unexpected error', err);
     return res.json({ phase: 'error', message: friendlyError(safeLocale, reason), error: { reason } });
   }
 

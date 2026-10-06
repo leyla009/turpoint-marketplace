@@ -10,12 +10,13 @@
     "seed:tours": "node src/db/seedRealTours.js",
     "seed:photos": "node src/db/seedPhotos.js",
     "seed:analytics": "node src/db/seedAnalyticsDemo.js",
+    "check:groq": "node src/checkGroq.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": "20.x"
   },
-   "dependencies": {
+  "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",

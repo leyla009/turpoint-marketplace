@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { Send } from 'lucide-react';
+import Logo from './Logo';
 import { useLanguage } from '../context/LanguageContext';
 import type { Locale } from '../lib/translations';
 
@@ -20,28 +19,18 @@ export function AuthHeader() {
   const { locale, setLocale } = useLanguage();
 
   return (
-    <header className="h-16 flex items-center justify-between px-4 sm:px-6 max-w-[1600px] w-full mx-auto">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 shrink-0">
-          <Send size={15} className="text-primary -rotate-45" />
-        </span>
-        <span
-          className="text-lg font-bold text-foreground"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          TurPoint
-        </span>
-      </Link>
+    <header className="h-16 flex items-center justify-between px-4 sm:px-6 max-w-5xl w-full mx-auto">
+      <Logo />
 
-      <div className="flex items-center gap-0.5 bg-muted rounded-full p-1">
+      <div className="flex items-center gap-0.5 bg-muted rounded-lg p-1">
         {LANGUAGES.map((l) => (
           <button
             key={l}
             onClick={() => setLocale(l)}
             title={l.toUpperCase()}
             aria-label={l.toUpperCase()}
-            className={`h-9 px-3 flex items-center justify-center rounded-full text-xs font-semibold leading-none transition-all ${
-              locale === l ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            className={`h-8 px-3 flex items-center justify-center rounded-md text-xs font-semibold leading-none transition-all ${
+              locale === l ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {l.toUpperCase()}

@@ -81,7 +81,6 @@ export default function PrivacyPage() {
       <header className="max-w-3xl mb-10 md:mb-14">
         <h1
           className="text-[2.25rem] sm:text-[2.75rem] font-bold text-foreground leading-[1.15] mb-4"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           Privacy Policy
         </h1>
@@ -123,7 +122,6 @@ export default function PrivacyPage() {
               <section key={section.id} id={section.id} className="scroll-mt-24">
                 <h2
                   className="text-2xl sm:text-[1.75rem] font-bold text-foreground leading-[1.25] mb-5"
-                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
                   <span className="text-accent mr-3 tabular-nums">{n}.</span>
                   {section.title}

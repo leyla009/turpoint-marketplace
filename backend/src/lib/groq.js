@@ -18,7 +18,48 @@ export const GROQ_EXTRACT_MODEL = process.env.GROQ_EXTRACT_MODEL || 'openai/gpt-
 export const GROQ_ITINERARY_MODEL = process.env.GROQ_ITINERARY_MODEL || 'openai/gpt-oss-120b';
 
 export function groqConfigured() {
-  return !!process.env.GROQ_API_KEY;
+  return !!process.env.GROQ_API_KEY?.trim();
+}
+
+// Startup self-check for the Smart Planner: confirms the key is present AND
+// accepted by Groq (GET /models is free and doesn't use completion quota),
+// and that both configured models actually exist on the account. Never
+// throws - it only reports, so a missing/bad key can't stop the API booting.
+// Returns { ok, reason, message } for the caller to log.
+export async function checkGroqKey() {
+  if (!groqConfigured()) {
+    return {
+      ok: false,
+      reason: 'not_configured',
+      message: 'GROQ_API_KEY is not set - Smart Planner is disabled. Get a free key at https://console.groq.com/keys and add it to backend/.env',
+    };
+  }
+  let response;
+  try {
+    response = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY.trim()}` },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    return { ok: false, reason: 'unreachable', message: 'Could not reach Groq to verify GROQ_API_KEY (offline?). The planner will retry on each request.' };
+  }
+  if (response.status === 401) {
+    return { ok: false, reason: 'unauthorized', message: 'Groq rejected GROQ_API_KEY (401). Check the key in backend/.env - it should start with "gsk_".' };
+  }
+  if (!response.ok) {
+    return { ok: false, reason: 'provider_error', message: `Groq responded with ${response.status} while verifying GROQ_API_KEY.` };
+  }
+  const data = await response.json().catch(() => null);
+  const available = new Set((data?.data ?? []).map((m) => m.id));
+  const missing = [GROQ_EXTRACT_MODEL, GROQ_ITINERARY_MODEL].filter((m) => !available.has(m));
+  if (available.size && missing.length) {
+    return {
+      ok: false,
+      reason: 'model_missing',
+      message: `GROQ_API_KEY works, but these models aren't available to it: ${missing.join(', ')}. Set GROQ_EXTRACT_MODEL / GROQ_ITINERARY_MODEL in backend/.env.`,
+    };
+  }
+  return { ok: true, reason: 'ok', message: `Smart Planner ready (Groq: ${GROQ_EXTRACT_MODEL} + ${GROQ_ITINERARY_MODEL}).` };
 }
 
 // Calls Groq's chat completions endpoint and returns the parsed JSON body
@@ -31,13 +72,38 @@ export async function groqJson({ model, system, messages, temperature = 0.4 }) {
     throw new GroqError('not_configured', 'Groq API key is not configured on the server.');
   }
 
+  // Free-tier Groq fails transiently more often than you'd expect: 5xx
+  // blips, short 429 bursts, and - with JSON mode on the gpt-oss models -
+  // 400 "json_validate_failed" when a generation isn't valid JSON. One
+  // failure used to surface straight to the traveler as "temporary
+  // problem", so retry those with a short backoff before giving up.
+  let lastError;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    if (attempt > 0) await sleep(lastError?.retryAfterMs ?? 600 * 2 ** (attempt - 1));
+    try {
+      return await groqJsonOnce({ model, system, messages, temperature });
+    } catch (err) {
+      lastError = err;
+      const retryable = err instanceof GroqError && RETRYABLE.has(err.reason);
+      console.warn(`[planner] Groq ${model} attempt ${attempt + 1} failed: ${err.message}${retryable && attempt < MAX_RETRIES ? ' - retrying' : ''}`);
+      if (!retryable) break;
+    }
+  }
+  throw lastError;
+}
+
+const MAX_RETRIES = 2;
+const RETRYABLE = new Set(['unreachable', 'rate_limited', 'provider_error', 'empty_response', 'malformed_json']);
+const sleep = (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 8000)));
+
+async function groqJsonOnce({ model, system, messages, temperature }) {
   let response;
   try {
     response = await fetch(GROQ_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY.trim()}`,
       },
       body: JSON.stringify({
         model,
@@ -45,6 +111,7 @@ export async function groqJson({ model, system, messages, temperature = 0.4 }) {
         response_format: { type: 'json_object' },
         messages: [{ role: 'system', content: system }, ...messages],
       }),
+      signal: AbortSignal.timeout(60000),
     });
   } catch {
     throw new GroqError('unreachable', 'Could not reach the AI provider.');
@@ -52,13 +119,30 @@ export async function groqJson({ model, system, messages, temperature = 0.4 }) {
 
   if (!response.ok) {
     const status = response.status;
-    throw new GroqError(
+    const body = await response.json().catch(() => null);
+    const detail = body?.error?.message ? ` ${String(body.error.message).slice(0, 200)}` : '';
+
+    // JSON mode rejected the generation - Groq still returns what the model
+    // wrote in `failed_generation`, which is usually valid JSON wrapped in a
+    // code fence or followed by stray text. Salvage it before retrying.
+    if (status === 400 && body?.error?.code === 'json_validate_failed') {
+      const salvaged = parseJsonLoose(String(body.error.failed_generation ?? ''));
+      if (salvaged !== null) return salvaged;
+      throw new GroqError('malformed_json', `Groq JSON validation failed.${detail}`);
+    }
+
+    const err = new GroqError(
       status === 401 ? 'unauthorized' : status === 429 ? 'rate_limited' : 'provider_error',
-      `Groq API responded with ${status}.`
+      `Groq API responded with ${status}.${detail}`
     );
+    const retryAfter = Number(response.headers.get('retry-after'));
+    if (status === 429 && Number.isFinite(retryAfter) && retryAfter > 0) err.retryAfterMs = retryAfter * 1000;
+    // Other 4xx (bad request, model gone) won't fix themselves on retry.
+    if (status >= 400 && status < 500 && status !== 429) err.reason = status === 401 ? 'unauthorized' : 'bad_request';
+    throw err;
   }
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
   const raw = data?.choices?.[0]?.message?.content;
   if (!raw) throw new GroqError('empty_response', 'The AI returned an empty response.');
 

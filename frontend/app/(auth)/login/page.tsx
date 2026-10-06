@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +12,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Mode = 'login' | 'signup';
-type Step = 'email' | 'details';
 type FieldErrors = { name?: string; email?: string; password?: string };
 
 // Only ever redirect back to a path on this same site - a `next` value
@@ -32,16 +31,6 @@ export default function LoginPage() {
   const { t } = useLanguage();
 
   const [mode, setMode] = useState<Mode>('login');
-  // Booking.com-style progressive form: the email is asked for on its own
-  // first, and only once it's valid does the rest of the form (password,
-  // and name on signup) appear. This is purely a client-side staging of
-  // the SAME single form - both submits still hit the existing one-shot
-  // /api/auth/login or /api/auth/signup endpoint together, so it needed no
-  // backend change and can't silently diverge from what the API expects.
-  // There's no "does this email already have an account" check on the
-  // backend, so - unlike Booking.com - the mode (sign in vs. register)
-  // still has to be chosen explicitly rather than inferred from the email.
-  const [step, setStep] = useState<Step>('email');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,11 +39,6 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [nextPath, setNextPath] = useState<string | null>(null);
-  // Tracks whether advancing to the "details" step pushed an extra
-  // history entry that hasn't been consumed yet (by the user pressing
-  // back, or by us stepping back to email ourselves) - see the popstate
-  // effect and backToEmail/switchMode below.
-  const pushedHistoryRef = useRef(false);
 
   // Read once on mount, client-side only (see sanitizeNext) - matches the
   // same window.location-based pattern the homepage uses for its own
@@ -66,21 +50,6 @@ export default function LoginPage() {
     if (params.get('mode') === 'signup') setMode('signup');
   }, []);
 
-  // Without this, pressing the browser back button while on the
-  // "password" step navigated straight off /login (probably to whatever
-  // sent the user here, or out of the app entirely) instead of just
-  // returning to the "email" step it visually followed from. Advancing to
-  // "details" pushes one extra same-page history entry (see handleSubmit),
-  // so a back-press there only pops that entry and fires popstate here
-  // rather than actually leaving the page.
-  useEffect(() => {
-    function onPopState() {
-      pushedHistoryRef.current = false;
-      setStep('email');
-    }
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
 
   const wantsBooking = !!nextPath && /\/tours\/.+\/book/.test(nextPath);
 
@@ -134,20 +103,10 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (step === 'email') {
-      const error = validateField('email', email);
-      setFieldErrors((p) => ({ ...p, email: error }));
-      if (!error) {
-        window.history.pushState({ turpointAuthStep: 'details' }, '');
-        pushedHistoryRef.current = true;
-        setStep('details');
-      }
-      return;
-    }
-
     if (submitting) return; // guards against a double-click firing two signups/logins
 
     const errors: FieldErrors = {
+      email: validateField('email', email),
       password: validateField('password', password),
       ...(mode === 'signup' ? { name: validateField('name', name) } : {}),
     };
@@ -181,128 +140,127 @@ export default function LoginPage() {
     }
   }
 
-  // Consumes the history entry pushed when advancing to "details" (see
-  // handleSubmit) by actually navigating back through it, rather than just
-  // setting state directly - otherwise that entry is left dangling, and
-  // the next back-press would have to fire twice before it actually left
-  // the page. The popstate listener above is what sets step back to
-  // 'email' once this resolves.
-  function stepBackToEmail() {
-    if (pushedHistoryRef.current) {
-      window.history.back();
-    } else {
-      setStep('email');
-    }
-  }
-
   function switchMode(next: Mode) {
     setMode(next);
-    stepBackToEmail();
     setFieldErrors({});
     setAuthError('');
-  }
-
-  function backToEmail() {
-    stepBackToEmail();
-    setAuthError('');
-    setFieldErrors((p) => ({ ...p, password: undefined, name: undefined }));
   }
 
   const isLoggedIn = !loading && !!user;
 
   return (
-    <div className="relative flex-1 flex items-center justify-center overflow-hidden px-4 py-10 sm:py-16">
-      {/* Full-bleed photo background - the same real slideshow photos as the
-          homepage hero, now filling the entire space between the header and
-          footer instead of a thin band, so the page reads as one integrated
-          scene rather than a banner sitting above an empty canvas. */}
-      <HeroSlideshow />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60" />
-
-      {/* Card, same rounded-2xl + soft shadow treatment as HeroSearchCard on
-          the homepage, centered directly in the photo so it reads as the
-          same design system rather than a bare form on a flat background. */}
-      <div className="relative z-10 w-full max-w-[400px] bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-6 sm:p-9">
-        {isLoggedIn ? (
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-3">
-              {user!.name?.[0]?.toUpperCase() ?? '?'}
-            </div>
-            <h1 className="text-lg font-bold text-foreground mb-1">{user!.name}</h1>
-            <p className="text-sm text-muted-foreground mb-6">{user!.email}</p>
-
-            {operatorProfile && (
-              <div className="flex bg-muted rounded-full p-1 mb-5">
-                <button
-                  onClick={() => setAccountMode('traveler')}
-                  className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                    accountMode === 'traveler' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                  }`}
-                >
-                  {t('nav.traveler')}
-                </button>
-                <button
-                  onClick={() => setAccountMode('operator')}
-                  className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-all ${
-                    accountMode === 'operator' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                  }`}
-                >
-                  {t('nav.operator')}
-                </button>
-              </div>
-            )}
-
-            {!operatorProfile && (
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="w-full text-sm font-semibold text-accent px-4 py-2.5 rounded-xl border border-accent/30 hover:bg-accent/5 transition-colors mb-3"
-              >
-                {t('nav.becomeOperator')}
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                logout();
-                router.push('/');
-              }}
-              className="flex items-center justify-center gap-1.5 w-full bg-muted text-foreground text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-80 transition-opacity"
-            >
-              <LogOut size={14} /> {t('nav.logOut')}
-            </button>
+    <div className="flex-1 flex items-center justify-center px-4 py-6 sm:py-10">
+      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-card border border-border rounded-2xl overflow-hidden shadow-card">
+        {/* Photo panel */}
+        <div className="relative hidden md:block min-h-[560px] bg-navy">
+          <HeroSlideshow />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/30 to-transparent" />
+          <div className="absolute bottom-0 inset-x-0 p-8 text-white">
+            <h2 className="text-2xl font-bold">{t('ui.login.welcome')}</h2>
+            <p className="text-sm text-white/80 mt-1.5 max-w-xs">{t('ui.login.welcomeBody')}</p>
           </div>
-        ) : (
-          <div>
-            {/* Booking-context line - only appears when a protected page
-                (see useRequireAuth in AuthContext.tsx) bounced the traveler
-                here, so signing in never feels disconnected from whatever
-                they were actually trying to do. Plain text, not another
-                boxed banner - one visual container (the form itself) is
-                enough on this page. */}
-            {nextPath && (
-              <p className="mb-3 text-sm font-medium text-primary">
-                {wantsBooking ? t('login.contextBooking') : t('login.contextGeneric')}
+        </div>
+
+        <div className="p-6 sm:p-10 flex flex-col justify-center">
+          {isLoggedIn ? (
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-3">
+                {user!.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+              <h1 className="text-lg font-bold text-foreground mb-1">{user!.name}</h1>
+              <p className="text-sm text-muted-foreground mb-6">{user!.email}</p>
+
+              {operatorProfile && (
+                <div className="flex bg-muted rounded-lg p-1 mb-5">
+                  {(['traveler', 'operator'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setAccountMode(m)}
+                      className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-all ${
+                        accountMode === m ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {t(m === 'operator' ? 'nav.operator' : 'nav.traveler')}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!operatorProfile && (
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="w-full text-sm font-semibold text-primary px-4 py-2.5 rounded-lg border border-primary hover:bg-primary/5 transition-colors mb-3"
+                >
+                  {t('ui.nav.becomeOperator')}
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  logout();
+                  router.push('/');
+                }}
+                className="flex items-center justify-center gap-1.5 w-full bg-muted text-foreground text-sm font-semibold px-4 py-2.5 rounded-lg hover:opacity-80 transition-opacity"
+              >
+                <LogOut size={14} /> {t('nav.logOut')}
+              </button>
+            </div>
+          ) : (
+            <div className="w-full max-w-sm mx-auto">
+              {/* Sign in / Create account tabs */}
+              <div className="flex border-b border-border mb-6">
+                {(['login', 'signup'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => mode !== m && switchMode(m)}
+                    className={`flex-1 pb-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                      mode === m ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {m === 'login' ? t('ui.login.signInTab') : t('ui.login.createTab')}
+                  </button>
+                ))}
+              </div>
+
+              {nextPath && (
+                <p className="mb-3 text-sm font-medium text-primary">
+                  {wantsBooking ? t('login.contextBooking') : t('login.contextGeneric')}
+                </p>
+              )}
+
+              <h1 className="text-xl font-bold text-foreground mb-1">
+                {mode === 'login' ? t('login.signInHeading') : t('login.createHeading')}
+              </h1>
+              <p className="text-sm text-muted-foreground mb-6">
+                {mode === 'login' ? t('login.signInSubtitle') : t('login.createSubtitle')}
               </p>
-            )}
 
-            <h1
-              className="text-[26px] leading-tight font-bold text-foreground mb-1.5"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              {mode === 'login' ? t('login.signInHeading') : t('login.createHeading')}
-            </h1>
-            <p className="text-sm text-muted-foreground mb-7">
-              {mode === 'login' ? t('login.signInSubtitle') : t('login.createSubtitle')}
-            </p>
+              {authError && (
+                <p role="alert" className="flex items-start gap-2 text-sm text-danger mb-4">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5" /> {authError}
+                </p>
+              )}
 
-            {authError && (
-              <p role="alert" className="flex items-start gap-2 text-sm text-danger mb-4">
-                <AlertCircle size={15} className="shrink-0 mt-0.5" /> {authError}
-              </p>
-            )}
+              <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                {mode === 'signup' && (
+                  <Field
+                    id="name"
+                    label={t('login.fullName')}
+                    type="text"
+                    value={name}
+                    onChange={(v) => {
+                      setName(v);
+                      if (fieldErrors.name) setFieldErrors((p) => ({ ...p, name: undefined }));
+                      if (authError) setAuthError('');
+                    }}
+                    onBlur={() => handleBlur('name', name)}
+                    error={fieldErrors.name}
+                    autoComplete="name"
+                    placeholder={t('login.fullNamePlaceholder')}
+                  />
+                )}
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              {step === 'email' ? (
                 <Field
                   id="email"
                   label={t('login.email')}
@@ -311,6 +269,7 @@ export default function LoginPage() {
                   onChange={(v) => {
                     setEmail(v);
                     if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }));
+                    if (authError) setAuthError('');
                   }}
                   onBlur={() => handleBlur('email', email)}
                   error={fieldErrors.email}
@@ -319,118 +278,62 @@ export default function LoginPage() {
                   placeholder={t('login.emailPlaceholder')}
                   autoFocus
                 />
-              ) : (
-                <div className="flex items-center justify-between gap-3 text-sm bg-muted/60 rounded-xl px-3.5 py-2.5">
-                  <span className="text-foreground truncate">{email}</span>
-                  <button
-                    type="button"
-                    onClick={backToEmail}
-                    className="text-accent font-semibold text-xs shrink-0 hover:underline"
-                  >
-                    {t('login.changeEmail')}
-                  </button>
-                </div>
-              )}
 
-              {step === 'details' && (
-                <>
-                  {mode === 'signup' && (
-                    <Field
-                      id="name"
-                      label={t('login.fullName')}
-                      type="text"
-                      value={name}
-                      onChange={(v) => {
-                        setName(v);
-                        if (fieldErrors.name) setFieldErrors((p) => ({ ...p, name: undefined }));
-                        if (authError) setAuthError('');
-                      }}
-                      onBlur={() => handleBlur('name', name)}
-                      error={fieldErrors.name}
-                      autoComplete="name"
-                      placeholder={t('login.fullNamePlaceholder')}
-                      autoFocus
-                    />
-                  )}
+                <PasswordField
+                  id="password"
+                  label={t('login.password')}
+                  value={password}
+                  onChange={(v) => {
+                    setPassword(v);
+                    if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
+                    if (authError) setAuthError('');
+                  }}
+                  onBlur={() => handleBlur('password', password)}
+                  error={fieldErrors.password}
+                  show={showPassword}
+                  onToggleShow={() => setShowPassword((v) => !v)}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  showLabel={t('login.showPassword')}
+                  hideLabel={t('login.hidePassword')}
+                  hint={mode === 'signup' ? t('login.passwordHint') : undefined}
+                  hintMet={mode === 'signup' ? password.length >= 6 : undefined}
+                />
 
-                  <PasswordField
-                    id="password"
-                    label={t('login.password')}
-                    value={password}
-                    onChange={(v) => {
-                      setPassword(v);
-                      if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
-                      if (authError) setAuthError('');
-                    }}
-                    onBlur={() => handleBlur('password', password)}
-                    error={fieldErrors.password}
-                    show={showPassword}
-                    onToggleShow={() => setShowPassword((v) => !v)}
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    showLabel={t('login.showPassword')}
-                    hideLabel={t('login.hidePassword')}
-                    hint={mode === 'signup' ? t('login.passwordHint') : undefined}
-                    hintMet={mode === 'signup' ? password.length >= 6 : undefined}
-                    autoFocus={mode === 'login'}
-                  />
+                {mode === 'login' && (
+                  <div className="flex justify-end -mt-1">
+                    <button
+                      type="button"
+                      onClick={() => showToast(t('login.forgotPasswordToast'))}
+                      className="text-xs font-semibold text-muted-foreground hover:text-primary"
+                    >
+                      {t('login.forgotPassword')}
+                    </button>
+                  </div>
+                )}
 
-                  {mode === 'login' && (
-                    <div className="flex justify-end -mt-1">
-                      <button
-                        type="button"
-                        onClick={() => showToast(t('login.forgotPasswordToast'))}
-                        className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-                      >
-                        {t('login.forgotPassword')}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-4 py-3 rounded-lg transition-colors disabled:opacity-60"
+                >
+                  {submitting && <Loader2 size={15} className="animate-spin" />}
+                  {submitting ? t('login.pleaseWait') : mode === 'login' ? t('login.logIn') : t('login.signUp')}
+                </button>
+              </form>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground text-sm font-semibold px-4 py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60"
-              >
-                {submitting && <Loader2 size={15} className="animate-spin" />}
-                {submitting
-                  ? t('login.pleaseWait')
-                  : step === 'email'
-                  ? t('login.continue')
-                  : mode === 'login'
-                  ? t('login.logIn')
-                  : t('login.signUp')}
-              </button>
-            </form>
-
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              {mode === 'login' ? (
-                <>
-                  {t('login.noAccountQuestion')}{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signup')}
-                    className="text-accent font-semibold hover:underline"
-                  >
-                    {t('login.registerLink')}
-                  </button>
-                </>
-              ) : (
-                <>
-                  {t('login.haveAccountQuestion')}{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('login')}
-                    className="text-accent font-semibold hover:underline"
-                  >
-                    {t('login.signInLink')}
-                  </button>
-                </>
-              )}
-            </p>
-          </div>
-        )}
+              <p className="text-center text-sm text-muted-foreground mt-6">
+                {mode === 'login' ? t('login.noAccountQuestion') : t('login.haveAccountQuestion')}{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+                  className="text-primary font-semibold hover:underline"
+                >
+                  {mode === 'login' ? t('login.registerLink') : t('login.signInLink')}
+                </button>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -486,7 +389,7 @@ function Field({
         autoFocus={autoFocus}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
-        className={`w-full text-base bg-background border rounded-xl px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors ${
+        className={`w-full text-base bg-background border rounded-lg px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors ${
           error ? 'border-danger focus:border-danger' : 'border-border focus:border-primary'
         }`}
       />
@@ -548,7 +451,7 @@ function PasswordField({
           autoFocus={autoFocus}
           aria-invalid={!!error}
           aria-describedby={[error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ') || undefined}
-          className={`w-full text-base bg-background border rounded-xl pl-3.5 pr-11 py-2.5 text-foreground outline-none transition-colors ${
+          className={`w-full text-base bg-background border rounded-lg pl-3.5 pr-11 py-2.5 text-foreground outline-none transition-colors ${
             error ? 'border-danger focus:border-danger' : 'border-border focus:border-primary'
           }`}
         />

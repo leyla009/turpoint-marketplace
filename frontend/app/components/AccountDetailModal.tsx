@@ -15,7 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Focused floating panel for exactly one account section at a time -
 // picked from AccountMenu's small dropdown. Centered + portaled to <body>,
-// same pattern (and same reason) as CompareModal/PlannerModal.
+// same pattern (and same reason) as CompareModal.
 export default function AccountDetailModal({
   section,
   onClose,
@@ -115,7 +115,6 @@ export default function AccountDetailModal({
 
         <h2
           className="text-lg font-bold text-foreground mb-4 pr-10"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           {t(titleKey)}
         </h2>

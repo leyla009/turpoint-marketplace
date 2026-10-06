@@ -247,9 +247,12 @@ router.get('/mine', requireAuth, (req, res) => {
 router.get('/my-trips', requireAuth, (req, res) => {
   const bookings = db
     .prepare(
-      `SELECT b.*, t.title as tour_title, t.title_i18n as tour_title_i18n, t.date as tour_date, t.location as tour_location
+      `SELECT b.*, t.title as tour_title, t.title_i18n as tour_title_i18n, t.date as tour_date, t.location as tour_location,
+              t.photo_url as tour_photo_url, t.duration_days as tour_duration_days,
+              g.current_participants as group_current, g.min_participants as group_min, g.status as group_status
        FROM bookings b
        JOIN tours t ON t.id = b.tour_id
+       LEFT JOIN group_formations g ON g.id = b.group_formation_id
        WHERE b.user_id = ?
        ORDER BY b.created_at DESC`
     )

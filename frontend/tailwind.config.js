@@ -3,9 +3,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        clay: '#C95E18',
-        dusk: '#1B3D2F',
-        sand: '#EFE7D8',
+        navy: 'var(--navy)',
+        warning: 'var(--warning)',
+        'primary-hover': 'var(--primary-hover)',
         background: 'var(--background)',
         foreground: 'var(--foreground)',
         card: {
@@ -36,6 +36,10 @@ module.exports = {
         },
         'surface-sand': 'var(--surface-sand)',
         'surface-moss': 'var(--surface-moss)',
+      },
+      boxShadow: {
+        card: '0 1px 2px rgba(15,42,61,0.04), 0 4px 16px -4px rgba(15,42,61,0.08)',
+        lift: '0 2px 4px rgba(15,42,61,0.05), 0 12px 28px -8px rgba(15,42,61,0.18)',
       },
       keyframes: {
         marquee: {

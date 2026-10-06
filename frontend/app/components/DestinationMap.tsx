@@ -116,10 +116,10 @@ function createTourMap(
       String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
     const popupHtml = `
       <div style="font-family: 'Nunito', sans-serif; min-width: 160px;">
-        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#1F2A24;">${esc(tourTitle(tour, locale))}</p>
-        <p style="font-size:11px;color:#7A7266;margin:0 0 6px;">${esc(placeName(tour.location, locale))}</p>
-        <p style="font-weight:700;font-size:13px;color:#1B3D2F;margin:0 0 6px;">AZN ${esc(price)}<span style="font-weight:400;font-size:10px;color:#7A7266;">/pp</span></p>
-        <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#C95E18;text-decoration:none;">${viewTourLabel}</a>
+        <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#13293D;">${esc(tourTitle(tour, locale))}</p>
+        <p style="font-size:11px;color:#64748B;margin:0 0 6px;">${esc(placeName(tour.location, locale))}</p>
+        <p style="font-weight:700;font-size:13px;color:#0B8AA3;margin:0 0 6px;">₼${esc(price)}<span style="font-weight:400;font-size:10px;color:#64748B;">/pp</span></p>
+        <a href="/tours/${tour.id}" style="font-size:11px;font-weight:700;color:#0B8AA3;text-decoration:none;">${viewTourLabel}</a>
       </div>`;
 
     L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup(popupHtml);
@@ -233,7 +233,7 @@ export default function DestinationMap({
       <div className="relative">
         <div
           ref={containerRef}
-          className={`w-full ${heightClassName} rounded-xl overflow-hidden border border-border`}
+          className={`relative z-0 isolate w-full ${heightClassName} rounded-xl overflow-hidden border border-border`}
         />
         <button
           ref={expandButtonRef}

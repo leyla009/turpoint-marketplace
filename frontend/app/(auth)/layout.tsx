@@ -8,7 +8,7 @@ import { AuthHeader, AuthFooter } from '../components/AuthChrome';
 // accidentally gain the marketing footer.
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-surface-sand">
       <AuthHeader />
       <div className="flex-1 flex flex-col">{children}</div>
       <AuthFooter />

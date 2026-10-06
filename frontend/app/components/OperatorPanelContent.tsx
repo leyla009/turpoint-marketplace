@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PlusCircle, Store, Star, Ticket, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
+import { PlusCircle, Store, Ticket, Trash2, Pencil, Zap, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,7 +10,6 @@ import NewTourModal from './NewTourModal';
 import EditTourModal from './EditTourModal';
 import OperatorProfileForm from './OperatorProfileForm';
 import OperatorProfileFormModal from './OperatorProfileFormModal';
-import OperatorAnalytics from './OperatorAnalytics';
 import type { ExistingTour } from './NewTourContent';
 import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
@@ -155,7 +154,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
     // OperatorProfileForm itself stays untouched, so the modal is unaffected.
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-full max-w-lg bg-card rounded-2xl shadow-[0_12px_32px_-8px_rgba(27,61,47,0.18)] p-6 sm:p-8">
+        <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-card p-6 sm:p-8">
           <OperatorProfileForm />
         </div>
       </div>
@@ -164,66 +163,25 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h1 className="text-xl font-bold text-foreground">{t('dashboard.yourTours')}</h1>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowProfileModal(true)}
-            className="flex items-center gap-1.5 bg-accent text-accent-foreground text-sm font-semibold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 border border-border text-foreground text-sm font-semibold px-3 py-2 rounded-lg hover:border-primary/40 transition-colors"
           >
             <Store size={15} /> {t('dashboard.profileButton')}
           </button>
           <button
             onClick={() => setShowNewTourModal(true)}
-            className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-semibold px-3 py-2 rounded-xl"
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
           >
             <PlusCircle size={15} /> {t('dashboard.addTour')}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-card rounded-xl shadow-md p-3.5 flex items-center gap-3">
-          <span className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Ticket size={17} className="text-primary" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xl font-bold text-foreground leading-none">{myTours.length}</p>
-            <p className="text-xs text-muted-foreground mt-1 truncate">{t('dashboard.activeTours')}</p>
-          </div>
-        </div>
-        <div className="bg-card rounded-xl shadow-md p-3.5 flex items-center gap-3">
-          <span className="w-10 h-10 rounded-full bg-rating/10 flex items-center justify-center shrink-0">
-            <Star size={17} className="text-rating" fill="currentColor" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xl font-bold text-foreground leading-none">{operatorProfile.rating ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1 truncate">{t('dashboard.rating')}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Analytics: revenue, bookings, fill rate, views, ratings (GET /api/operators/me/analytics) */}
-      <OperatorAnalytics />
-
-      {/* "Turlarınız" as a plain rounded-top tab flowing straight into the
-          tours panel below it - same bg-card color, zero gap, no radius
-          where they meet - so the heading and the list read as one
-          continuous shape instead of a floating label sitting above
-          separate cards. Both top corners use the same rounded-2xl
-          radius, no trapezoid/flare on the right edge. */}
-      <div className="relative z-10 inline-flex items-center gap-2 bg-card rounded-t-2xl px-3.5 py-2 -mb-px">
-        <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-          <Ticket size={13} className="text-primary" />
-        </span>
-        <h2
-          className="text-base sm:text-lg font-bold text-foreground"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          {t('dashboard.yourTours')}
-        </h2>
-      </div>
-
-      <div className="bg-card rounded-b-2xl rounded-tr-2xl shadow-md overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {loadError ? (
           <div className="p-6 text-center">
             <AlertCircle size={22} className="text-muted-foreground mx-auto mb-2" />
@@ -240,7 +198,7 @@ export default function OperatorPanelContent({ authLoading = false }: { authLoad
         ) : (
           <div className="divide-y divide-border">
             {myTours.map((tour) => (
-              <div key={tour.id} className="border-l-4 border-l-primary p-3">
+              <div key={tour.id} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { User as UserIcon, Heart, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { User as UserIcon, Heart, LogOut, Ticket } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
 
@@ -64,6 +65,14 @@ export default function AccountMenu({
           {t(labelKey)}
         </button>
       ))}
+      <Link
+        href="/bookings"
+        onClick={onClose}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+      >
+        <Ticket size={15} className="text-muted-foreground shrink-0" />
+        {t('nav.bookings')}
+      </Link>
       <div className="mt-1 pt-1 px-1.5 border-t border-border">
         <button
           onClick={onLogout}

@@ -12,14 +12,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  MessageSquare,
   MessageCircle,
   AtSign,
   Heart,
   Send,
   Pencil,
   Trash2,
-  Ticket,
   Check,
   X,
   Clock,
@@ -27,6 +25,9 @@ import {
   Car,
   ShieldCheck,
   Info,
+  Share2,
+  UserCheck,
+  Bus,
 } from 'lucide-react';
 import { CATEGORY_STYLE, CategoryMotif } from '@/app/components/TourCard';
 import { useAuth } from '@/app/context/AuthContext';
@@ -65,7 +66,10 @@ interface Tour {
   active_deal?: { discount_percent: number; expires_at: string };
   features?: string | null;
   photo_url?: string | null;
+  route?: string | null;
 }
+
+type TabId = 'overview' | 'itinerary' | 'included' | 'reviews' | 'weather';
 
 interface Operator {
   id: number;
@@ -358,145 +362,261 @@ export default function TourDetail() {
   // A tour that already happened can't be booked (the API rejects it too).
   const isPast = isPastDate(tour?.date);
 
+  // Current group for this tour (same read-only endpoint GroupInviteCard
+  // uses) - drives the sidebar's "3 / 8 people" progress.
+  const [group, setGroup] = useState<{ status: string; current_participants: number; min_participants: number } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setGroup)
+      .catch(() => setGroup(null));
+  }, [id]);
+
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const goToTab = (tab: TabId) => {
+    setActiveTab(tab);
+    document.getElementById(`section-${tab}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  async function handleShare() {
+    const url = window.location.href;
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast(t('invite.linkCopied'));
+      }
+    } catch {
+      /* share sheet dismissed */
+    }
+  }
+
+  const groupMin = group?.min_participants ?? tour?.min_participants ?? 1;
+  const groupCurrent = group?.status === 'cancelled' ? 0 : group?.current_participants ?? 0;
+  const groupConfirmed = group?.status === 'confirmed';
+  const groupNeeded = Math.max(0, groupMin - groupCurrent);
+  const routeStops = tour?.route
+    ?.split(/\s*(?:->|→|—|–)\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+
+  // Overview highlight chips - only what this tour really offers.
+  const offerChips: { Icon: typeof Clock; text: string }[] = [];
+  if (facts.guide_languages?.length || tourFeatures.includes('guide')) offerChips.push({ Icon: UserCheck, text: t('ui.tour.professionalGuide') });
+  if (facts.pickup || operator?.vehicle_features) offerChips.push({ Icon: Bus, text: t('ui.tour.comfortableTransport') });
+  if (operator) offerChips.push({ Icon: MapPin, text: t('ui.tour.localExperience') });
+
+  const tabs: { id: TabId; labelKey: TranslationKey }[] = [
+    { id: 'overview', labelKey: 'ui.tour.tabOverview' },
+    { id: 'itinerary', labelKey: 'ui.tour.tabItinerary' },
+    { id: 'included', labelKey: 'ui.tour.tabIncluded' },
+    { id: 'reviews', labelKey: 'ui.tour.tabReviews' },
+    { id: 'weather', labelKey: 'ui.tour.tabWeather' },
+  ];
+
+  const card = 'bg-card border border-border rounded-xl p-5';
+
   return (
     <div className="min-h-full">
-      <div className="px-4 sm:px-6 pt-4 max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
         <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+          onClick={() => router.push('/tours')}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-4"
         >
           <ChevronLeft size={16} /> {t('tourDetail.backToTours')}
         </button>
       </div>
 
       {loadingTour && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
           <Loader2 size={24} className="animate-spin mx-auto mb-2" />
           <p className="text-sm">{t('tourDetail.loadingTour')}</p>
         </div>
       )}
 
       {!loadingTour && !tour && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center text-muted-foreground">
           <p className="text-sm">{t('tourDetail.tourNotFound')}</p>
         </div>
       )}
 
       {!loadingTour && tour && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-32 lg:pb-16 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-        <div className="min-w-0">
-          {/* Hero */}
-          <div className="relative h-48 sm:h-64 rounded-2xl flex items-center justify-center mb-5 overflow-hidden bg-muted">
-            {tour.photo_url ? (
-              <img src={photoSrc(tour.photo_url) ?? ''} alt={title} className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <CategoryMotif category={tour.category} />
-            )}
-            {hasDeal && (
-              <span className="absolute top-3 left-3 flex items-center gap-1 bg-accent text-accent-foreground text-xs font-semibold px-2.5 py-1 rounded-full">
-                <Zap size={11} /> {t('tourCard.lastMinuteDeal')}
-              </span>
-            )}
-            <span className="absolute bottom-3 right-3 bg-black/40 text-white text-xs px-2.5 py-1 rounded-full">
-              {t(style.labelKey)}
-            </span>
-          </div>
-
-          {/* Title & meta */}
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <h1
-              className="text-2xl sm:text-3xl font-bold text-foreground"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              {title}
-            </h1>
-            <button
-              onClick={toggleFavorite}
-              title={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
-              className="shrink-0 w-10 h-10 mt-1 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/40 transition-colors"
-            >
-              <Heart size={18} className={isFavorited ? 'fill-danger text-danger' : 'text-muted-foreground'} />
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4">
-            {tour.location && (
-              <span className="flex items-center gap-1">
-                <MapPin size={14} /> {placeName(tour.location, locale)}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Calendar size={14} /> {formatDate(tour.date, locale)} · {t('tourDetail.duration', { count: tour.duration_days })}
-            </span>
-            <span className="flex items-center gap-1">
-              <Users size={14} /> {t('search.travelerCount', { count: tour.max_participants })}
-            </span>
-            {reviews.length > 0 && (
-              <span className="flex items-center gap-1 font-semibold text-foreground">
-                <Star size={14} className="fill-rating text-rating" /> {avgRating.toFixed(1)}
-                <span className="font-normal text-muted-foreground">
-                  ({t('tourDetail.reviewCount', { count: reviews.length })})
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-32 lg:pb-16 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 lg:gap-8 items-start">
+          <div className="min-w-0">
+            {/* Photo + headline */}
+            <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-5 md:gap-6 mb-6">
+              <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted">
+                {tour.photo_url ? (
+                  <img src={photoSrc(tour.photo_url) ?? ''} alt={title} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <CategoryMotif category={tour.category} />
+                )}
+                {hasDeal && (
+                  <span className="absolute top-3 left-3 flex items-center gap-1 bg-warning text-white text-xs font-bold px-2.5 py-1 rounded-md">
+                    <Zap size={12} /> {t('tourCard.lastMinuteDeal')}
+                    {tour.active_deal ? ` −${tour.active_deal.discount_percent}%` : ''}
+                  </span>
+                )}
+                <span className="absolute bottom-3 left-3 bg-black/50 text-white text-xs font-medium px-2.5 py-1 rounded-md">
+                  {t(style.labelKey)}
                 </span>
-              </span>
-            )}
-          </div>
+              </div>
 
-          {/* Quick facts (duration, guide languages, pickup, cancellation) */}
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-foreground/80 mb-4">
-            {factItems.map(({ Icon, text }) => (
-              <li key={text} className="flex items-center gap-1.5">
-                <Icon size={13} className="text-primary shrink-0" /> {text}
-              </li>
-            ))}
-          </ul>
-
-          {/* Operator - a compact summary; the full profile (photo,
-              description, languages, phone, Instagram) opens in
-              OperatorProfileModal when clicked. */}
-          <button
-            onClick={() => operator && setShowOperatorModal(true)}
-            disabled={!operator}
-            className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-3 mb-5 text-left hover:border-primary/40 transition-colors disabled:hover:border-border"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-primary font-bold shrink-0">
-              {operator?.photo_url ? (
-                <img src={`${API_URL}${operator.photo_url}`} alt={operator.name} className="w-full h-full object-cover" />
-              ) : (
-                (operator?.name ?? 'T').charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground truncate">
-                {operator?.name ?? t('tourCard.defaultOperator')}
-              </p>
-              {typeof operator?.rating === 'number' && operator.rating > 0 ? (
-                <div className="flex items-center gap-1.5">
-                  <StarRow rating={operator.rating} />
-                  <span className="text-xs text-muted-foreground">{operator.rating.toFixed(1)}</span>
+              <div className="flex flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="text-2xl sm:text-[28px] font-bold text-foreground leading-tight">{title}</h1>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={toggleFavorite}
+                      title={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
+                      aria-label={t(isFavorited ? 'tourCard.removeFromFavorites' : 'tourCard.addToFavorites')}
+                      className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:border-primary/40 transition-colors"
+                    >
+                      <Heart size={16} className={isFavorited ? 'fill-danger text-danger' : 'text-foreground/70'} />
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      title={t('invite.share')}
+                      aria-label={t('invite.share')}
+                      className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:border-primary/40 transition-colors"
+                    >
+                      <Share2 size={16} className="text-foreground/70" />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t('tourDetail.noRatingsYet')}</p>
-              )}
+
+                <div className="flex items-center gap-1.5 mt-2 text-sm">
+                  {reviews.length > 0 ? (
+                    <>
+                      <Star size={15} className="fill-rating text-rating" />
+                      <span className="font-semibold text-foreground">{avgRating.toFixed(1)}</span>
+                      <button onClick={() => goToTab('reviews')} className="text-muted-foreground hover:text-primary">
+                        ({t('tourDetail.reviewCount', { count: reviews.length })})
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">{t('tourDetail.noReviewsYet')}</span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-sm text-muted-foreground">
+                  {tour.location && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin size={14} /> {placeName(tour.location, locale)}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <Clock size={14} /> {t('tourDetail.duration', { count: tour.duration_days })}
+                  </span>
+                  {facts.guide_languages?.length ? (
+                    <span className="flex items-center gap-1.5">
+                      <Languages size={14} />
+                      {facts.guide_languages
+                        .map((code) => (['az', 'en', 'ru', 'tr', 'ar'].includes(code) ? t(`lang.${code}` as TranslationKey) : code))
+                        .join(' / ')}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-sm text-muted-foreground">{t('ui.tour.from')}</p>
+                  <div className="flex items-baseline gap-2">
+                    {hasDeal && <span className="text-base text-muted-foreground line-through">{formatAzn(tour.price)}</span>}
+                    <span className="text-3xl font-bold text-foreground">{formatAzn(effectivePrice)}</span>
+                    <span className="text-sm text-muted-foreground">{t('ui.card.perPerson')}</span>
+                  </div>
+                </div>
+
+                {/* Operator summary - full profile opens in a modal */}
+                <button
+                  onClick={() => operator && setShowOperatorModal(true)}
+                  disabled={!operator}
+                  className="mt-auto pt-5 flex items-center gap-3 text-left group"
+                >
+                  <span className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-primary font-bold shrink-0">
+                    {operator?.photo_url ? (
+                      <img src={photoSrc(operator.photo_url) ?? ''} alt={operator.name} className="w-full h-full object-cover" />
+                    ) : (
+                      (operator?.name ?? 'T').charAt(0).toUpperCase()
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs text-muted-foreground">{t('ui.tour.operatedBy')}</span>
+                    <span className="block text-sm font-semibold text-foreground group-hover:text-primary truncate">
+                      {operator?.name ?? t('tourCard.defaultOperator')}
+                      {typeof operator?.rating === 'number' && operator.rating > 0 && (
+                        <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground">
+                          <Star size={11} className="fill-rating text-rating" /> {operator.rating.toFixed(1)}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              </div>
             </div>
-          </button>
 
-          {showOperatorModal && operator && (
-            <OperatorProfileModal operator={operator} onClose={() => setShowOperatorModal(false)} />
-          )}
+            {showOperatorModal && operator && (
+              <OperatorProfileModal operator={operator} onClose={() => setShowOperatorModal(false)} />
+            )}
 
-          {/* About: short summary, highlights, then the full description */}
-          {(summary || details) && (
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.aboutTour')}</h2>
-              {summary && <p className="text-sm text-foreground/80 leading-relaxed">{summary}</p>}
+            {/* Tabs - jump to each section; every section stays on the page */}
+            <div className="sticky top-14 md:top-16 z-20 bg-background border-b border-border mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1 min-w-max">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => goToTab(tab.id)}
+                    className={`px-3 sm:px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-foreground/70 hover:text-primary'
+                    }`}
+                  >
+                    {t(tab.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Overview */}
+            <section id="section-overview" className="scroll-mt-32 mb-8">
+              {summary && <p className="text-[15px] text-foreground/80 leading-relaxed">{summary}</p>}
+              {!summary && paragraphs.length === 0 && tour.description && (
+                <p className="text-[15px] text-foreground/80 leading-relaxed">{tour.description}</p>
+              )}
+
+              {offerChips.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                  {offerChips.map(({ Icon, text }) => (
+                    <div key={text} className="flex items-center gap-2.5 text-sm text-foreground">
+                      <span className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Icon size={17} className="text-primary" />
+                      </span>
+                      {text}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {factItems.length > 0 && (
+                <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-foreground/75 mt-5">
+                  {factItems.map(({ Icon, text }) => (
+                    <li key={text} className="flex items-center gap-1.5">
+                      <Icon size={14} className="text-primary shrink-0" /> {text}
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               {details && details.highlights.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.highlights')}</h3>
+                <div className="mt-6">
+                  <h3 className="text-base font-semibold text-foreground mb-2">{t('tourDetail.highlights')}</h3>
                   <ul className="space-y-1.5">
                     {details.highlights.map((h) => (
                       <li key={h} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <Check size={15} className="text-primary shrink-0 mt-0.5" /> {h}
+                        <Check size={16} className="text-primary shrink-0 mt-0.5" /> {h}
                       </li>
                     ))}
                   </ul>
@@ -504,469 +624,303 @@ export default function TourDetail() {
               )}
 
               {paragraphs.length > 0 && (
-                <div className="mt-4 space-y-3">
+                <div className="mt-6 space-y-3">
                   {visibleParagraphs.map((p, i) => (
                     <p key={i} className="text-sm text-foreground/80 leading-relaxed">{p}</p>
                   ))}
                   {paragraphs.length > 2 && (
                     <button
                       onClick={() => setShowFullDescription((v) => !v)}
-                      className="text-xs font-semibold text-accent hover:underline"
+                      className="text-sm font-semibold text-primary hover:underline"
                     >
                       {showFullDescription ? t('tourDetail.showLess') : t('tourDetail.showMore')}
                     </button>
                   )}
                 </div>
               )}
-            </div>
-          )}
+            </section>
 
-          {/* What's included - the tour's own feature tags (breakfast, guide,
-              etc.), previously only used to power the homepage filter chips
-              and never actually shown to someone deciding whether to book. */}
-          {details && (details.includes.length > 0 || details.excludes.length > 0) && (
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-foreground mb-2">{t('tourDetail.whatsIncluded')}</h2>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                {details.includes.map((item) => (
-                  <li key={`in-${item}`} className="flex items-start gap-2 text-sm text-foreground/80">
-                    <Check size={15} className="text-primary shrink-0 mt-0.5" /> {item}
-                  </li>
-                ))}
-              </ul>
-              {details.excludes.length > 0 && (
-                <>
-                  <h3 className="text-sm font-semibold text-foreground mt-4 mb-2">{t('tourDetail.notIncluded')}</h3>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                    {details.excludes.map((item) => (
-                      <li key={`ex-${item}`} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <X size={15} className="text-danger shrink-0 mt-0.5" /> {item}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-
-          {!details && tourFeatures.length > 0 && (
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-foreground mb-2">{t('tourDetail.whatsIncluded')}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {TOUR_FEATURES.filter((f) => tourFeatures.includes(f.slug)).map((f) => (
-                  <span
-                    key={f.slug}
-                    className="flex items-center gap-2 text-sm text-foreground/80 bg-muted/60 rounded-lg px-2.5 py-2"
-                  >
-                    <f.Icon size={15} className="text-primary shrink-0" /> {t(f.labelKey)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Important information (same sections GetYourGuide-style listings use) */}
-          {details && (
-            <div className="mb-5 space-y-4">
-              {details.meeting && (
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground mb-1.5">{t('tourDetail.meetingPoint')}</h2>
-                  <p className="flex items-start gap-2 text-sm text-foreground/80 leading-relaxed">
-                    <MapPin size={15} className="text-primary shrink-0 mt-0.5" /> {details.meeting}
-                  </p>
-                </div>
-              )}
-              {([
-                ['tourDetail.notSuitableFor', details.notSuitable],
-                ['tourDetail.whatToBring', details.bring],
-                ['tourDetail.notAllowed', details.notAllowed],
-                ['tourDetail.knowBeforeYouGo', details.know],
-              ] as [TranslationKey, string[]][])
-                .filter(([, items]) => items.length > 0)
-                .map(([key, items]) => (
-                  <div key={key}>
-                    <h2 className="text-sm font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-                      {key === 'tourDetail.knowBeforeYouGo' && <Info size={14} className="text-primary" />}
-                      {t(key)}
-                    </h2>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-foreground/80">
-                      {items.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          )}
-
-          {/* Weather forecast for the tour's days (Open-Meteo, no API key).
-              Renders nothing once the tour is over or the place is unknown. */}
-          <WeatherForecast location={tour.location} date={tour.date} durationDays={tour.duration_days} />
-
-          {/* Invite friends - group progress + share links (WhatsApp,
-              Telegram, copy). Renders nothing for tours with no minimum. */}
-          {!isPast && (
-            <GroupInviteCard
-              tourId={tour.id}
-              tourTitle={title}
-              minParticipants={tour.min_participants}
-              maxParticipants={tour.max_participants}
-            />
-          )}
-
-          {/* Contact the operator - replaces the old in-app group-booking
-              flow entirely. Instagram is always shown if the operator set
-              a handle; WhatsApp only shows once the operator's phone has
-              actually been verified (see the profile page's send/verify
-              flow), so this never points travelers at an unconfirmed number. */}
-          <div className="mb-6 rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-1">
-              <MessageCircle size={15} className="text-primary" /> {t('tourDetail.contactUs')}
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">{t('tourDetail.contactHint')}</p>
-
-            {whatsappUrl || instagramUrl ? (
-              <div className="flex flex-col sm:flex-row gap-2">
-                {whatsappUrl && (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity"
-                  >
-                    <MessageCircle size={15} /> {t('tourDetail.messageOnWhatsapp')}
-                  </a>
-                )}
-                {instagramUrl && (
-                  <a
-                    href={instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 bg-card border border-border text-foreground text-sm font-semibold py-2.5 rounded-xl hover:border-primary/40 transition-colors"
-                  >
-                    <AtSign size={15} /> {t('tourDetail.viewInstagram')}
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">{t('tourDetail.noContactYet')}</p>
-            )}
-          </div>
-
-          {/* Reviews */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <MessageSquare size={15} /> {t('tourDetail.reviews')}
-              </h2>
-              {eligibility === 'eligible' && !alreadyReviewed && (
-                <button
-                  onClick={() => setShowReviewForm((v) => !v)}
-                  className="text-xs text-accent font-semibold hover:underline"
-                >
-                  {showReviewForm ? t('tourDetail.cancel') : t('tourDetail.writeReview')}
-                </button>
-              )}
-            </div>
-
-            {reviews.length > 0 && (
-              // The rating number is deliberately oversized relative to
-              // everything around it - DESIGN.md calls this out as the one
-              // place Airbnb's system trusts type alone to carry hierarchy
-              // ("the loudest typographic moment in the entire system"),
-              // since a rating is the strongest trust signal on the page. It
-              // used to render at the same text-2xl as ordinary body copy.
-              <div className="flex items-center gap-5 bg-card border border-border rounded-xl p-4 mb-3">
-                <div className="text-center shrink-0">
-                  <p className="text-5xl font-bold text-foreground leading-none">{avgRating.toFixed(1)}</p>
-                  <div className="mt-2">
-                    <StarRow rating={avgRating} size={11} />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('tourDetail.reviewCount', { count: reviews.length })}
-                  </p>
-                </div>
-                <div className="flex-1 space-y-1">
-                  {[5, 4, 3, 2, 1].map((star, i) => (
-                    <div key={star} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-3">{star}</span>
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full"
-                          style={{
-                            width: reviews.length ? `${(starCounts[i] / reviews.length) * 100}%` : '0%',
-                          }}
-                        />
-                      </div>
-                    </div>
+            {/* Itinerary */}
+            <section id="section-itinerary" className="scroll-mt-32 mb-8">
+              <h2 className="text-lg font-bold text-foreground mb-3">{t('ui.tour.tabItinerary')}</h2>
+              {routeStops.length > 0 ? (
+                <ol className="relative border-l-2 border-primary/20 ml-2 space-y-4">
+                  {routeStops.map((stop, i) => (
+                    <li key={`${stop}-${i}`} className="pl-5 relative">
+                      <span className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-card border-2 border-primary" />
+                      <p className="text-xs font-semibold text-primary">{t('ui.tour.stop', { n: i + 1 })}</p>
+                      <p className="text-sm text-foreground">{stop}</p>
+                    </li>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {/* Eligibility messaging - only a traveler with a confirmed
-                booking on THIS tour can review it. */}
-            {eligibility === 'needs-booking' && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                {t('tourDetail.bookToReview')}
-              </p>
-            )}
-            {eligibility === 'not-yet' && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                {t('tourDetail.reviewAfterTour')}
-              </p>
-            )}
-            {eligibility === 'own-tour' && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                {t('tourDetail.ownTourNoReview')}
-              </p>
-            )}
-            {eligibility === 'not-logged-in' && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                <Link href="/login" className="text-accent font-semibold hover:underline">
-                  {t('nav.logIn')}
-                </Link>
-                {t('tourDetail.loginToReview')}
-              </p>
-            )}
-            {eligibility === 'eligible' && alreadyReviewed && (
-              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2.5 mb-3">
-                {t('tourDetail.alreadyReviewed')}
-              </p>
-            )}
-
-            {showReviewForm && eligibility === 'eligible' && !alreadyReviewed && (
-              <form
-                onSubmit={handleSubmitReview}
-                className="bg-card border border-border rounded-xl p-3 mb-3 space-y-2.5"
-              >
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} type="button" onClick={() => setReviewRating(n)}>
-                      <Star
-                        size={20}
-                        className={n <= reviewRating ? 'fill-rating text-rating' : 'text-border'}
-                      />
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder={t('tourDetail.shareExperience')}
-                  rows={3}
-                  className="w-full text-sm bg-muted rounded-lg px-3 py-2 outline-none placeholder:text-muted-foreground resize-none"
-                />
-                {reviewError && (
-                  <p className="flex items-center gap-1.5 text-xs text-primary">
-                    <AlertCircle size={12} /> {reviewError}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="flex items-center justify-center gap-2 w-full bg-accent text-accent-foreground text-sm font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-50"
-                >
-                  {reviewSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  {reviewSubmitting ? t('tourDetail.submitting') : t('tourDetail.submitReview')}
-                </button>
-              </form>
-            )}
-
-            {reviews.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t('tourDetail.noReviewsYet')}</p>
-            ) : (
-              <div className="space-y-2.5">
-                {reviews.map((r) => {
-                  const isOwn = user ? r.user_id === user.id : false;
-                  const isEditing = editingReviewId === r.id;
-                  return (
-                    <div key={r.id} className="bg-card border border-border rounded-xl p-3">
-                      {isEditing ? (
-                        <form
-                          onSubmit={(e) => handleSaveReview(e, r.id)}
-                          className="space-y-2.5"
-                        >
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <button key={n} type="button" onClick={() => setEditRating(n)}>
-                                <Star
-                                  size={18}
-                                  className={n <= editRating ? 'fill-rating text-rating' : 'text-border'}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                          <textarea
-                            value={editComment}
-                            onChange={(e) => setEditComment(e.target.value)}
-                            rows={2}
-                            className="w-full text-sm bg-muted rounded-lg px-3 py-2 outline-none placeholder:text-muted-foreground resize-none"
-                          />
-                          {editError && (
-                            <p className="flex items-center gap-1.5 text-xs text-primary">
-                              <AlertCircle size={12} /> {editError}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="submit"
-                              disabled={editSubmitting}
-                              className="flex items-center justify-center gap-1.5 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50"
-                            >
-                              {editSubmitting ? <Loader2 size={12} className="animate-spin" /> : null}
-                              {t('tourDetail.save')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingReviewId(null)}
-                              className="text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5"
-                            >
-                              {t('tourDetail.cancelEdit')}
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between mb-1">
-                            <StarRow rating={r.rating} />
-                            <div className="flex items-center gap-2">
-                              {r.created_at && (
-                                <span className="text-xs text-muted-foreground">{formatDate(r.created_at, locale)}</span>
-                              )}
-                              {isOwn && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => startEditReview(r)}
-                                    title={t('tourDetail.editReview')}
-                                    className="text-muted-foreground hover:text-foreground p-0.5"
-                                  >
-                                    <Pencil size={12} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteReview(r.id)}
-                                    disabled={deletingReviewId === r.id}
-                                    title={t('tourDetail.deleteReview')}
-                                    className="text-muted-foreground hover:text-danger disabled:opacity-40 p-0.5"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {r.comment && <p className="text-sm text-foreground/80">{r.comment}</p>}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Desktop booking sidebar - sticky alongside the content instead
-            of a mobile-style bottom bar, which on a wide screen wasted
-            most of the page's width. Mirrors the same price/CTA logic as
-            the mobile bar below so the two never disagree. */}
-        <aside className="hidden lg:block sticky top-24 bg-card border border-border rounded-2xl shadow-sm p-5">
-          <p className="text-xs text-muted-foreground mb-0.5">{t('tourDetail.perPerson')}</p>
-          <div className="flex items-baseline gap-2 mb-4">
-            {hasDeal && <span className="text-sm text-muted-foreground line-through">{formatAzn(tour.price)}</span>}
-            <span className="text-2xl font-bold text-primary">{formatAzn(effectivePrice)}</span>
-          </div>
-
-          <div className="space-y-2 text-sm text-foreground/80 mb-4 pb-4 border-b border-border">
-            {tour.location && (
-              <p className="flex items-center gap-2">
-                <MapPin size={14} className="text-muted-foreground shrink-0" /> {placeName(tour.location, locale)}
-              </p>
-            )}
-            <p className="flex items-center gap-2">
-              <Calendar size={14} className="text-muted-foreground shrink-0" /> {formatDate(tour.date, locale)} ·{' '}
-              {t('tourDetail.duration', { count: tour.duration_days })}
-            </p>
-            <p className="flex items-center gap-2">
-              <Users size={14} className="text-muted-foreground shrink-0" />{' '}
-              {t('search.travelerCount', { count: tour.max_participants })}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {isOwnTour ? (
-              <p className="text-xs text-muted-foreground text-center">{t('tourDetail.ownTourNote')}</p>
-            ) : (
-              <>
-                {/* Primary action: reserve in the app. Logged-out travelers
-                    are sent to /login and returned here by the book page's
-                    own auth guard. */}
-                {isPast ? (
-                  <p className="w-full text-center text-sm font-semibold text-muted-foreground bg-muted rounded-xl py-3">
-                    {t('tourDetail.tourEnded')}
-                  </p>
-                ) : (
-                  <Link
-                    href={bookHref}
-                    className="flex items-center justify-center gap-2 w-full bg-accent text-accent-foreground text-sm font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
-                  >
-                    <Ticket size={16} /> {t('tourDetail.bookNow')}
-                  </Link>
-                )}
-                {whatsappUrl && (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-card border border-border text-foreground text-sm font-semibold py-3 rounded-xl hover:border-primary/40 transition-colors"
-                  >
-                    <MessageCircle size={16} /> {t('tourDetail.messageOnWhatsapp')}
-                  </a>
-                )}
-                {/* Instagram lives in the "Contact" card only - it used to
-                    appear here AND there. */}
-              </>
-            )}
-          </div>
-        </aside>
-        </div>
-      )}
-
-      {/* Sticky bottom price / CTA bar - mobile and tablet only; lg screens
-          get the sidebar above instead. */}
-      {!loadingTour && tour && (
-        <div className="fixed bottom-16 md:bottom-0 lg:hidden inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs text-muted-foreground">{t('tourDetail.perPerson')}</p>
-              <p className="text-lg font-bold text-primary">{formatAzn(effectivePrice)}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-1 max-w-[300px]">
-              {isOwnTour ? (
-                <p className="flex-1 text-xs text-muted-foreground text-right">{t('tourDetail.ownTourNote')}</p>
+                </ol>
               ) : (
-                <>
-                  {isPast ? (
-                    <p className="flex-1 text-center text-sm font-semibold text-muted-foreground bg-muted rounded-xl py-2.5">
-                      {t('tourDetail.tourEnded')}
+                <p className="text-sm text-muted-foreground">{t('ui.tour.noItinerary')}</p>
+              )}
+              {details?.meeting && (
+                <div className="mt-5 flex items-start gap-2.5 bg-muted rounded-lg p-3.5">
+                  <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t('tourDetail.meetingPoint')}</p>
+                    <p className="text-sm text-foreground/75 mt-0.5 leading-relaxed">{details.meeting}</p>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* What's included */}
+            <section id="section-included" className="scroll-mt-32 mb-8">
+              <h2 className="text-lg font-bold text-foreground mb-3">{t('tourDetail.whatsIncluded')}</h2>
+              {details && (details.includes.length > 0 || details.excludes.length > 0) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                  {details.includes.map((item) => (
+                    <p key={`in-${item}`} className="flex items-start gap-2 text-sm text-foreground/80">
+                      <Check size={16} className="text-success shrink-0 mt-0.5" /> {item}
                     </p>
-                  ) : (
-                    <Link
-                      href={bookHref}
-                      className="flex-1 bg-accent text-accent-foreground text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-                    >
-                      <Ticket size={15} /> {t('tourDetail.bookNow')}
-                    </Link>
+                  ))}
+                  {details.excludes.map((item) => (
+                    <p key={`ex-${item}`} className="flex items-start gap-2 text-sm text-foreground/60">
+                      <X size={16} className="text-danger shrink-0 mt-0.5" /> {item}
+                    </p>
+                  ))}
+                </div>
+              ) : tourFeatures.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {TOUR_FEATURES.filter((f) => tourFeatures.includes(f.slug)).map((f) => (
+                    <span key={f.slug} className="flex items-center gap-2 text-sm text-foreground/80 bg-muted rounded-lg px-3 py-2">
+                      <f.Icon size={15} className="text-primary shrink-0" /> {t(f.labelKey)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('ui.tour.askOperator')}</p>
+              )}
+
+              {details &&
+                ([
+                  ['tourDetail.notSuitableFor', details.notSuitable],
+                  ['tourDetail.whatToBring', details.bring],
+                  ['tourDetail.notAllowed', details.notAllowed],
+                  ['tourDetail.knowBeforeYouGo', details.know],
+                ] as [TranslationKey, string[]][])
+                  .filter(([, items]) => items.length > 0)
+                  .map(([key, items]) => (
+                    <div key={key} className="mt-5">
+                      <h3 className="text-sm font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                        {key === 'tourDetail.knowBeforeYouGo' && <Info size={14} className="text-primary" />}
+                        {t(key)}
+                      </h3>
+                      <ul className="list-disc pl-5 space-y-1 text-sm text-foreground/75">
+                        {items.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+            </section>
+
+            {/* Reviews */}
+            <section id="section-reviews" className="scroll-mt-32 mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-foreground">{t('tourDetail.reviews')}</h2>
+                {eligibility === 'eligible' && !alreadyReviewed && (
+                  <button
+                    onClick={() => setShowReviewForm((v) => !v)}
+                    className="text-sm text-primary font-semibold hover:underline"
+                  >
+                    {showReviewForm ? t('tourDetail.cancel') : t('tourDetail.writeReview')}
+                  </button>
+                )}
+              </div>
+
+              {reviews.length > 0 && (
+                <div className="flex items-center gap-6 bg-muted rounded-xl p-4 mb-4">
+                  <div className="text-center shrink-0">
+                    <p className="text-4xl font-bold text-foreground leading-none">{avgRating.toFixed(1)}</p>
+                    <div className="mt-2">
+                      <StarRow rating={avgRating} size={12} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{t('tourDetail.reviewCount', { count: reviews.length })}</p>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    {[5, 4, 3, 2, 1].map((star, i) => (
+                      <div key={star} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-3">{star}</span>
+                        <div className="flex-1 h-1.5 bg-card rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-rating rounded-full"
+                            style={{ width: `${(starCounts[i] / reviews.length) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {eligibility !== 'loading' && eligibility !== 'eligible' && (
+                <p className="text-sm text-muted-foreground bg-muted rounded-lg px-3.5 py-3 mb-3">
+                  {eligibility === 'needs-booking' && t('tourDetail.bookToReview')}
+                  {eligibility === 'not-yet' && t('tourDetail.reviewAfterTour')}
+                  {eligibility === 'own-tour' && t('tourDetail.ownTourNoReview')}
+                  {eligibility === 'not-logged-in' && (
+                    <>
+                      <Link href="/login" className="text-primary font-semibold hover:underline">
+                        {t('nav.logIn')}
+                      </Link>
+                      {t('tourDetail.loginToReview')}
+                    </>
                   )}
+                </p>
+              )}
+              {eligibility === 'eligible' && alreadyReviewed && (
+                <p className="text-sm text-muted-foreground bg-muted rounded-lg px-3.5 py-3 mb-3">{t('tourDetail.alreadyReviewed')}</p>
+              )}
+
+              {showReviewForm && eligibility === 'eligible' && !alreadyReviewed && (
+                <form onSubmit={handleSubmitReview} className="border border-border rounded-xl p-4 mb-4 space-y-3">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} type="button" onClick={() => setReviewRating(n)} aria-label={`${n}`}>
+                        <Star size={22} className={n <= reviewRating ? 'fill-rating text-rating' : 'text-border'} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder={t('tourDetail.shareExperience')}
+                    rows={3}
+                    className="w-full text-sm bg-card border border-border rounded-lg px-3 py-2 outline-none focus:border-primary resize-none"
+                  />
+                  {reviewError && (
+                    <p className="flex items-center gap-1.5 text-xs text-danger">
+                      <AlertCircle size={12} /> {reviewError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-5 py-2 rounded-lg disabled:opacity-50"
+                  >
+                    {reviewSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {reviewSubmitting ? t('tourDetail.submitting') : t('tourDetail.submitReview')}
+                  </button>
+                </form>
+              )}
+
+              {reviews.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('tourDetail.noReviewsYet')}</p>
+              ) : (
+                <div className="divide-y divide-border border-y border-border">
+                  {reviews.map((r) => {
+                    const isOwn = user ? r.user_id === user.id : false;
+                    const isEditing = editingReviewId === r.id;
+                    return (
+                      <div key={r.id} className="py-4">
+                        {isEditing ? (
+                          <form onSubmit={(e) => handleSaveReview(e, r.id)} className="space-y-2.5">
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <button key={n} type="button" onClick={() => setEditRating(n)} aria-label={`${n}`}>
+                                  <Star size={18} className={n <= editRating ? 'fill-rating text-rating' : 'text-border'} />
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              value={editComment}
+                              onChange={(e) => setEditComment(e.target.value)}
+                              rows={2}
+                              className="w-full text-sm bg-card border border-border rounded-lg px-3 py-2 outline-none focus:border-primary resize-none"
+                            />
+                            {editError && (
+                              <p className="flex items-center gap-1.5 text-xs text-danger">
+                                <AlertCircle size={12} /> {editError}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="submit"
+                                disabled={editSubmitting}
+                                className="flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+                              >
+                                {editSubmitting && <Loader2 size={12} className="animate-spin" />}
+                                {t('tourDetail.save')}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingReviewId(null)}
+                                className="text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5"
+                              >
+                                {t('tourDetail.cancelEdit')}
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <StarRow rating={r.rating} />
+                              <div className="flex items-center gap-2">
+                                {r.created_at && <span className="text-xs text-muted-foreground">{formatDate(r.created_at, locale)}</span>}
+                                {isOwn && (
+                                  <>
+                                    <button
+                                      onClick={() => startEditReview(r)}
+                                      title={t('tourDetail.editReview')}
+                                      className="text-muted-foreground hover:text-foreground p-0.5"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteReview(r.id)}
+                                      disabled={deletingReviewId === r.id}
+                                      title={t('tourDetail.deleteReview')}
+                                      className="text-muted-foreground hover:text-danger disabled:opacity-40 p-0.5"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {r.comment && <p className="text-sm text-foreground/80 leading-relaxed">{r.comment}</p>}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Weather */}
+            <section id="section-weather" className="scroll-mt-32 mb-8">
+              <WeatherForecast location={tour.location} date={tour.date} durationDays={tour.duration_days} />
+            </section>
+
+            {/* Invite friends (group tours only) */}
+            {!isPast && (
+              <GroupInviteCard
+                tourId={tour.id}
+                tourTitle={title}
+                minParticipants={tour.min_participants}
+                maxParticipants={tour.max_participants}
+              />
+            )}
+
+            {/* Contact the operator - WhatsApp only once the phone is verified */}
+            <section className="mb-6">
+              <h2 className="text-lg font-bold text-foreground mb-1">{t('ui.tour.contactOperator')}</h2>
+              <p className="text-sm text-muted-foreground mb-3">{t('tourDetail.contactHint')}</p>
+              {whatsappUrl || instagramUrl ? (
+                <div className="flex flex-wrap gap-2">
                   {whatsappUrl && (
                     <a
                       href={whatsappUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title={t('tourDetail.messageOnWhatsapp')}
-                      className="shrink-0 w-11 h-11 bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center"
+                      className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
                     >
-                      <MessageCircle size={16} />
+                      <MessageCircle size={16} /> {t('tourDetail.messageOnWhatsapp')}
                     </a>
                   )}
                   {instagramUrl && (
@@ -974,15 +928,143 @@ export default function TourDetail() {
                       href={instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title={t('tourDetail.viewInstagram')}
-                      className="shrink-0 w-11 h-11 bg-card border border-border text-foreground rounded-xl hover:border-primary/40 flex items-center justify-center"
+                      className="flex items-center gap-2 border border-border text-foreground text-sm font-semibold px-5 py-2.5 rounded-lg hover:border-primary/40 transition-colors"
                     >
-                      <AtSign size={16} />
+                      <AtSign size={16} /> {t('tourDetail.viewInstagram')}
                     </a>
                   )}
-                </>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('tourDetail.noContactYet')}</p>
               )}
+            </section>
+          </div>
+
+          {/* Sidebar */}
+          <aside className="space-y-4 lg:sticky lg:top-24">
+            <div className={`${card} hidden lg:block`}>
+              <h2 className="text-base font-bold text-foreground mb-4">{t('ui.tour.checkAvailability')}</h2>
+
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t('ui.tour.tourDate')}</p>
+              <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2.5 text-sm text-foreground mb-4">
+                <Calendar size={15} className="text-muted-foreground" /> {formatDate(tour.date, locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </div>
+
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-medium text-muted-foreground">{t('ui.tour.groupSize')}</span>
+                <span className="font-semibold text-foreground">
+                  {t('ui.tour.peopleOf', { current: groupCurrent, max: tour.max_participants })}
+                </span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${groupConfirmed ? 'bg-success' : 'bg-primary'}`}
+                  style={{ width: `${Math.min(100, (groupCurrent / Math.max(1, tour.max_participants)) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5 mb-4">
+                {groupConfirmed || groupNeeded === 0
+                  ? t('ui.tour.groupConfirmed')
+                  : t('ui.tour.moreNeeded', { count: groupNeeded })}
+              </p>
+
+              {isOwnTour ? (
+                <p className="text-xs text-muted-foreground text-center bg-muted rounded-lg py-3">{t('tourDetail.ownTourNote')}</p>
+              ) : isPast ? (
+                <p className="text-center text-sm font-semibold text-muted-foreground bg-muted rounded-lg py-3">
+                  {t('tourDetail.tourEnded')}
+                </p>
+              ) : (
+                <Link
+                  href={bookHref}
+                  className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold py-3 rounded-lg transition-colors"
+                >
+                  {t('tourDetail.bookNow')}
+                </Link>
+              )}
+              <p className="flex items-center justify-center gap-1.5 text-xs text-success mt-2.5">
+                <ShieldCheck size={13} /> {t('ui.tour.freeCancellation')}
+              </p>
             </div>
+
+            {groupMin > 1 && (
+              <div className={card}>
+                <h2 className="flex items-center gap-2 text-sm font-bold text-foreground mb-3">
+                  <Users size={16} className="text-primary" /> {t('ui.tour.groupFormation')}
+                </h2>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('ui.tour.travelersOf', { current: groupCurrent, min: groupMin })}
+                </p>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1.5 mb-3">
+                  <div
+                    className={`h-full rounded-full ${groupConfirmed ? 'bg-success' : 'bg-warning'}`}
+                    style={{ width: `${Math.min(100, (groupCurrent / groupMin) * 100)}%` }}
+                  />
+                </div>
+                <ol className="space-y-2 text-xs text-foreground/80">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-success shrink-0" /> {t('ui.tour.step1')}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    {groupConfirmed ? (
+                      <CheckCircle2 size={14} className="text-success shrink-0" />
+                    ) : (
+                      <Clock size={14} className="text-warning shrink-0" />
+                    )}
+                    {t('ui.tour.step2')}
+                  </li>
+                </ol>
+                <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{t('ui.tour.groupExplainer')}</p>
+              </div>
+            )}
+
+            <div className={card}>
+              <h2 className="text-sm font-bold text-foreground mb-3">{t('booking.refundPolicyTitle')}</h2>
+              <dl className="text-xs space-y-2">
+                {(
+                  [
+                    ['ui.policy.days7', '100%'],
+                    ['ui.policy.days3', '50%'],
+                    ['ui.policy.days0', '0%'],
+                    ['ui.policy.operatorCancels', '100%'],
+                    ['ui.policy.groupFails', '100%'],
+                  ] as [TranslationKey, string][]
+                ).map(([key, pct]) => (
+                  <div key={key} className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">{t(key)}</dt>
+                    <dd className={`font-semibold ${pct === '0%' ? 'text-danger' : 'text-foreground'}`}>
+                      {t('ui.policy.refund', { pct })}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Mobile / tablet sticky booking bar */}
+      {!loadingTour && tour && (
+        <div className="fixed bottom-16 md:bottom-0 lg:hidden inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-muted-foreground">{t('ui.tour.from')}</p>
+              <p className="text-lg font-bold text-foreground">
+                {formatAzn(effectivePrice)} <span className="text-xs font-normal text-muted-foreground">{t('ui.card.perPerson')}</span>
+              </p>
+            </div>
+            {isOwnTour ? (
+              <p className="flex-1 text-xs text-muted-foreground text-right">{t('tourDetail.ownTourNote')}</p>
+            ) : isPast ? (
+              <p className="text-sm font-semibold text-muted-foreground bg-muted rounded-lg px-4 py-2.5">{t('tourDetail.tourEnded')}</p>
+            ) : (
+              <Link
+                href={bookHref}
+                className="bg-primary text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-hover"
+              >
+                {t('tourDetail.bookNow')}
+              </Link>
+            )}
           </div>
         </div>
       )}

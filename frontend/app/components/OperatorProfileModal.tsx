@@ -89,7 +89,6 @@ export default function OperatorProfileModal({
           </div>
           <h2
             className="text-lg font-bold text-foreground"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             {operator.name}
           </h2>

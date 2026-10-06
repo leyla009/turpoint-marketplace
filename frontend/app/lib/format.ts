@@ -1,5 +1,5 @@
 // One place for how money and dates are shown, so the whole app agrees
-// ("AZN 120", never "AZN120" / "120 AZN" / "AZN0") and dates follow the
+// ("₼120" everywhere, never "120 AZN" / "AZN120") and dates follow the
 // language the user picked instead of the browser's default.
 
 import type { Locale } from './translations';
@@ -9,11 +9,11 @@ export const DATE_LOCALES: Record<Locale, string> = { az: 'az-AZ', en: 'en-GB', 
 const AZ_MONTHS_SHORT = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avq', 'sen', 'okt', 'noy', 'dek'];
 const AZ_MONTHS_LONG = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avqust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr'];
 
-/** "AZN 120", "AZN 89.5", "AZN 1,250". Up to 2 decimals, no trailing zeros. */
+/** "₼120", "₼89.5", "₼1,250". Up to 2 decimals, no trailing zeros. */
 export function formatAzn(amount: number | string | null | undefined): string {
   const n = Number(amount ?? 0);
   const safe = Number.isFinite(n) ? n : 0;
-  return `AZN ${safe.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+  return `₼${safe.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 /**

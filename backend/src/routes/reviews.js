@@ -182,6 +182,27 @@ router.delete('/:id', requireAuth, (req, res) => {
   res.json({ deleted: true, id: review.id, operator_new_rating: newOperatorRating });
 });
  
+// GET /api/reviews/recent?limit=3 - the newest reviews that actually have
+// a written comment, for the homepage's "Traveler stories". Only the
+// reviewer's name is exposed (never their email), and nothing is shown when
+// no real reviews exist yet.
+router.get('/recent', (req, res) => {
+  const limit = Math.min(12, Math.max(1, Number(req.query.limit) || 3));
+  const reviews = db
+    .prepare(
+      `SELECT r.id, r.tour_id, r.rating, r.comment, r.created_at,
+              u.name AS reviewer_name, t.title AS tour_title, t.title_i18n AS tour_title_i18n
+       FROM reviews r
+       JOIN users u ON u.id = r.user_id
+       JOIN tours t ON t.id = r.tour_id
+       WHERE r.comment IS NOT NULL AND TRIM(r.comment) != ''
+       ORDER BY r.created_at DESC, r.id DESC
+       LIMIT ?`
+    )
+    .all(limit);
+  res.json(reviews);
+});
+
 // GET /api/reviews?tour_id=5
 router.get('/', (req, res) => {
   const { tour_id } = req.query;

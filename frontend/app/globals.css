@@ -1,47 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
- 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
+/* TurPoint design system - clean white canvas, a single teal brand color
+   for every primary action, deep navy for the footer / operator sidebar /
+   headings, and warm orange reserved for ratings and "pending" states. */
 :root {
-  /* Warm ivory rather than pure white - a page-wide white canvas is what
-     made the site read as an unstyled prototype rather than a place with
-     an actual visual identity. Content surfaces (--card) stay white so
-     they still lift gently off this ground. */
-  --background: #FBF7EF;
-  --foreground: #23281F;
+  --background: #FFFFFF;
+  --foreground: #13293D;
   --card: #FFFFFF;
-  --card-foreground: #23281F;
-  --primary: #1B3D2F;
+  --card-foreground: #13293D;
+  --primary: #0B8AA3;
+  --primary-hover: #08768C;
   --primary-foreground: #FFFFFF;
-  --muted: #F1E9D8;
-  --muted-foreground: #7C7364;
-  --border: #E4DBC7;
-  /* Muted terracotta rather than a saturated construction-orange clay -
-     same brand hue, pulled back so it reads as a considered accent
-     instead of a loud call-out block. */
-  --accent: #B15A2A;
+  --navy: #0F2A3D;
+  --muted: #F2F6F8;
+  --muted-foreground: #64748B;
+  --border: #E3E9EE;
+  /* Accent stays in the teal family so every existing link / CTA that used
+     the old terracotta accent now reads as part of one brand color. */
+  --accent: #0A7F96;
   --accent-foreground: #FFFFFF;
-  /* Rating stars use a muted warm gold rather than the brand green/orange
-     or a neon amber - it reads as "review score" at a glance, matching
-     the convention every booking site trains users on, without adding a
-     fourth saturated color to the palette. */
-  --rating: #C79A3C;
-  --success: #3D6B4F;
+  --rating: #F5A524;
+  --warning: #F59E0B;
+  --success: #16A34A;
   --success-foreground: #FFFFFF;
-  --danger: #A3382F;
+  --danger: #DC2626;
   --danger-foreground: #FFFFFF;
-  /* Two additional section-band tones (not swapped in on every section -
-     see page.tsx's rhythm of ivory -> sand -> ivory -> moss -> primary)
-     so the page reads as one warm, layered surface instead of either a
-     flat white canvas or a patchwork of differently-colored blocks. */
-  --surface-sand: #F3ECDC;
-  --surface-moss: #EBEEE1;
+  --surface-sand: #F5F8FA;
+  --surface-moss: #EEF7F9;
 }
 
 body {
-  font-family: 'Nunito', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {

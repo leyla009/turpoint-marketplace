@@ -55,7 +55,7 @@ export default function NotificationBell({ size = 'md' }: { size?: 'sm' | 'md' }
       href="/notifications"
       aria-label={label}
       title={t('nav.notifications')}
-      className={`relative w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 flex items-center justify-center transition-colors shrink-0`}
+      className={`relative w-9 h-9 rounded-full text-foreground/70 hover:text-primary hover:bg-muted flex items-center justify-center transition-colors shrink-0`}
     >
       <Bell size={size === 'sm' ? 16 : 17} />
       {count > 0 && (
