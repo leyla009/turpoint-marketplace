@@ -8,7 +8,7 @@ import { CATEGORY_STYLE, MULTIDAY_EMOJI } from './TourCard';
 import SearchDropdown, { type DropdownOption } from './SearchDropdown';
 import { formatDate } from '../lib/format';
 import { placeName } from '../lib/tourContent';
-import { AZERBAIJAN_PLACES } from '../lib/destinations';
+import { AZERBAIJAN_PLACES, DEPARTURE_CITIES } from '../lib/destinations';
 import { azCompare } from '../lib/azerbaijanCities';
 
 // Solid brand-teal glyphs (lucide's icons are outline-only; the design calls
@@ -80,6 +80,7 @@ const overlay = 'absolute inset-0 w-full h-full opacity-0 cursor-pointer';
 export default function HeroSearchBar() {
   const router = useRouter();
   const { t, locale } = useLanguage();
+  const [from, setFrom] = useState(DEPARTURE_CITIES[0]);
   const [to, setTo] = useState('');
   const [when, setWhen] = useState('');
   const [category, setCategory] = useState('');
@@ -90,6 +91,7 @@ export default function HeroSearchBar() {
   const placeOptions = AZERBAIJAN_PLACES.map((place) => ({ value: place, label: placeName(place, locale) })).sort((x, y) =>
     locale === 'az' ? azCompare(x.label, y.label) : x.label.localeCompare(y.label, locale)
   );
+  const originOptions: DropdownOption[] = DEPARTURE_CITIES.map((c) => ({ value: c, label: placeName(c, locale) }));
   const destinationOptions: DropdownOption[] = [{ value: '', label: t('ui.search.anywhere') }, ...placeOptions];
 
   const categoryOptions: DropdownOption[] = [
@@ -101,6 +103,9 @@ export default function HeroSearchBar() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const params = new URLSearchParams();
+    // Tours don't store a departure city yet, so `from` is carried in the URL
+    // for Explore but doesn't narrow the results.
+    if (from !== DEPARTURE_CITIES[0]) params.set('from', from);
     if (to) params.set('location', to);
     if (when) params.set('date', when);
     if (category) params.set('category', category);
@@ -115,9 +120,7 @@ export default function HeroSearchBar() {
       onSubmit={handleSubmit}
       className="bg-card rounded-2xl md:rounded-full shadow-[0_10px_40px_-12px_rgba(15,42,61,0.25)] p-2 md:pl-3 flex flex-col md:flex-row md:items-center gap-1 md:gap-0"
     >
-      {/* Every TurPoint tour departs from Baku, so "From" is informational
-          rather than a choice - no chevron, no dropdown. */}
-      <Field icon={<PinIcon />} label={t('ui.search.from')} value={placeName('Bakı', locale)} chevron={false} />
+      <SearchDropdown icon={<PinIcon />} label={t('ui.search.from')} value={from} options={originOptions} onChange={setFrom} />
       {divider}
       <SearchDropdown icon={<PinIcon />} label={t('ui.search.to')} value={to} options={destinationOptions} onChange={setTo} />
       {divider}

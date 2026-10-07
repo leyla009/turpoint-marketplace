@@ -7,6 +7,7 @@ import app from './app.js';
 import { expirePastDueGroups } from './lib/expireGroups.js';
 import { pruneOldNotifications } from './lib/notify.js';
 import { checkGroqKey } from './lib/groq.js';
+import { stormglassConfigured } from './lib/stormglass.js';
 
 // Expire unfilled groups whose tour date has passed, without needing an
 // external cron. Runs at boot and then hourly; the manual
@@ -38,4 +39,7 @@ app.listen(port, () => {
   console.log(`TurPoint API listening on http://localhost:${port}`);
   // Report Smart Planner (Groq) status once at boot - informational only.
   checkGroqKey().then(({ ok, message }) => (ok ? console.log(message) : console.warn(`[planner] ${message}`)));
+  // No test call here - Stormglass's free quota is only 10 requests/day.
+  if (stormglassConfigured()) console.log(`Weather panel ready (Stormglass, cached ${process.env.STORMGLASS_CACHE_HOURS || 6}h per city).`);
+  else console.warn('[weather] STORMGLASS_API_KEY is not set - the homepage weather panel is hidden. Add it to backend/.env and restart.');
 });

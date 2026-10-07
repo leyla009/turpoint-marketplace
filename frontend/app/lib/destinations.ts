@@ -1,5 +1,9 @@
 import type { Locale } from './translations';
 
+// Starting points offered in the homepage "From" dropdown (stored
+// Azerbaijani names). Baku is the default.
+export const DEPARTURE_CITIES = ['Bakı', 'Gəncə', 'Naxçıvan'];
+
 // Every city/district offered in the homepage "To" dropdown - Azerbaijan's
 // districts and republic-level cities, each listed once (a district and
 // the city of the same name, e.g. Lənkəran, share one entry because tours

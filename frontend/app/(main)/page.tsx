@@ -13,6 +13,7 @@ import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchBar from '@/app/components/HeroSearchBar';
 import DestinationMosaic from '@/app/components/home/DestinationMosaic';
 import PopularNow from '@/app/components/home/PopularNow';
+import WeatherPanel from '@/app/components/home/WeatherPanel';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { useFavorites } from '@/app/lib/useFavorites';
@@ -171,6 +172,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Live weather (hidden until the backend has a Stormglass key) */}
+      <WeatherPanel />
 
       {/* Map */}
       {!loading && tours.length > 0 && (
