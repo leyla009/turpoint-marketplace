@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Plus, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { TOUR_FEATURES } from '../lib/tourFeatures';
@@ -91,6 +91,54 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Extra gallery photos (tour page gallery). Existing ones are removed right
+  // away; new ones are queued and uploaded after the tour is saved, because a
+  // brand-new tour has no id until then.
+  const MAX_EXTRA_PHOTOS = 11;
+  const [extraPhotos, setExtraPhotos] = useState<{ id: number; url: string }[]>([]);
+  const [queuedPhotos, setQueuedPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const extraInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!tour) return;
+    fetch(`${API_URL}/api/tours/${tour.id}/photos`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setExtraPhotos(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
+  }, [tour]);
+  const extraSlotsLeft = MAX_EXTRA_PHOTOS - extraPhotos.length - queuedPhotos.length;
+
+  function handleExtraSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, extraSlotsLeft));
+    e.target.value = '';
+    setQueuedPhotos((prev) => [...prev, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
+  }
+
+  async function removeExistingExtra(photoId: number) {
+    if (!tour) return;
+    const res = await fetch(`${API_URL}/api/tours/${tour.id}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => null);
+    if (res?.ok) setExtraPhotos(await res.json());
+    else showToast(t('tourForm.photoUploadFailed'));
+  }
+
+  async function uploadQueuedPhotos(tourId: number) {
+    let failed = false;
+    for (const { file } of queuedPhotos) {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const res = await fetch(`${API_URL}/api/tours/${tourId}/photos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }).catch(() => null);
+      if (!res?.ok) failed = true;
+    }
+    if (failed) showToast(t('ui.td.photoFailed'));
+    setQueuedPhotos([]);
+  }
+
   function toggleFeature(slug: string) {
     setFeatures((prev) => (prev.includes(slug) ? prev.filter((f) => f !== slug) : [...prev, slug]));
   }
@@ -176,6 +224,7 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
         return;
       }
       await uploadPhotoIfNeeded(data.id);
+      await uploadQueuedPhotos(data.id);
       showToast(isEditing ? t('tourForm.updatedToast') : t('tourForm.publishedToast'));
       onSuccess();
     } catch {
@@ -231,6 +280,58 @@ export default function NewTourContent({ tour, onSuccess }: { tour?: ExistingTou
               className="hidden"
             />
           </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-foreground">{t('ui.td.photosTitle')}</p>
+          <p className="text-[11px] text-muted-foreground mb-2">{t('ui.td.photosHint', { max: MAX_EXTRA_PHOTOS })}</p>
+          <div className="flex flex-wrap gap-2">
+            {extraPhotos.map((p) => (
+              <div key={p.id} className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                <img src={photoSrc(p.url) ?? ''} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeExistingExtra(p.id)}
+                  aria-label={t('ui.td.removePhoto')}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            {queuedPhotos.map((p, i) => (
+              <div key={p.preview} className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted ring-2 ring-primary/40">
+                <img src={p.preview} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setQueuedPhotos((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label={t('ui.td.removePhoto')}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            {extraSlotsLeft > 0 && (
+              <button
+                type="button"
+                onClick={() => extraInputRef.current?.click()}
+                aria-label={t('ui.td.addPhotos')}
+                title={t('ui.td.addPhotos')}
+                className="w-16 h-16 rounded-lg border-2 border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary flex items-center justify-center"
+              >
+                <Plus size={18} />
+              </button>
+            )}
+          </div>
+          <input
+            ref={extraInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={handleExtraSelected}
+            className="hidden"
+          />
         </div>
 
         <div>

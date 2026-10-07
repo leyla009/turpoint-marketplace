@@ -61,6 +61,16 @@ CREATE TABLE IF NOT EXISTS tours (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Extra gallery photos for a tour (the cover stays in tours.photo_url).
+-- Shown on the tour page gallery; operators add/remove them from the tour form.
+CREATE TABLE IF NOT EXISTS tour_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tour_id INTEGER NOT NULL REFERENCES tours(id),
+  url TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tour_photos_tour_id ON tour_photos(tour_id);
+
 CREATE TABLE IF NOT EXISTS group_formations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tour_id INTEGER NOT NULL REFERENCES tours(id),

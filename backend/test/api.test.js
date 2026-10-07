@@ -70,3 +70,48 @@ describe('bookings', () => {
     assert.equal(res.body.error, 'tour not found');
   });
 });
+
+describe('tour gallery photos', () => {
+  // Smallest thing lib/uploads.js accepts as a PNG: the 8-byte signature.
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
+
+  it('only the owning operator can add/remove photos, and they come back on GET /api/tours/:id', async () => {
+    const owner = await signup(request, app);
+    const stranger = await signup(request, app);
+    const operatorId = db
+      .prepare('INSERT INTO operators (name, user_id) VALUES (?, ?)')
+      .run('Gallery Tours', owner.user.id).lastInsertRowid;
+    const tourId = db
+      .prepare('INSERT INTO tours (operator_id, title, price, date) VALUES (?, ?, ?, ?)')
+      .run(operatorId, 'Gallery tour', 40, '2030-06-01').lastInsertRowid;
+
+    const denied = await request(app)
+      .post(`/api/tours/${tourId}/photos`)
+      .set('Authorization', `Bearer ${stranger.token}`)
+      .attach('photo', png, 'a.png');
+    assert.equal(denied.status, 403);
+
+    const added = await request(app)
+      .post(`/api/tours/${tourId}/photos`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .attach('photo', png, 'a.png');
+    assert.equal(added.status, 201);
+    assert.equal(added.body.length, 1);
+    assert.match(added.body[0].url, /^\/uploads\/tours\/.+\.png$/);
+
+    const tour = await request(app).get(`/api/tours/${tourId}`);
+    assert.deepEqual(tour.body.photos, added.body);
+
+    const removed = await request(app)
+      .delete(`/api/tours/${tourId}/photos/${added.body[0].id}`)
+      .set('Authorization', `Bearer ${owner.token}`);
+    assert.equal(removed.status, 200);
+    assert.deepEqual(removed.body, []);
+  });
+
+  it('GET /api/reviews?operator_id= lists reviews across that operator\'s tours', async () => {
+    const res = await request(app).get('/api/reviews?operator_id=999');
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, []);
+  });
+});

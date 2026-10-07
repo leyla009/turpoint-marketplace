@@ -204,8 +204,21 @@ router.get('/recent', (req, res) => {
 });
 
 // GET /api/reviews?tour_id=5
+// GET /api/reviews?tour_id=5 - one tour's reviews.
+// GET /api/reviews?operator_id=3 - every review across that operator's tours
+// (newest first, with the tour's title), for the tour page's empty state.
 router.get('/', (req, res) => {
-  const { tour_id } = req.query;
+  const { tour_id, operator_id } = req.query;
+  if (!tour_id && operator_id) {
+    const rows = db
+      .prepare(
+        `SELECT r.id, r.tour_id, r.rating, r.comment, r.created_at, t.title AS tour_title, t.title_i18n AS tour_title_i18n
+         FROM reviews r JOIN tours t ON t.id = r.tour_id
+         WHERE t.operator_id = ? ORDER BY r.created_at DESC LIMIT 20`
+      )
+      .all(operator_id);
+    return res.json(rows);
+  }
   if (!tour_id) {
     return res.status(400).json({ error: 'tour_id query param is required' });
   }

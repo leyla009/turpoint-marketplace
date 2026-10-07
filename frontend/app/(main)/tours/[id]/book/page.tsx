@@ -75,6 +75,13 @@ export default function BookTour() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
 
+  // The tour page's traveller stepper hands its count over as ?seats=N; it is
+  // clamped to the tour's capacity once the tour has loaded (see below).
+  useEffect(() => {
+    const n = Number(new URLSearchParams(window.location.search).get('seats'));
+    if (Number.isInteger(n) && n > 1) setSeats(n);
+  }, []);
+
   useEffect(() => {
     fetch(`${API_URL}/api/tours/${id}`)
       .then((r) => r.json())
@@ -90,6 +97,9 @@ export default function BookTour() {
   const pricePerPerson = tour ? tour.discounted_price ?? tour.price : 0;
   const total = pricePerPerson * seats;
   const maxSeats = tour?.max_participants ?? 10;
+  useEffect(() => {
+    if (tour && seats > maxSeats) setSeats(maxSeats);
+  }, [tour, seats, maxSeats]);
 
   const onCardNumber = (v: string) =>
     setCardNumber(v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 '));

@@ -10,7 +10,9 @@ import { validate } from '../middleware/validate.js';
 import { createTourSchema, updateTourSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { createImageUpload } from '../lib/uploads.js';
+import { createImageUpload, UPLOADS_ROOT } from '../lib/uploads.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const router = Router();
 const upload = createImageUpload('tours');
@@ -172,6 +174,63 @@ router.post('/:id/photo', requireAuth, upload.single('photo'), (req, res) => {
   res.json(attachActiveDeals(db.prepare('SELECT * FROM tours WHERE id = ?').get(tour.id)));
 });
 
+// ---- gallery photos --------------------------------------------------------
+// The cover is tours.photo_url (POST /:id/photo above); these are the extra
+// gallery photos, up to MAX_EXTRA_PHOTOS per tour. Owner-only, like the cover.
+const MAX_EXTRA_PHOTOS = 11;
+
+function ownedTour(req, res) {
+  const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
+  if (!tour) {
+    res.status(404).json({ error: 'tour not found' });
+    return null;
+  }
+  const ownsIt = db.prepare('SELECT id FROM operators WHERE id = ? AND user_id = ?').get(tour.operator_id, req.user.userId);
+  if (!ownsIt) {
+    res.status(403).json({ error: 'you can only edit your own tours' });
+    return null;
+  }
+  return tour;
+}
+
+const extraPhotos = (tourId) => db.prepare('SELECT id, url FROM tour_photos WHERE tour_id = ? ORDER BY id').all(tourId);
+
+function removeUploadedTourPhoto(url) {
+  if (!url?.startsWith('/uploads/tours/')) return;
+  fs.unlink(path.join(UPLOADS_ROOT, 'tours', path.basename(url)), () => {});
+}
+
+router.get('/:id/photos', (req, res) => {
+  const tour = db.prepare('SELECT id FROM tours WHERE id = ?').get(req.params.id);
+  if (!tour) return res.status(404).json({ error: 'tour not found' });
+  res.json(extraPhotos(tour.id));
+});
+
+router.post('/:id/photos', requireAuth, upload.single('photo'), (req, res) => {
+  const tour = ownedTour(req, res);
+  if (!tour) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    return;
+  }
+  if (!req.file) return res.status(400).json({ error: 'a valid image file is required' });
+  if (extraPhotos(tour.id).length >= MAX_EXTRA_PHOTOS) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(409).json({ error: `a tour can have at most ${MAX_EXTRA_PHOTOS + 1} photos` });
+  }
+  db.prepare('INSERT INTO tour_photos (tour_id, url) VALUES (?, ?)').run(tour.id, `/uploads/tours/${req.file.filename}`);
+  res.status(201).json(extraPhotos(tour.id));
+});
+
+router.delete('/:id/photos/:photoId', requireAuth, (req, res) => {
+  const tour = ownedTour(req, res);
+  if (!tour) return;
+  const photo = db.prepare('SELECT * FROM tour_photos WHERE id = ? AND tour_id = ?').get(req.params.photoId, tour.id);
+  if (!photo) return res.status(404).json({ error: 'photo not found' });
+  db.prepare('DELETE FROM tour_photos WHERE id = ?').run(photo.id);
+  removeUploadedTourPhoto(photo.url);
+  res.json(extraPhotos(tour.id));
+});
+
 // Task 8: GET /api/tours?location=Quba&maxPrice=100&category=nature&fromDate=2026-09-01
 router.get('/', (req, res) => {
   const { location, category, minPrice, maxPrice, fromDate, toDate } = req.query;
@@ -266,7 +325,8 @@ router.get('/:id', optionalAuth, (req, res) => {
   }
 
   // Task 15: attach discounted_price if an active last-minute deal exists.
-  res.json(attachReviewStats(attachActiveDeals(tour)));
+  // `photos` is the extra gallery (the cover stays in photo_url).
+  res.json({ ...attachReviewStats(attachActiveDeals(tour)), photos: extraPhotos(tour.id) });
 });
  
 // Update a tour - auth required, and only the owning operator can do it.
@@ -404,9 +464,12 @@ router.delete('/:id', requireAuth, (req, res) => {
     db.prepare('DELETE FROM favorites WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM reviews WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM last_minute_deals WHERE tour_id = ?').run(tour.id);
+    db.prepare('DELETE FROM tour_photos WHERE tour_id = ?').run(tour.id);
     db.prepare('DELETE FROM tours WHERE id = ?').run(tour.id);
   });
+  const galleryUrls = extraPhotos(tour.id).map((p) => p.url);
   deleteTour();
+  galleryUrls.forEach(removeUploadedTourPhoto);
  
   res.json({ deleted: true, id: tour.id });
 });
