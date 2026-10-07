@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 import type { Locale, TranslationKey } from '../lib/translations';
 import AccountMenu, { type AccountSection } from './AccountMenu';
 import AccountDetailModal from './AccountDetailModal';
+import { photoSrc } from '../lib/photo';
 import NotificationBell from './NotificationBell';
 import Logo from './Logo';
 
@@ -103,9 +104,11 @@ export default function Nav() {
   const [accountMenuOpen, setAccountMenuOpen] = useState<'desktop' | 'mobile' | null>(null);
   const [activeSection, setActiveSection] = useState<AccountSection | null>(null);
 
+  // "Personal info" is a full page (/account); saved tours stay a quick modal.
   const openSection = (s: AccountSection) => {
-    setActiveSection(s);
     setAccountMenuOpen(null);
+    if (s === 'info') router.push('/account');
+    else setActiveSection(s);
   };
 
   const handleLogout = () => {
@@ -207,9 +210,13 @@ export default function Nav() {
                   className="flex items-center gap-1.5 rounded-full hover:bg-muted pl-0.5 pr-1.5 py-0.5 transition-colors"
                   aria-label={t('nav.account')}
                 >
-                  <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                    {user.name?.[0]?.toUpperCase() ?? '?'}
-                  </span>
+                  {user.photo_url ? (
+                    <img src={photoSrc(user.photo_url) ?? ''} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                      {user.name?.[0]?.toUpperCase() ?? '?'}
+                    </span>
+                  )}
                   <ChevronDown size={14} className="text-foreground/50" />
                 </button>
                 {accountMenuOpen === 'desktop' && (
@@ -267,9 +274,13 @@ export default function Nav() {
                 onClick={() => setAccountMenuOpen((v) => (v === 'mobile' ? null : 'mobile'))}
                 className="w-full flex flex-col items-center gap-0.5 py-2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">
-                  {user.name?.[0]?.toUpperCase() ?? '?'}
-                </span>
+                {user.photo_url ? (
+                  <img src={photoSrc(user.photo_url) ?? ''} alt="" className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">
+                    {user.name?.[0]?.toUpperCase() ?? '?'}
+                  </span>
+                )}
                 <span className="text-[10px] font-medium">{t('ui.nav.profile')}</span>
               </button>
               {accountMenuOpen === 'mobile' && (

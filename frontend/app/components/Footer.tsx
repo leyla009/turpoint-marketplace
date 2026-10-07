@@ -8,6 +8,13 @@ import Logo from './Logo';
 
 const LANGUAGES: Locale[] = ['az', 'en', 'ru'];
 
+const EMERGENCY: { number: string; labelKey: TranslationKey }[] = [
+  { number: '112', labelKey: 'footer.emergencyGeneral' },
+  { number: '102', labelKey: 'footer.emergencyPolice' },
+  { number: '103', labelKey: 'footer.emergencyAmbulance' },
+  { number: '101', labelKey: 'footer.emergencyFire' },
+];
+
 // Global footer on every (main) page. Every link points at a real route;
 // social icons are deliberately left out until real TurPoint accounts
 // exist. Azerbaijan's public emergency number is real and useful to any
@@ -50,12 +57,14 @@ export default function Footer() {
         <div className="col-span-2 md:col-span-4">
           <Logo tone="light" />
           <p className="text-sm text-white/60 mt-3 max-w-xs leading-relaxed">{t('ui.footer.tagline')}</p>
-          <a
-            href="tel:112"
-            className="mt-5 inline-flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
-          >
-            <Phone size={13} /> {t('footer.emergencyGeneral')}: <span className="font-bold text-white">112</span>
-          </a>
+          {/* Azerbaijan's public emergency numbers - plain text, not links. */}
+          <ul className="mt-5 space-y-1.5">
+            {EMERGENCY.map(({ number, labelKey }) => (
+              <li key={number} className="flex items-center gap-2 text-xs text-white/60">
+                <Phone size={13} className="shrink-0" /> {t(labelKey)}: <span className="font-bold text-white">{number}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {columns.map(({ titleKey, links }) => (

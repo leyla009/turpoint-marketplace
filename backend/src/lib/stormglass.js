@@ -17,8 +17,11 @@ const PARAMS = ['airTemperature', 'cloudCover', 'precipitation', 'humidity', 'wi
 const BAKU_OFFSET_HOURS = 4; // Asia/Baku is UTC+4 all year (no DST)
 const FORECAST_DAYS = 7;
 
-// The six destinations shown as chips. `location` is the stored tour
-// location, used for the "See tours in ..." link.
+// Destinations shown as chips. `location` is the stored tour location,
+// used for the "See tours in ..." link. Only the first (Baku) is fetched
+// up front - every other city is fetched the first time someone opens it
+// (GET /api/weather/:id), so the list can be long without the free
+// 10-requests/day quota being spent on cities nobody looks at.
 export const WEATHER_CITIES = [
   { id: 'baku', location: 'Bakı', lat: 40.4093, lng: 49.8671 },
   { id: 'sheki', location: 'Şəki', lat: 41.1919, lng: 47.1706 },
@@ -26,6 +29,18 @@ export const WEATHER_CITIES = [
   { id: 'gabala', location: 'Qəbələ', lat: 40.9975, lng: 47.8422 },
   { id: 'shamakhi', location: 'Şamaxı', lat: 40.6297, lng: 48.6367 },
   { id: 'lankaran', location: 'Lənkəran', lat: 38.7529, lng: 48.8514 },
+  { id: 'ganja', location: 'Gəncə', lat: 40.6828, lng: 46.3606 },
+  { id: 'nakhchivan', location: 'Naxçıvan', lat: 39.2089, lng: 45.4122 },
+  { id: 'shusha', location: 'Şuşa', lat: 39.76, lng: 46.7497 },
+  { id: 'khankendi', location: 'Xankəndi', lat: 39.8153, lng: 46.7519 },
+  { id: 'qusar', location: 'Qusar', lat: 41.4275, lng: 48.4302 },
+  { id: 'zagatala', location: 'Zaqatala', lat: 41.6316, lng: 46.6433 },
+  { id: 'qakh', location: 'Qax', lat: 41.4207, lng: 46.9201 },
+  { id: 'ismayilli', location: 'İsmayıllı', lat: 40.787, lng: 48.1514 },
+  { id: 'lerik', location: 'Lerik', lat: 38.7736, lng: 48.4151 },
+  { id: 'astara', location: 'Astara', lat: 38.456, lng: 48.875 },
+  { id: 'naftalan', location: 'Naftalan', lat: 40.5067, lng: 46.825 },
+  { id: 'mingachevir', location: 'Mingəçevir', lat: 40.764, lng: 47.0595 },
 ];
 
 export function stormglassConfigured() {
@@ -227,17 +242,35 @@ function buildCityView(city, hours, now = Date.now()) {
 // Exported for tests.
 export const _internals = { sunTimes, feelsLike, condition, buildCityView, bakuMidnightUtc };
 
-/** All panel cities. Cities that can't be loaded at all are left out. */
+/**
+ * The chip list plus whatever is already known: every city that has a cached
+ * forecast (fresh or not) comes back with its data, and the default city is
+ * fetched if needed. Cities never opened yet come back as { id, location }.
+ */
 export async function weatherOverview() {
-  const results = await Promise.allSettled(WEATHER_CITIES.map((c) => hoursFor(c).then((r) => ({ city: c, ...r }))));
+  const [first, ...rest] = WEATHER_CITIES;
   const cities = [];
-  let oldestFetch = null;
-  let stale = false;
-  for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
-    cities.push(buildCityView(r.value.city, r.value.hours));
-    oldestFetch = oldestFetch == null ? r.value.fetchedAt : Math.min(oldestFetch, r.value.fetchedAt);
-    stale ||= r.value.stale;
+  try {
+    const r = await hoursFor(first);
+    cities.push({ ...buildCityView(first, r.hours), loaded: true });
+  } catch {
+    cities.push({ id: first.id, location: first.location, loaded: false });
   }
-  return { cities, updatedAt: oldestFetch ? new Date(oldestFetch).toISOString() : null, stale };
+  for (const city of rest) {
+    const cached = readCache.get(city.id);
+    cities.push(
+      cached
+        ? { ...buildCityView(city, JSON.parse(cached.hours_json)), loaded: true }
+        : { id: city.id, location: city.location, loaded: false }
+    );
+  }
+  return { cities };
+}
+
+/** One city's forecast, fetching it from Stormglass if not cached/fresh. */
+export async function weatherForCity(id) {
+  const city = WEATHER_CITIES.find((c) => c.id === id);
+  if (!city) return null;
+  const r = await hoursFor(city);
+  return { ...buildCityView(city, r.hours), loaded: true };
 }

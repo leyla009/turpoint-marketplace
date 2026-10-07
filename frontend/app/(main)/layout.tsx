@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Nav from '../components/Nav';
 import Footer from '../components/Footer';
+import PlanTripFab from '../components/PlanTripFab';
 
 // Every "normal" page (browse, tour detail, booking, dashboard, ...) lives
 // under this route group and gets the full site chrome. (auth) is the
@@ -11,6 +12,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       <Nav />
       <div className="flex-1 pb-16 md:pb-0 min-w-0">{children}</div>
       <Footer />
+      <PlanTripFab />
     </div>
   );
 }

@@ -10,7 +10,7 @@
 // update the matching clause and PRIVACY_LAST_UPDATED.
 
 export const PRIVACY_EMAIL = 'privacy@turpoint.az';
-export const PRIVACY_LAST_UPDATED = '6 October 2026';
+export const PRIVACY_LAST_UPDATED = '7 October 2026';
 
 export type PolicyBlock =
   | { type: 'p'; text: string }
@@ -247,13 +247,13 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
               ['Cloud hosting', 'Railway (application and database), Vercel (website)', 'All Platform data, request logs and IP addresses.'],
               ['AI trip planning', 'Groq', 'The text, dates and preferences you enter into the Smart Planner, together with tour information.'],
               ['Weather data', 'Open-Meteo', 'Device coordinates (if you allow location access) or the destination you are viewing, and your IP address.'],
-              ['Map tiles', 'Esri (ArcGIS)', 'Your IP address and the map area being displayed.'],
+              ['Maps', 'Google Maps Platform (Google LLC); Esri (ArcGIS) when Google Maps is not available', 'Your IP address, browser information and the map area being displayed. Google may set its own cookies under the Google Privacy Policy.'],
               ['Payment processing', 'Licensed, PCI-DSS compliant payment providers, such as local banks or Stripe', 'Card and transaction details needed to authorise and settle payments.'],
             ],
           },
           {
             type: 'p',
-            text: 'We do not currently use third-party analytics or advertising tools. If we introduce analytics, such as Google Analytics, or a different mapping service, such as Google Maps or Mapbox, we will update this policy and, where required, ask for your consent first.',
+            text: 'We do not currently use third-party analytics or advertising tools. If we introduce analytics, such as Google Analytics, or another mapping service, we will update this policy and, where required, ask for your consent first.',
           },
         ],
       },

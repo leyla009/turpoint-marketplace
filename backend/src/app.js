@@ -91,6 +91,9 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/signup', authLimiter);
+// Both of these check a password, so they get the same brute-force ceiling.
+app.put('/api/auth/me/password', authLimiter);
+app.delete('/api/auth/me', authLimiter);
 
 // Card-testing protection: POST /api/bookings is the only route that takes card
 // details, so it gets its own tight ceiling (the global 300/15min is far too

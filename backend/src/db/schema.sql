@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   id_number TEXT,             -- saved ID card (FIN) number, so bookings don't require retyping it
+  first_name TEXT,            -- account settings; `name` is kept as "first last"
+  last_name TEXT,
+  phone TEXT,                 -- E.164, e.g. +994501234567; shown to operators on this traveler's bookings
+  country TEXT,               -- ISO 3166-1 alpha-2
+  preferred_language TEXT,    -- az | en | ru
+  photo_url TEXT,             -- /uploads/users/...
+  password_changed_at TEXT,   -- null until the password is changed from account settings
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
  

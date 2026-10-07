@@ -229,7 +229,7 @@ router.get('/mine', requireAuth, (req, res) => {
   const bookings = db
     .prepare(
       `SELECT b.*, t.title as tour_title, t.title_i18n as tour_title_i18n, t.date as tour_date,
-              u.name as traveler_name, u.email as traveler_email
+              u.name as traveler_name, u.email as traveler_email, u.phone as traveler_phone
        FROM bookings b
        JOIN tours t ON t.id = b.tour_id
        JOIN users u ON u.id = b.user_id

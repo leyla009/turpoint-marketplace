@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { X, MapPin, Calendar, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { AccountSection } from './AccountMenu';
 import { formatAzn, formatDate } from '@/app/lib/format';
@@ -13,8 +12,8 @@ import { tourTitle, placeName, titleFromI18n } from '../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Focused floating panel for exactly one account section at a time -
-// picked from AccountMenu's small dropdown. Centered + portaled to <body>,
+// Focused floating panel for the saved-tours list, opened from the heart in
+// the header. ("Personal info" is the full /account page now.) Centered + portaled to <body>,
 // same pattern (and same reason) as CompareModal.
 export default function AccountDetailModal({
   section,
@@ -23,15 +22,8 @@ export default function AccountDetailModal({
   section: AccountSection;
   onClose: () => void;
 }) {
-  const { user, token, login } = useAuth();
-  const { showToast } = useToast();
+  const { token } = useAuth();
   const { t, locale } = useLanguage();
-
-  const [name, setName] = useState(user?.name ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [password, setPassword] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
@@ -69,33 +61,6 @@ export default function AccountDetailModal({
     };
   }, [onClose]);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setSaving(true);
-    try {
-      const body: Record<string, string> = { name, email };
-      if (password) body.password = password;
-      const res = await fetch(`${API_URL}/api/auth/me`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? t('profile.somethingWrong'));
-        return;
-      }
-      login(data.token, data.user);
-      setPassword('');
-      showToast(t('profile.saved'));
-    } catch {
-      setError(t('profile.couldntReachBackend'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const titleKey = section === 'info' ? 'account.personalInfo' : 'account.favorites';
 
   return createPortal(
@@ -118,50 +83,6 @@ export default function AccountDetailModal({
         >
           {t(titleKey)}
         </h2>
-
-        {section === 'info' && (
-          <form onSubmit={handleSave} className="space-y-3">
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">{t('login.fullName')}</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">{t('login.email')}</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">{t('account.newPassword')}</label>
-              <input
-                type="password"
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('account.newPasswordPlaceholder')}
-                className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary placeholder:text-muted-foreground"
-              />
-            </div>
-
-            {error && <p className="text-xs text-danger">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-50"
-            >
-              {saving ? t('profile.saving') : t('profile.saveChanges')}
-            </button>
-          </form>
-        )}
 
         {section === 'favorites' &&
           (loadingFavorites ? (

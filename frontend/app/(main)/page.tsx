@@ -4,22 +4,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import {
-  MapPin, ChevronRight, MessageCircle, ShieldCheck,
-  Sparkles, Star, CalendarRange, Zap,
-} from 'lucide-react';
+import { ChevronRight, Star, CalendarRange, Zap } from 'lucide-react';
 import { type ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
 import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchBar from '@/app/components/HeroSearchBar';
 import DestinationMosaic from '@/app/components/home/DestinationMosaic';
 import PopularNow from '@/app/components/home/PopularNow';
 import WeatherPanel from '@/app/components/home/WeatherPanel';
+import KnowBeforeYouGo from '@/app/components/home/KnowBeforeYouGo';
+import WhyAndPlanner from '@/app/components/home/WhyAndPlanner';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { useFavorites } from '@/app/lib/useFavorites';
 import { formatDate } from '@/app/lib/format';
 import { placeName, titleFromI18n } from '@/app/lib/tourContent';
-import type { TranslationKey } from '@/app/lib/translations';
 
 const DestinationMap = dynamic(() => import('@/app/components/DestinationMap'), {
   ssr: false,
@@ -173,6 +171,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Visa checker + entry essentials (rules and sources in lib/entryRules.ts) */}
+      <KnowBeforeYouGo />
+
       {/* Live weather (hidden until the backend has a Stormglass key) */}
       <WeatherPanel />
 
@@ -185,43 +186,7 @@ export default function Home() {
       )}
 
       {/* Why TurPoint + Smart Planner */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
-        <div className="bg-surface-sand rounded-2xl p-6 sm:p-8">
-          <h2 className="text-lg font-bold text-foreground mb-5">{t('home.whyUsTitle')}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {(
-              [
-                { Icon: MessageCircle, titleKey: 'home.why1Title', bodyKey: 'home.why1Body' },
-                { Icon: ShieldCheck, titleKey: 'home.why2Title', bodyKey: 'home.why2Body' },
-                { Icon: MapPin, titleKey: 'home.why3Title', bodyKey: 'home.why3Body' },
-              ] satisfies { Icon: typeof MapPin; titleKey: TranslationKey; bodyKey: TranslationKey }[]
-            ).map(({ Icon, titleKey, bodyKey }) => (
-              <div key={titleKey} className="flex sm:flex-col gap-3">
-                <span className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
-                  <Icon size={18} className="text-primary" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">{t(titleKey)}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t(bodyKey)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-surface-moss border border-primary/15 rounded-2xl p-6 sm:p-8 flex flex-col">
-          <p className="flex items-center gap-2 text-base font-bold text-primary">
-            <Sparkles size={18} /> {t('planner.title')}
-          </p>
-          <p className="text-sm text-foreground/75 mt-2 leading-relaxed flex-1">{t('ui.home.plannerBody')}</p>
-          <Link
-            href="/planner"
-            className="mt-5 self-start bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
-          >
-            {t('ui.home.tryPlanner')}
-          </Link>
-        </div>
-      </section>
+      <WhyAndPlanner />
 
       {/* Traveler stories - real reviews only, hidden when there are none */}
       {reviews.length > 0 && (

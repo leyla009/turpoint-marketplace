@@ -63,8 +63,16 @@ export const loginSchema = z.object({
   password: text(LOGIN_REQUIRED, 'email and password must be strings').min(1, LOGIN_REQUIRED).max(1000, 'invalid email or password'),
 });
 
+// Account settings ("Personal details"). Every field is optional - a partial
+// update. Optional text fields may be sent as '' to clear them.
+const COUNTRY_CODE = /^[A-Z]{2}$/;
+// E.164-ish: "+" then 7-15 digits. The page sends the dial code and the
+// local number joined, with spaces stripped.
+const PHONE = /^\+[1-9]\d{6,14}$/;
 export const updateMeSchema = z.object({
   name: z.string({ invalid_type_error: 'name must be a string' }).trim().min(1, 'name cannot be empty').max(100, 'name is too long (max 100 characters)').optional(),
+  first_name: z.string({ invalid_type_error: 'first_name must be a string' }).trim().min(1, 'first name cannot be empty').max(60, 'first name is too long').optional(),
+  last_name: z.string({ invalid_type_error: 'last_name must be a string' }).trim().max(60, 'last name is too long').optional(),
   email: z
     .string({ invalid_type_error: 'email must be a string' })
     .trim()
@@ -73,8 +81,28 @@ export const updateMeSchema = z.object({
     .max(254, 'a valid email address is required')
     .email('a valid email address is required')
     .optional(),
-  password: passwordRules(z.string({ invalid_type_error: 'password must be a string' })).optional(),
+  // Password changes go through PUT /me/password (it checks the current
+  // password). Accepted here only so the route can reject it explicitly.
+  password: z.any().optional(),
   id_number: z.string({ invalid_type_error: 'id_number must be a string' }).max(40, 'id_number is too long').optional(),
+  phone: z.string({ invalid_type_error: 'phone must be a string' }).trim().refine((v) => v === '' || PHONE.test(v), 'a valid phone number is required').optional(),
+  country: z.string({ invalid_type_error: 'country must be a string' }).trim().refine((v) => v === '' || COUNTRY_CODE.test(v), 'country must be a 2-letter code').optional(),
+  preferred_language: z.enum(['az', 'en', 'ru'], { invalid_type_error: 'preferred_language must be az, en or ru' }).optional(),
+});
+
+// New passwords set from account settings: at least 8 characters with a
+// digit and a symbol (signup keeps its older 6-character minimum so no
+// existing flow breaks).
+export const changePasswordSchema = z.object({
+  current_password: text('current password is required').min(1, 'current password is required').max(1000, 'current password is incorrect'),
+  new_password: passwordRules(text('new password is required'))
+    .refine((v) => v.length >= 8, 'new password must be at least 8 characters')
+    .refine((v) => /\d/.test(v), 'new password must contain a digit')
+    .refine((v) => /[^A-Za-z0-9\s]/.test(v), 'new password must contain a symbol'),
+});
+
+export const deleteAccountSchema = z.object({
+  password: text('password is required').min(1, 'password is required').max(1000, 'password is incorrect'),
 });
 
 // ---- tours -----------------------------------------------------------------

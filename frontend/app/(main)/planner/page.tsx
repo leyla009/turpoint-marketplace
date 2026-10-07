@@ -123,6 +123,21 @@ export default function PlannerPage() {
     if (messages.length) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, sending]);
 
+  // /planner?q=... (from the homepage "Your trip in a sentence" box) starts
+  // the conversation with that sentence. The ref stops React's dev-mode
+  // double effect from sending it twice; the URL is cleaned so a refresh
+  // doesn't send it again.
+  const startedFromQuery = useRef(false);
+  useEffect(() => {
+    if (startedFromQuery.current) return;
+    startedFromQuery.current = true;
+    const q = new URLSearchParams(window.location.search).get('q')?.trim();
+    if (!q) return;
+    window.history.replaceState(null, '', '/planner');
+    sendMessage(q.slice(0, 500));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || sending) return;

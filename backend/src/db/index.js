@@ -60,6 +60,17 @@ if (!userColumns.includes('id_number')) {
   console.log('Migration applied: users.id_number added.');
 }
 
+// Account settings page: split name, contact details, preferences, avatar,
+// and when the password was last changed (null = never changed here).
+// `name` stays the canonical display name - it is kept in sync as
+// "first last" whenever first/last name are saved.
+for (const col of ['first_name', 'last_name', 'phone', 'country', 'preferred_language', 'photo_url', 'password_changed_at']) {
+  if (!userColumns.includes(col)) {
+    db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`);
+    console.log(`Migration applied: users.${col} added.`);
+  }
+}
+
 // Operator contact info (phone/Instagram) replacing the vehicle_features
 // profile field - vehicle_features itself stays untouched so the
 // homepage's existing "Nəqliyyat filtrləri" filter keeps working off

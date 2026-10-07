@@ -11,6 +11,13 @@ export interface AuthUser {
   name: string;
   email: string;
   id_number?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;            // E.164, e.g. +994501234567
+  country?: string | null;          // ISO 3166-1 alpha-2
+  preferred_language?: 'az' | 'en' | 'ru' | null;
+  photo_url?: string | null;
+  password_changed_at?: string | null;
   created_at?: string;
 }
  
@@ -38,6 +45,9 @@ interface AuthContextValue {
   loading: boolean;
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
+  // Replace the cached user after an account-settings change that doesn't
+  // issue a new token (e.g. a photo upload).
+  updateUser: (user: AuthUser) => void;
   setMode: (mode: Mode) => void;
   refreshOperatorProfile: () => Promise<void>;
 }
@@ -137,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
  
   return (
     <AuthContext.Provider
-      value={{ user, token, operatorProfile, mode, loading, login, logout, setMode, refreshOperatorProfile }}
+      value={{ user, token, operatorProfile, mode, loading, login, logout, updateUser: setUser, setMode, refreshOperatorProfile }}
     >
       {children}
     </AuthContext.Provider>

@@ -78,3 +78,69 @@ describe('GET /api/auth/me', () => {
     assert.equal(res.body.user.email, email);
   });
 });
+
+describe('PUT /api/auth/me (account settings)', () => {
+  it('saves first/last name, phone, country and language, and keeps name in sync', async () => {
+    const { token } = await signup(request, app, { name: 'Vagif Rasulzade' });
+    const res = await request(app)
+      .put('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ first_name: 'Vaqif', last_name: 'Rəsulzadə', phone: '+994501234567', country: 'AZ', preferred_language: 'en' });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.user.name, 'Vaqif Rəsulzadə');
+    assert.equal(res.body.user.phone, '+994501234567');
+    assert.equal(res.body.user.country, 'AZ');
+    assert.equal(res.body.user.preferred_language, 'en');
+  });
+
+  it('splits a legacy name into first/last name on read', async () => {
+    const { token } = await signup(request, app, { name: 'Leyla Mammadova Ali' });
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+    assert.equal(res.body.user.first_name, 'Leyla');
+    assert.equal(res.body.user.last_name, 'Mammadova Ali');
+  });
+
+  it('rejects a malformed phone number and a password change without the current password', async () => {
+    const { token } = await signup(request, app);
+    const bad = await request(app).put('/api/auth/me').set('Authorization', `Bearer ${token}`).send({ phone: '12ab' });
+    assert.equal(bad.status, 400);
+    const pw = await request(app).put('/api/auth/me').set('Authorization', `Bearer ${token}`).send({ password: 'newpass1!' });
+    assert.equal(pw.status, 400);
+  });
+});
+
+describe('PUT /api/auth/me/password', () => {
+  it('needs the right current password and a strong new one, then records the change date', async () => {
+    const { token, email } = await signup(request, app);
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const wrong = await request(app).put('/api/auth/me/password').set(auth).send({ current_password: 'nope', new_password: 'Better#2026' });
+    assert.equal(wrong.status, 401);
+    const weak = await request(app).put('/api/auth/me/password').set(auth).send({ current_password: 'secret123', new_password: 'abcdefgh' });
+    assert.equal(weak.status, 400);
+
+    const ok = await request(app).put('/api/auth/me/password').set(auth).send({ current_password: 'secret123', new_password: 'Better#2026' });
+    assert.equal(ok.status, 200);
+    assert.ok(ok.body.user.password_changed_at);
+
+    const login = await request(app).post('/api/auth/login').send({ email, password: 'Better#2026' });
+    assert.equal(login.status, 200);
+  });
+});
+
+describe('DELETE /api/auth/me', () => {
+  it('requires the password, then removes the account', async () => {
+    const { token, email } = await signup(request, app);
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const wrong = await request(app).delete('/api/auth/me').set(auth).send({ password: 'nope' });
+    assert.equal(wrong.status, 401);
+
+    const ok = await request(app).delete('/api/auth/me').set(auth).send({ password: 'secret123' });
+    assert.equal(ok.status, 204);
+
+    const login = await request(app).post('/api/auth/login').send({ email, password: 'secret123' });
+    assert.equal(login.status, 401);
+  });
+});

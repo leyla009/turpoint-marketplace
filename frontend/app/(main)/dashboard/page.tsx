@@ -202,6 +202,20 @@ export default function DashboardPage() {
           <p className="text-xs text-muted-foreground">
             {formatDate(b.tour_date, locale, { day: 'numeric', month: 'short' })} · {b.traveler_name} ·{' '}
             {t('ui.book.travelersCount', { count: b.seats })}
+            {/* The traveler's own number from their account settings - shown only when they added one. */}
+            {b.traveler_phone && (
+              <>
+                {' · '}
+                <a
+                  href={`https://wa.me/${String(b.traveler_phone).replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  WhatsApp {b.traveler_phone}
+                </a>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
