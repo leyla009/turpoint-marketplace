@@ -26,6 +26,13 @@ export default function PlanTripFab() {
   const [scrolled, setScrolled] = useState(false);
   const [overFooter, setOverFooter] = useState(false);
   const [atEnd, setAtEnd] = useState(false);
+  // Pages with their own bottom tray (Explore's compare bar) ask it to step aside.
+  const [yielded, setYielded] = useState(false);
+  useEffect(() => {
+    const onYield = (e: Event) => setYielded(Boolean((e as CustomEvent).detail));
+    window.addEventListener('turpoint:fab-hidden', onYield);
+    return () => window.removeEventListener('turpoint:fab-hidden', onYield);
+  }, []);
 
   const hidden = mode === 'operator' || HIDDEN_ON.some((re) => re.test(pathname));
 
@@ -57,7 +64,7 @@ export default function PlanTripFab() {
   }, [hidden, pathname]);
 
   if (hidden) return null;
-  const show = scrolled;
+  const show = scrolled && !yielded;
   const display = LG_ONLY_ON.some((re) => re.test(pathname)) ? 'hidden lg:inline-flex' : 'hidden md:inline-flex';
 
   return (

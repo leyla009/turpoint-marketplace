@@ -22,7 +22,6 @@ const LANGUAGES: Locale[] = ['az', 'en', 'ru'];
 
 const TRAVELER_LINKS: { href: string; labelKey: TranslationKey }[] = [
   { href: '/tours', labelKey: 'ui.nav.explore' },
-  { href: '/#destinations', labelKey: 'ui.nav.destinations' },
   { href: '/planner', labelKey: 'ui.nav.planner' },
 ];
 
