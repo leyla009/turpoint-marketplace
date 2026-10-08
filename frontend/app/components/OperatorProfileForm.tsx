@@ -208,14 +208,98 @@ export default function OperatorProfileForm() {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <Store size={20} className="text-primary" />
-        <h1 className="font-display text-xl font-bold text-foreground">
+    <div className={isEditing ? '' : 'grid overflow-hidden rounded-3xl border border-border bg-card shadow-lift md:grid-cols-[0.9fr_1.1fr]'}>
+      {!isEditing && (
+        <aside className="relative isolate flex min-h-[560px] flex-col overflow-hidden bg-navy px-6 py-7 text-white sm:px-9 sm:py-9 md:min-h-[720px] md:px-8 md:py-10 lg:px-10">
+          <img
+            src="/pictures/1.webp"
+            alt=""
+            className="absolute inset-0 -z-20 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-navy/75 via-navy/65 to-primary/90" />
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white backdrop-blur-sm">
+              <Store size={21} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-display text-lg font-bold leading-tight">TurPoint</p>
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/75">
+                {t('profile.onboardingEyebrow')}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10 max-w-md md:mt-14">
+            <h2 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+              {t('profile.onboardingTitle')}
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-white/85 sm:text-base sm:leading-7">
+              {t('profile.onboardingBody')}
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-3 text-sm font-medium text-white/95">
+            {(['profile.onboardingBenefitTours', 'profile.onboardingBenefitBookings', 'profile.onboardingBenefitContact'] as const).map((key) => (
+              <div key={key} className="flex items-center gap-2.5">
+                <CheckCircle2 size={17} className="shrink-0 text-teal-200" aria-hidden="true" />
+                <span>{t(key)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-auto pt-10">
+            <div className="max-w-sm rounded-2xl border border-white/20 bg-white/95 p-4 text-foreground shadow-lift backdrop-blur-md sm:p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+                  {operatorProfile?.photo_url ? (
+                    <img src={`${API_URL}${operatorProfile.photo_url}`} alt="" className="h-full w-full object-cover" />
+                  ) : name.trim() ? (
+                    <span className="font-display text-lg font-bold">{name.trim()[0].toUpperCase()}</span>
+                  ) : (
+                    <Store size={21} aria-hidden="true" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                    {t('profile.previewLabel')}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-foreground">
+                    {name.trim() || t('profile.previewName')}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
+                {description.trim() || t('profile.previewDescription')}
+              </p>
+              {(phoneDigits || instagram.trim()) && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                  {phoneDigits && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      <Phone size={12} aria-hidden="true" /> {PHONE_PREFIX} {formatPhoneDigits(phoneDigits)}
+                    </span>
+                  )}
+                  {instagram.trim() && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      <AtSign size={12} aria-hidden="true" /> {instagram.trim()}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+      )}
+
+      <div className={isEditing ? '' : 'min-w-0 bg-card px-5 py-6 sm:px-8 sm:py-9 md:px-8 md:py-10 lg:px-10'}>
+      <div className="flex items-center gap-3 mb-1">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Store size={19} aria-hidden="true" />
+        </span>
+        <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">
           {isEditing ? t('profile.editProfileTitle') : t('profile.becomeOperatorTitle')}
         </h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">
+      <p className="mb-5 ml-[52px] text-sm leading-6 text-muted-foreground">
         {isEditing ? t('profile.editSubtitle') : t('profile.createSubtitle')}
       </p>
 
@@ -254,121 +338,165 @@ export default function OperatorProfileForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3 bg-card border border-border rounded-xl p-4 max-w-lg">
-        <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.companyName')}</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Qafqaz Tours"
-            className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.description')}</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('profile.descriptionPlaceholder')}
-            rows={3}
-            className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary resize-none"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
-            {t('profile.phone')}
-            {isPhoneVerified && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent">
-                <CheckCircle2 size={11} /> {t('profile.verified')}
-              </span>
-            )}
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-sm font-semibold text-muted-foreground bg-background border border-border rounded-lg px-3 py-2.5 shrink-0">
-              <Phone size={13} /> {PHONE_PREFIX}
-            </span>
+      <form
+        onSubmit={handleSubmit}
+        className={isEditing ? 'max-w-lg space-y-3 rounded-xl border border-border bg-card p-4' : 'space-y-4'}
+      >
+        <div className={isEditing ? 'space-y-3' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+          {!isEditing && <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.sectionBusiness')}</p>}
+          <div>
+            <label htmlFor="operator-name" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.companyName')}</label>
             <input
-              type="tel"
-              value={formatPhoneDigits(phoneDigits)}
-              onChange={(e) => handlePhoneDigitsChange(e.target.value)}
-              placeholder={t('profile.phonePlaceholder')}
-              className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
+              id="operator-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Qafqaz Tours"
+              autoComplete="organization"
+              className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
             />
           </div>
+          <div>
+            <label htmlFor="operator-description" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.description')}</label>
+            <textarea
+              id="operator-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('profile.descriptionPlaceholder')}
+              rows={3}
+              className="w-full resize-y rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
+            />
+          </div>
+        </div>
 
-          {verificationEnabled && isEditing && !isPhoneVerified && (
-            <div className="mt-2">
-              {!phoneCodeSent ? (
-                <button
-                  type="button"
-                  onClick={handleSendCode}
-                  disabled={sendingCode || phoneDigits.length !== PHONE_DIGIT_COUNT}
-                  className="text-xs font-semibold text-primary disabled:opacity-50"
-                >
-                  {sendingCode ? t('profile.sendingCode') : t('profile.sendCode')}
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={phoneCode}
-                    onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder={t('profile.verificationCode')}
-                    className="w-28 text-sm bg-background border border-border rounded-lg px-2.5 py-1.5 outline-none focus:border-primary"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyCode}
-                    disabled={verifyingCode || !phoneCode.trim()}
-                    className="text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg disabled:opacity-50"
-                  >
-                    {verifyingCode ? t('profile.verifying') : t('profile.verifyCode')}
-                  </button>
+        <div className={isEditing ? 'space-y-3' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+          {!isEditing && <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.sectionContact')}</p>}
+          <div>
+            <label htmlFor="operator-phone" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              {t('profile.phone')}
+              {isPhoneVerified && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent">
+                  <CheckCircle2 size={11} /> {t('profile.verified')}
+                </span>
+              )}
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-3 text-sm font-semibold text-muted-foreground">
+                <Phone size={14} aria-hidden="true" /> {PHONE_PREFIX}
+              </span>
+              <input
+                id="operator-phone"
+                type="tel"
+                value={formatPhoneDigits(phoneDigits)}
+                onChange={(e) => handlePhoneDigitsChange(e.target.value)}
+                placeholder={t('profile.phonePlaceholder')}
+                autoComplete="tel-national"
+                className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
+              />
+            </div>
+
+            {verificationEnabled && isEditing && !isPhoneVerified && (
+              <div className="mt-2">
+                {!phoneCodeSent ? (
                   <button
                     type="button"
                     onClick={handleSendCode}
-                    disabled={sendingCode}
+                    disabled={sendingCode || phoneDigits.length !== PHONE_DIGIT_COUNT}
                     className="text-xs font-semibold text-primary disabled:opacity-50"
                   >
-                    {sendingCode ? t('profile.sendingCode') : t('profile.resendCode')}
+                    {sendingCode ? t('profile.sendingCode') : t('profile.sendCode')}
                   </button>
-                </div>
-              )}
-              {phoneVerifyError && <p className="text-[11px] text-danger mt-1">{phoneVerifyError}</p>}
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={phoneCode}
+                      onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder={t('profile.verificationCode')}
+                      className="w-28 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyCode}
+                      disabled={verifyingCode || !phoneCode.trim()}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      {verifyingCode ? t('profile.verifying') : t('profile.verifyCode')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendCode}
+                      disabled={sendingCode}
+                      className="text-xs font-semibold text-primary disabled:opacity-50"
+                    >
+                      {sendingCode ? t('profile.sendingCode') : t('profile.resendCode')}
+                    </button>
+                  </div>
+                )}
+                {phoneVerifyError && <p className="mt-1 text-[11px] text-danger">{phoneVerifyError}</p>}
+              </div>
+            )}
+          </div>
+          <div>
+            <label htmlFor="operator-instagram" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.instagram')}</label>
+            <div className="flex items-center gap-2">
+              <span className="flex shrink-0 items-center justify-center rounded-lg border border-border bg-card px-3.5 py-3 text-sm font-semibold text-muted-foreground">
+                <AtSign size={16} aria-hidden="true" />
+              </span>
+              <input
+                id="operator-instagram"
+                type="text"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value.replace(/^@+/, ''))}
+                placeholder={t('profile.instagramPlaceholder')}
+                className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
+              />
             </div>
-          )}
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-foreground block mb-1">{t('profile.instagram')}</label>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center text-sm font-semibold text-muted-foreground bg-background border border-border rounded-lg px-3 py-2.5 shrink-0">
-              <AtSign size={15} />
-            </span>
-            <input
-              type="text"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value.replace(/^@+/, ''))}
-              placeholder={t('profile.instagramPlaceholder')}
-              className="w-full text-sm bg-background border border-border rounded-lg px-3 py-2.5 outline-none focus:border-primary"
-            />
           </div>
         </div>
 
-        {!isEditing && <p className="text-[11px] text-muted-foreground">{t('profile.photoHint')}</p>}
+        {!isEditing && (
+          <p className="flex items-start gap-2 rounded-xl bg-muted px-3.5 py-3 text-xs leading-5 text-muted-foreground">
+            <Camera size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /> {t('profile.photoHint')}
+          </p>
+        )}
 
-        {error && <p className="text-xs text-danger">{error}</p>}
-        {success && <p className="text-xs text-accent font-semibold">{t('profile.saved')}</p>}
+        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+        {success && <p className="text-sm font-semibold text-accent">{t('profile.saved')}</p>}
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-primary text-primary-foreground text-sm font-semibold rounded-lg py-2.5 disabled:opacity-50"
+          className={isEditing
+            ? 'w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50'
+            : 'w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50'}
         >
           {submitting ? t('profile.saving') : isEditing ? t('profile.saveChanges') : t('profile.createProfile')}
         </button>
       </form>
+
+      {!isEditing && (
+        <div className="mt-6 border-t border-border pt-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-foreground">{t('profile.onboardingStepTitle')}</p>
+            <span className="shrink-0 text-xs font-semibold text-muted-foreground">{t('profile.onboardingStepCount')}</span>
+          </div>
+          <nav className="mt-3" aria-label={t('profile.onboardingStepTitle')}>
+            <ol className="grid grid-cols-3 gap-2">
+              {(['profile.onboardingStepProfile', 'profile.onboardingStepTour', 'profile.onboardingStepBookings'] as const).map((key, index) => (
+                <li key={key} aria-current={index === 0 ? 'step' : undefined}>
+                  <div className={`h-1.5 rounded-full ${index === 0 ? 'bg-primary' : 'bg-border'}`} />
+                  <p className={`mt-2 text-[10px] font-semibold leading-4 sm:text-xs ${index === 0 ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {index + 1}. {t(key)}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
+      )}
+      </div>
     </div>
   );
 }

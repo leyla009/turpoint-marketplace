@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { LogOut, Loader2, Eye, EyeOff, AlertCircle, Compass, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -12,6 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Mode = 'login' | 'signup';
+type SignupIntent = 'traveler' | 'operator';
 type FieldErrors = { name?: string; email?: string; password?: string };
 
 // Only ever redirect back to a path on this same site - a `next` value
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const { t } = useLanguage();
 
   const [mode, setMode] = useState<Mode>('login');
+  const [signupIntent, setSignupIntent] = useState<SignupIntent>('traveler');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -118,6 +120,7 @@ export default function LoginPage() {
 
     const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
     const body = mode === 'login' ? { email, password } : { name, email, password };
+    const operatorSignup = mode === 'signup' && signupIntent === 'operator';
 
     try {
       const res = await fetch(`${API_URL}${endpoint}`, {
@@ -132,7 +135,7 @@ export default function LoginPage() {
       }
       login(data.token, data.user);
       showToast(mode === 'login' ? t('login.welcomeToast', { name: data.user.name }) : t('login.accountCreatedToast'));
-      router.push(nextPath || '/');
+      router.push(operatorSignup ? '/dashboard' : nextPath || '/');
     } catch {
       setAuthError(t('login.couldntReachBackend'));
     } finally {
@@ -235,6 +238,43 @@ export default function LoginPage() {
               <p className="text-sm text-muted-foreground mb-6">
                 {mode === 'login' ? t('login.signInSubtitle') : t('login.createSubtitle')}
               </p>
+
+              {mode === 'signup' && (
+                <fieldset className="mb-5">
+                  <legend className="text-sm font-medium text-foreground mb-2">{t('login.accountTypePrompt')}</legend>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {([
+                      { id: 'traveler', Icon: Compass, title: 'login.travelerOptionTitle', description: 'login.travelerOptionDescription' },
+                      { id: 'operator', Icon: Store, title: 'login.operatorOptionTitle', description: 'login.operatorOptionDescription' },
+                    ] as const).map(({ id, Icon, title, description }) => {
+                      const selected = signupIntent === id;
+                      return (
+                        <label
+                          key={id}
+                          className={`min-h-[116px] cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+                            selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                          }`}
+                        >
+                          <span className="mb-2 flex items-center justify-between">
+                            <Icon size={18} className={selected ? 'text-primary' : 'text-muted-foreground'} aria-hidden="true" />
+                            <input
+                              type="radio"
+                              name="signupIntent"
+                              value={id}
+                              checked={selected}
+                              onChange={() => setSignupIntent(id)}
+                              className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            />
+                          </span>
+                          <span className="block text-sm font-semibold text-foreground">{t(title)}</span>
+                          <span className="mt-1 block text-xs leading-4 text-muted-foreground">{t(description)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{t('login.accountTypeNote')}</p>
+                </fieldset>
+              )}
 
               {authError && (
                 <p role="alert" className="flex items-start gap-2 text-sm text-danger mb-4">
