@@ -27,7 +27,7 @@ function sanitizeNext(next: string | null): string | null {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, login, logout, operatorProfile, mode: accountMode, setMode: setAccountMode } = useAuth();
+  const { user, loading, login, logout, mode: accountMode, setMode: setAccountMode } = useAuth();
   const { showToast } = useToast();
   const { t } = useLanguage();
 
@@ -49,11 +49,10 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setNextPath(sanitizeNext(params.get('next')));
-    if (params.get('mode') === 'signup') setMode('signup');
+    if (params.get('mode') === 'signup' || params.get('account_type') === 'operator') setMode('signup');
+    if (params.get('account_type') === 'operator') setSignupIntent('operator');
   }, []);
 
-
-  const wantsBooking = !!nextPath && /\/tours\/.+\/book/.test(nextPath);
 
   function validateField(field: 'name' | 'email' | 'password', value: string): string | undefined {
     if (field === 'name') {
@@ -119,7 +118,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
-    const body = mode === 'login' ? { email, password } : { name, email, password };
+    const body = mode === 'login' ? { email, password } : { name, email, password, account_type: signupIntent };
     const operatorSignup = mode === 'signup' && signupIntent === 'operator';
 
     try {
@@ -157,10 +156,26 @@ export default function LoginPage() {
         {/* Photo panel */}
         <div className="relative hidden md:block min-h-[560px] bg-navy">
           <HeroSlideshow />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/30 to-transparent" />
-          <div className="absolute bottom-0 inset-x-0 p-8 text-white">
-            <h2 className="text-2xl font-bold">{t('ui.login.welcome')}</h2>
-            <p className="text-sm text-white/80 mt-1.5 max-w-xs">{t('ui.login.welcomeBody')}</p>
+          <div className="absolute inset-0 bg-gradient-to-b from-navy/70 via-navy/15 to-navy/35" />
+          <div className="absolute inset-x-0 top-0 px-8 pt-10 lg:px-10 lg:pt-14 text-white">
+            {mode === 'signup' && (
+              <div className="mb-5 flex items-center gap-2.5">
+                <span className="h-px w-7 bg-primary" aria-hidden="true" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
+                  {t(signupIntent === 'operator' ? 'ui.login.operatorEyebrow' : 'ui.login.travelerEyebrow')}
+                </span>
+              </div>
+            )}
+            <h2 className="max-w-md font-display text-3xl font-bold leading-tight tracking-tight lg:text-[2.1rem]">
+              {mode === 'signup'
+                ? t(signupIntent === 'operator' ? 'ui.login.operatorWelcome' : 'ui.login.travelerWelcome')
+                : t('ui.login.welcome')}
+            </h2>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-white/90 lg:text-base">
+              {mode === 'signup'
+                ? t(signupIntent === 'operator' ? 'ui.login.operatorWelcomeBody' : 'ui.login.travelerWelcomeBody')
+                : t('ui.login.welcomeBody')}
+            </p>
           </div>
         </div>
 
@@ -173,12 +188,15 @@ export default function LoginPage() {
               <h1 className="text-lg font-bold text-foreground mb-1">{user!.name}</h1>
               <p className="text-sm text-muted-foreground mb-6">{user!.email}</p>
 
-              {operatorProfile && (
+              {user!.account_type === 'operator' && (
                 <div className="flex bg-muted rounded-lg p-1 mb-5">
                   {(['traveler', 'operator'] as const).map((m) => (
                     <button
                       key={m}
-                      onClick={() => setAccountMode(m)}
+                      onClick={() => {
+                        setAccountMode(m);
+                        router.push(m === 'operator' ? '/dashboard' : '/');
+                      }}
                       className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-all ${
                         accountMode === m ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'
                       }`}
@@ -187,15 +205,6 @@ export default function LoginPage() {
                     </button>
                   ))}
                 </div>
-              )}
-
-              {!operatorProfile && (
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="w-full text-sm font-semibold text-primary px-4 py-2.5 rounded-lg border border-primary hover:bg-primary/5 transition-colors mb-3"
-                >
-                  {t('ui.nav.becomeOperator')}
-                </button>
               )}
 
               <button
@@ -226,18 +235,16 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              {nextPath && (
-                <p className="mb-3 text-sm font-medium text-primary">
-                  {wantsBooking ? t('login.contextBooking') : t('login.contextGeneric')}
+              <h1 className="text-xl font-bold text-foreground mb-1">
+                {mode === 'login'
+                  ? t('login.signInHeading')
+                  : t(signupIntent === 'operator' ? 'login.operatorCreateHeading' : 'login.travelerCreateHeading')}
+              </h1>
+              {mode === 'signup' && (
+                <p className="text-sm text-muted-foreground mb-6">
+                  {t(signupIntent === 'operator' ? 'login.operatorCreateSubtitle' : 'login.travelerCreateSubtitle')}
                 </p>
               )}
-
-              <h1 className="text-xl font-bold text-foreground mb-1">
-                {mode === 'login' ? t('login.signInHeading') : t('login.createHeading')}
-              </h1>
-              <p className="text-sm text-muted-foreground mb-6">
-                {mode === 'login' ? t('login.signInSubtitle') : t('login.createSubtitle')}
-              </p>
 
               {mode === 'signup' && (
                 <fieldset className="mb-5">
@@ -272,7 +279,9 @@ export default function LoginPage() {
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{t('login.accountTypeNote')}</p>
+                  {signupIntent === 'operator' && (
+                    <p className="mt-2 text-xs text-muted-foreground">{t('login.accountTypeNote')}</p>
+                  )}
                 </fieldset>
               )}
 

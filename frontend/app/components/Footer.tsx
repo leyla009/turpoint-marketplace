@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Phone } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import type { Locale, TranslationKey } from '../lib/translations';
 import Logo from './Logo';
 
@@ -21,33 +22,47 @@ const EMERGENCY: { number: string; labelKey: TranslationKey }[] = [
 // traveler, so it stays in the Support column.
 export default function Footer() {
   const { t, locale, setLocale } = useLanguage();
+  const { user, loading, mode } = useAuth();
 
-  const columns: { titleKey: TranslationKey; links: { href: string; labelKey: TranslationKey }[] }[] = [
-    {
+  const operatorLinks: { href: string; labelKey: TranslationKey }[] | null = loading
+    ? null
+    : !user
+      ? [{ href: '/login?mode=signup&account_type=operator', labelKey: 'ui.nav.becomeOperator' }]
+      : user.account_type === 'operator' && mode === 'operator'
+        ? [
+            { href: '/dashboard', labelKey: 'ui.footer.operatorDashboard' },
+            { href: '/dashboard/new-tour', labelKey: 'footer.addTour' },
+          ]
+        : null;
+
+  const columns: { titleKey: TranslationKey; links: { href: string; labelKey: TranslationKey }[] }[] = [];
+
+  if (mode !== 'operator') {
+    columns.push({
       titleKey: 'footer.explore',
       links: [
         { href: '/tours', labelKey: 'ui.footer.tours' },
         { href: '/#destinations', labelKey: 'ui.nav.destinations' },
         { href: '/planner', labelKey: 'ui.nav.planner' },
       ],
-    },
-    {
+    });
+  }
+
+  if (operatorLinks) {
+    columns.push({
       titleKey: 'footer.forOperators',
-      links: [
-        { href: '/dashboard', labelKey: 'ui.nav.becomeOperator' },
-        { href: '/dashboard', labelKey: 'ui.footer.operatorDashboard' },
-        { href: '/dashboard/new-tour', labelKey: 'footer.addTour' },
-      ],
-    },
-    {
-      titleKey: 'ui.footer.support',
-      links: [
-        { href: '/bookings', labelKey: 'nav.bookings' },
-        { href: '/about', labelKey: 'about.title' },
-        { href: '/terms', labelKey: 'ui.footer.refundPolicy' },
-      ],
-    },
-  ];
+      links: operatorLinks,
+    });
+  }
+
+  columns.push({
+    titleKey: 'ui.footer.support',
+    links: [
+      ...(mode === 'operator' ? [] : [{ href: '/bookings', labelKey: 'nav.bookings' as TranslationKey }]),
+      { href: '/about', labelKey: 'about.title' },
+      { href: '/terms', labelKey: 'ui.footer.refundPolicy' },
+    ],
+  });
 
   const linkClass = 'text-sm text-white/60 hover:text-white transition-colors w-fit';
 

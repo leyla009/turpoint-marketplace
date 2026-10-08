@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard,
+  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard, ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -92,7 +92,7 @@ function LanguageMenu({ compact = false }: { compact?: boolean }) {
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, logout, operatorProfile, mode, setMode } = useAuth();
+  const { user, loading, logout, mode, setMode } = useAuth();
   const { t } = useLanguage();
 
   const links = mode === 'operator' ? OPERATOR_LINKS : TRAVELER_LINKS;
@@ -133,7 +133,7 @@ export default function Nav() {
       {/* Desktop header - solid white, sticky. */}
       <header className="hidden md:block sticky top-0 z-40 bg-card/95 backdrop-blur border-b border-border">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-8">
-          <Logo />
+          <Logo href={mode === 'operator' ? '/dashboard' : '/'} />
 
           <nav className="flex items-center gap-1">
             {links.map(({ href, labelKey }) => (
@@ -150,7 +150,7 @@ export default function Nav() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5">
-            {!loading && operatorProfile && (
+            {!loading && user?.account_type === 'operator' && (
               <div className="flex bg-muted rounded-lg p-0.5 mr-1">
                 {(['traveler', 'operator'] as const).map((m) => (
                   <button
@@ -193,9 +193,9 @@ export default function Nav() {
               </Link>
             )}
 
-            {!loading && !operatorProfile && (
+            {!loading && !user && (
               <Link
-                href={user ? '/dashboard' : '/login?next=/dashboard'}
+                href="/login?mode=signup&account_type=operator"
                 className="ml-1 inline-flex items-center h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary-hover transition-colors"
               >
                 {t('ui.nav.becomeOperator')}
@@ -221,6 +221,7 @@ export default function Nav() {
                 {accountMenuOpen === 'desktop' && (
                   <AccountMenu
                     anchor="below"
+                    showTravelerItems={mode !== 'operator'}
                     onSelect={openSection}
                     onClose={() => setAccountMenuOpen(null)}
                     onLogout={handleLogout}
@@ -234,9 +235,24 @@ export default function Nav() {
 
       {/* Mobile top bar - brand, bell and language. */}
       <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-card/95 backdrop-blur border-b border-border">
-        <Logo size="sm" />
+        <Logo size="sm" href={mode === 'operator' ? '/dashboard' : '/'} />
         <div className="flex items-center gap-1">
           {!loading && user && <NotificationBell size="sm" />}
+          {!loading && user?.account_type === 'operator' && (
+            <button
+              onClick={() => {
+                const nextMode = mode === 'operator' ? 'traveler' : 'operator';
+                setMode(nextMode);
+                router.push(nextMode === 'operator' ? '/dashboard' : '/');
+              }}
+              aria-label={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+              title={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+              className="inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-primary hover:bg-primary/5"
+            >
+              <ArrowLeftRight size={14} />
+              {t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+            </button>
+          )}
           <LanguageMenu compact />
           {!loading && !user && (
             <Link
@@ -285,6 +301,7 @@ export default function Nav() {
               {accountMenuOpen === 'mobile' && (
                 <AccountMenu
                   anchor="above"
+                  showTravelerItems={mode !== 'operator'}
                   onSelect={openSection}
                   onClose={() => setAccountMenuOpen(null)}
                   onLogout={handleLogout}

@@ -9,7 +9,7 @@ import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import { createOperatorSchema, updateOperatorSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireOperatorAccount } from '../middleware/auth.js';
 import { normalizeInstagram } from '../lib/instagram.js';
 import { buildOperatorAnalytics } from '../lib/analytics.js';
 import { createImageUpload } from '../lib/uploads.js';
@@ -76,7 +76,7 @@ function requireVerificationProvider(req, res, next) {
 // In-memory only: resets on restart, which merely gives a fresh set of tries.
 const verifyAttempts = new Map(); // operatorId -> failed attempts for the pending code
 
-router.post('/', requireAuth, validate(createOperatorSchema), (req, res) => {
+router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSchema), (req, res) => {
   const { name, description, languages, photo_url, phone, instagram } = req.body;
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
   if (!phone || !isValidPhone(phone)) {
@@ -112,7 +112,7 @@ router.get('/me', requireAuth, (req, res) => {
 // and per-tour performance, scoped to the logged-in operator's own tours
 // (ownership comes from the verified token, never from a query param).
 // Must be declared before GET /:id, or Express would match "me" as :id.
-router.get('/me/analytics', requireAuth, (req, res) => {
+router.get('/me/analytics', requireAuth, requireOperatorAccount, (req, res) => {
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
   res.json(buildOperatorAnalytics(db, operator.id));
@@ -121,7 +121,7 @@ router.get('/me/analytics', requireAuth, (req, res) => {
 // Profile photo upload - separate from PUT /:id since that route takes a
 // plain JSON body, not multipart. Only for an operator profile that
 // already exists (create it first via POST /, then add a photo).
-router.post('/me/photo', requireAuth, upload.single('photo'), (req, res) => {
+router.post('/me/photo', requireAuth, requireOperatorAccount, upload.single('photo'), (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
   if (!req.file) return res.status(400).json({ error: 'a valid image file is required' });
@@ -134,7 +134,7 @@ router.post('/me/photo', requireAuth, upload.single('photo'), (req, res) => {
 // Sends (mocked - see DEV_VERIFICATION_CODE above) a verification code for
 // a phone number, ahead of it being saved as the operator's real phone -
 // so the number can be confirmed before it's committed to the profile.
-router.post('/me/phone/send-code', requireAuth, requireVerificationProvider, (req, res) => {
+router.post('/me/phone/send-code', requireAuth, requireOperatorAccount, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
 
@@ -164,7 +164,7 @@ router.post('/me/phone/send-code', requireAuth, requireVerificationProvider, (re
 // Confirms the code from send-code above. On success, the pending phone
 // number becomes the operator's actual phone and is marked verified -
 // this is the only place phone_verified is ever set to true.
-router.post('/me/phone/verify-code', requireAuth, requireVerificationProvider, (req, res) => {
+router.post('/me/phone/verify-code', requireAuth, requireOperatorAccount, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
 
@@ -204,7 +204,7 @@ router.get('/:id', (req, res) => {
   res.json(publicOperator(operator));
 });
 
-router.put('/:id', requireAuth, validate(updateOperatorSchema), (req, res) => {
+router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorSchema), (req, res) => {
   const existing = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'operator not found' });
   if (existing.user_id !== req.user.userId) {

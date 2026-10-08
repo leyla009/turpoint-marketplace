@@ -54,6 +54,7 @@ export const signupSchema = z.object({
     .max(254, 'a valid email address is required')
     .email('a valid email address is required'),
   password: passwordRules(text(SIGNUP_REQUIRED, 'password must be at least 6 characters').min(1, SIGNUP_REQUIRED)),
+  account_type: z.enum(['traveler', 'operator']).default('traveler'),
 });
 
 // Login stays lenient on format on purpose: it must never lock out an

@@ -23,11 +23,13 @@ export default function AccountMenu({
   onSelect,
   onClose,
   onLogout,
+  showTravelerItems = true,
   anchor = 'below',
 }: {
   onSelect: (section: AccountSection) => void;
   onClose: () => void;
   onLogout: () => void;
+  showTravelerItems?: boolean;
   anchor?: 'below' | 'above';
 }) {
   const { t } = useLanguage();
@@ -55,7 +57,7 @@ export default function AccountMenu({
         anchor === 'below' ? 'top-full mt-2' : 'bottom-full mb-2'
       } right-0 w-56 bg-card border border-border rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.02),0_2px_6px_0_rgba(0,0,0,0.04),0_4px_8px_0_rgba(0,0,0,0.1)] py-1.5 z-50`}
     >
-      {ITEMS.map(({ id, labelKey, Icon }) => (
+      {ITEMS.filter(({ id }) => showTravelerItems || id === 'info').map(({ id, labelKey, Icon }) => (
         <button
           key={id}
           onClick={() => onSelect(id)}
@@ -65,14 +67,16 @@ export default function AccountMenu({
           {t(labelKey)}
         </button>
       ))}
-      <Link
-        href="/bookings"
-        onClick={onClose}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-      >
-        <Ticket size={15} className="text-muted-foreground shrink-0" />
-        {t('nav.bookings')}
-      </Link>
+      {showTravelerItems && (
+        <Link
+          href="/bookings"
+          onClick={onClose}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+        >
+          <Ticket size={15} className="text-muted-foreground shrink-0" />
+          {t('nav.bookings')}
+        </Link>
+      )}
       <div className="mt-1 pt-1 px-1.5 border-t border-border">
         <button
           onClick={onLogout}

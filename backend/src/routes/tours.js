@@ -9,7 +9,7 @@ import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import { createTourSchema, updateTourSchema } from '../lib/schemas.js';
 import { db } from '../db/index.js';
-import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { requireAuth, requireOperatorAccount, optionalAuth } from '../middleware/auth.js';
 import { createImageUpload, UPLOADS_ROOT } from '../lib/uploads.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -102,7 +102,7 @@ export function attachReviewStats(tours) {
   return Array.isArray(tours) ? withStats : withStats[0];
 }
 
-router.post('/', requireAuth, validate(createTourSchema), (req, res) => {
+router.post('/', requireAuth, requireOperatorAccount, validate(createTourSchema), (req, res) => {
   const {
     title, description, location, category,
     price, date, duration_days, min_participants, max_participants, interest_score, features, vehicle_features,
@@ -157,7 +157,7 @@ router.post('/', requireAuth, validate(createTourSchema), (req, res) => {
 // plain JSON body, not multipart. Requires the tour to already exist
 // (create it first via POST /, then add a photo) - same pattern as
 // POST /api/operators/me/photo.
-router.post('/:id/photo', requireAuth, upload.single('photo'), (req, res) => {
+router.post('/:id/photo', requireAuth, requireOperatorAccount, upload.single('photo'), (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
 
@@ -206,7 +206,7 @@ router.get('/:id/photos', (req, res) => {
   res.json(extraPhotos(tour.id));
 });
 
-router.post('/:id/photos', requireAuth, upload.single('photo'), (req, res) => {
+router.post('/:id/photos', requireAuth, requireOperatorAccount, upload.single('photo'), (req, res) => {
   const tour = ownedTour(req, res);
   if (!tour) {
     if (req.file) fs.unlink(req.file.path, () => {});
@@ -221,7 +221,7 @@ router.post('/:id/photos', requireAuth, upload.single('photo'), (req, res) => {
   res.status(201).json(extraPhotos(tour.id));
 });
 
-router.delete('/:id/photos/:photoId', requireAuth, (req, res) => {
+router.delete('/:id/photos/:photoId', requireAuth, requireOperatorAccount, (req, res) => {
   const tour = ownedTour(req, res);
   if (!tour) return;
   const photo = db.prepare('SELECT * FROM tour_photos WHERE id = ? AND tour_id = ?').get(req.params.photoId, tour.id);
@@ -332,7 +332,7 @@ router.get('/:id', optionalAuth, (req, res) => {
 // Update a tour - auth required, and only the owning operator can do it.
 // Partial update: only fields present in the body are changed, same pattern
 // as PUT /api/reviews/:id.
-router.put('/:id', requireAuth, validate(updateTourSchema), (req, res) => {
+router.put('/:id', requireAuth, requireOperatorAccount, validate(updateTourSchema), (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
 
@@ -419,7 +419,7 @@ router.put('/:id', requireAuth, validate(updateTourSchema), (req, res) => {
 
 // Delete a tour - auth required, and only the owning operator can do it.
 // Ownership is derived from the token, same pattern as PUT /operators/:id.
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requireOperatorAccount, (req, res) => {
   const tour = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
   if (!tour) return res.status(404).json({ error: 'tour not found' });
  

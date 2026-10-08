@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, Map as MapIcon, Ticket, Zap, BarChart3, Star, Store, ChevronRight, AlertCircle,
+  LayoutDashboard, Map as MapIcon, Ticket, Zap, BarChart3, Star, Store, ChevronRight, AlertCircle, PlusCircle, CalendarDays,
 } from 'lucide-react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -16,6 +16,7 @@ import type { TranslationKey } from '@/app/lib/translations';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type Section = 'overview' | 'tours' | 'bookings' | 'deals' | 'analytics' | 'reviews' | 'profile';
+type BookingFilter = 'upcoming' | 'past' | 'cancelled';
 
 interface AnalyticsData {
   summary: { total_tours: number; total_bookings: number; revenue: number; pending_revenue: number; avg_rating: number | null; review_count: number };
@@ -39,12 +40,29 @@ const NAV: { id: Section; labelKey: TranslationKey; Icon: typeof LayoutDashboard
   { id: 'profile', labelKey: 'dashboard.profileButton', Icon: Store },
 ];
 
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-4">
+function Kpi({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
+  const content = (
+    <>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
-    </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`${label}: ${value}`}
+        className="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">{content}</div>
   );
 }
 
@@ -133,51 +151,88 @@ export default function DashboardPage() {
   const { token, user, operatorProfile } = useAuth();
   const { t, locale } = useLanguage();
   const [section, setSection] = useState<Section>('overview');
+  const [bookingFilter, setBookingFilter] = useState<BookingFilter>('upcoming');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
-  const [loadError, setLoadError] = useState(false);
+  const [loadErrors, setLoadErrors] = useState({ analytics: false, bookings: false, tours: false });
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [reviewsByTour, setReviewsByTour] = useState<Record<number, any[]>>({});
+  const operatorId = operatorProfile?.id;
 
   useEffect(() => {
-    if (!token || !operatorProfile) return;
+    const readSection = () => {
+      const value = new URLSearchParams(window.location.search).get('section');
+      setSection(NAV.some((item) => item.id === value) ? (value as Section) : 'overview');
+    };
+    readSection();
+    window.addEventListener('popstate', readSection);
+    return () => window.removeEventListener('popstate', readSection);
+  }, []);
+
+  function navigateSection(next: Section) {
+    setSection(next);
+    const url = new URL(window.location.href);
+    if (next === 'overview') url.searchParams.delete('section');
+    else url.searchParams.set('section', next);
+    window.history.pushState({}, '', url);
+  }
+
+  useEffect(() => {
+    if (!token || !operatorId) return;
+    let cancelled = false;
+    setDashboardLoading(true);
+    setLoadErrors({ analytics: false, bookings: false, tours: false });
     const auth = { headers: { Authorization: `Bearer ${token}` } };
-    fetch(`${API_URL}/api/operators/me/analytics`, auth)
+    const requests = [fetch(`${API_URL}/api/operators/me/analytics`, auth)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setAnalytics)
-      .catch(() => setLoadError(true));
+      .then((data) => { if (!cancelled) setAnalytics(data); })
+      .catch(() => { if (!cancelled) setLoadErrors((current) => ({ ...current, analytics: true })); }),
     fetch(`${API_URL}/api/bookings/mine`, auth)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setBookings(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => { if (!cancelled) setBookings(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setLoadErrors((current) => ({ ...current, bookings: true })); }),
     fetch(`${API_URL}/api/tours`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((all) => setTours(Array.isArray(all) ? all.filter((x: any) => x.operator_id === operatorProfile.id) : []))
-      .catch(() => {});
-  }, [token, operatorProfile, section]);
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((all) => { if (!cancelled) setTours(Array.isArray(all) ? all.filter((x: any) => x.operator_id === operatorId) : []); })
+      .catch(() => { if (!cancelled) setLoadErrors((current) => ({ ...current, tours: true })); })];
+    Promise.all(requests).finally(() => { if (!cancelled) setDashboardLoading(false); });
+    return () => { cancelled = true; };
+  }, [token, operatorId]);
 
   // Reviews section: comments for the operator's reviewed tours.
   useEffect(() => {
     if (section !== 'reviews' || !analytics) return;
+    let cancelled = false;
     analytics.tours
       .filter((x) => x.review_count > 0)
       .slice(0, 12)
       .forEach((x) => {
         fetch(`${API_URL}/api/reviews?tour_id=${x.id}`)
           .then((r) => (r.ok ? r.json() : []))
-          .then((list) => setReviewsByTour((prev) => ({ ...prev, [x.id]: Array.isArray(list) ? list : [] })))
+          .then((list) => {
+            if (!cancelled) setReviewsByTour((prev) => ({ ...prev, [x.id]: Array.isArray(list) ? list : [] }));
+          })
           .catch(() => {});
       });
+    return () => { cancelled = true; };
   }, [section, analytics]);
 
-  const upcoming = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status !== 'cancelled' && !isPastDate(b.tour_date))
-        .sort((a, b) => String(a.tour_date).localeCompare(String(b.tour_date))),
-    [bookings]
-  );
+  const bookingGroups = useMemo(() => {
+    const groups: Record<BookingFilter, any[]> = { upcoming: [], past: [], cancelled: [] };
+    bookings.forEach((booking) => {
+      if (booking.status === 'cancelled') groups.cancelled.push(booking);
+      else if (isPastDate(booking.tour_date)) groups.past.push(booking);
+      else groups.upcoming.push(booking);
+    });
+    groups.upcoming.sort((a, b) => String(a.tour_date).localeCompare(String(b.tour_date)));
+    groups.past.sort((a, b) => String(b.tour_date).localeCompare(String(a.tour_date)));
+    return groups;
+  }, [bookings]);
+  const upcoming = bookingGroups.upcoming;
+  const visibleBookings = bookingGroups[bookingFilter];
   const dealTours = useMemo(() => tours.filter((x) => x.active_deal), [tours]);
+  const hasBookingActivity = analytics?.monthly.some((item) => item.bookings > 0) ?? false;
 
   if (authLoading) return <div className="max-w-7xl mx-auto p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
 
@@ -236,7 +291,9 @@ export default function DashboardPage() {
             {NAV.map(({ id, labelKey, Icon }) => (
               <button
                 key={id}
-                onClick={() => setSection(id)}
+                type="button"
+                onClick={() => navigateSection(id)}
+                aria-pressed={section === id}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   section === id ? 'bg-white/10 text-white' : 'text-white/65 hover:text-white hover:bg-white/5'
                 }`}
@@ -250,19 +307,32 @@ export default function DashboardPage() {
         <main className="min-w-0">
           {section === 'overview' && (
             <div className="space-y-5">
-              <h1 className="text-2xl font-bold text-foreground">{t(greetingKey, { name: firstName })}</h1>
-              {loadError && (
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">{t(greetingKey, { name: firstName })}</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('ui.dash.overviewSubtitle')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigateSection('tours')}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+                >
+                  <PlusCircle size={16} /> {t('dashboard.addTour')}
+                </button>
+              </div>
+              {Object.values(loadErrors).some(Boolean) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle size={16} /> {t('analytics.loadError')}
                 </p>
               )}
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <Kpi label={t('ui.dash.tours')} value={String(analytics?.summary.total_tours ?? tours.length)} />
-                <Kpi label={t('ui.dash.bookings')} value={String(analytics?.summary.total_bookings ?? '—')} />
-                <Kpi label={t('ui.dash.bookingValue')} value={analytics ? formatAzn(analytics.summary.revenue) : '—'} />
+                <Kpi label={t('ui.dash.tours')} value={dashboardLoading ? '—' : String(analytics?.summary.total_tours ?? tours.length)} onClick={() => navigateSection('tours')} />
+                <Kpi label={t('ui.dash.bookings')} value={dashboardLoading ? '—' : String(analytics?.summary.total_bookings ?? bookings.length)} onClick={() => navigateSection('bookings')} />
+                <Kpi label={t('ui.dash.bookingValue')} value={analytics ? formatAzn(analytics.summary.revenue) : '—'} onClick={() => navigateSection('analytics')} />
                 <Kpi
                   label={t('dashboard.rating')}
                   value={analytics?.summary.avg_rating ? analytics.summary.avg_rating.toFixed(1) : '—'}
+                  onClick={() => navigateSection('reviews')}
                 />
               </div>
 
@@ -273,10 +343,27 @@ export default function DashboardPage() {
                     {t('ui.dash.last6Months')}
                   </span>
                 </div>
-                {analytics ? (
-                  <ActivityChart data={analytics.monthly} />
-                ) : (
-                  <div className="h-48 bg-muted rounded-lg animate-pulse" />
+                {dashboardLoading && !analytics && <div className="h-48 animate-pulse rounded-lg bg-muted" />}
+                {analytics && hasBookingActivity && <ActivityChart data={analytics.monthly} />}
+                {analytics && !hasBookingActivity && (
+                  <div className="flex min-h-44 flex-col items-center justify-center rounded-lg bg-muted/50 px-5 py-7 text-center">
+                    <CalendarDays size={22} className="mb-2 text-primary" />
+                    <p className="max-w-md text-sm text-muted-foreground">
+                      {analytics.summary.total_tours === 0 ? t('ui.dash.noToursActivity') : t('ui.dash.noBookingActivity')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigateSection('tours')}
+                      className="mt-3 text-sm font-semibold text-primary hover:underline"
+                    >
+                      {analytics.summary.total_tours === 0 ? t('dashboard.addFirstTour') : t('ui.dash.viewTours')}
+                    </button>
+                  </div>
+                )}
+                {!analytics && !dashboardLoading && (
+                  <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                    <AlertCircle size={16} /> {t('analytics.loadError')}
+                  </p>
                 )}
               </div>
 
@@ -284,12 +371,16 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-sm font-bold text-foreground">{t('ui.dash.upcomingBookings')}</h2>
                   {upcoming.length > 5 && (
-                    <button onClick={() => setSection('bookings')} className="flex items-center text-xs font-semibold text-primary">
+                    <button type="button" onClick={() => navigateSection('bookings')} className="flex items-center text-xs font-semibold text-primary">
                       {t('ui.home.viewAll')} <ChevronRight size={13} />
                     </button>
                   )}
                 </div>
-                {upcoming.length === 0 ? (
+                {dashboardLoading ? (
+                  <div className="h-24 animate-pulse rounded-lg bg-muted" />
+                ) : loadErrors.bookings ? (
+                  <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><AlertCircle size={16} /> {t('analytics.loadError')}</p>
+                ) : upcoming.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">{t('ui.dash.noUpcoming')}</p>
                 ) : (
                   <ul className="divide-y divide-border">{upcoming.slice(0, 5).map(bookingRow)}</ul>
@@ -302,11 +393,39 @@ export default function DashboardPage() {
 
           {section === 'bookings' && (
             <div className="bg-card border border-border rounded-xl p-5">
-              <h1 className="text-xl font-bold text-foreground mb-2">{t('ui.dash.bookings')}</h1>
-              {bookings.length === 0 ? (
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">{t('ui.dash.bookings')}</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('ui.dash.bookingsSubtitle')}</p>
+                </div>
+                <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+                  {t('ui.dash.pendingCount', { count: dashboardLoading ? '—' : bookings.filter((booking) => booking.status === 'pending').length })}
+                </span>
+              </div>
+              <div className="mb-4 flex gap-2 overflow-x-auto border-b border-border">
+                {(['upcoming', 'past', 'cancelled'] as BookingFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setBookingFilter(filter)}
+                    aria-pressed={bookingFilter === filter}
+                    className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${bookingFilter === filter ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {t(`ui.bookings.${filter}` as TranslationKey)}
+                    <span className="ml-1.5 text-xs">{bookingGroups[filter].length}</span>
+                  </button>
+                ))}
+              </div>
+              {dashboardLoading ? (
+                <div className="h-28 animate-pulse rounded-lg bg-muted" />
+              ) : loadErrors.bookings ? (
+                <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><AlertCircle size={16} /> {t('analytics.loadError')}</p>
+              ) : bookings.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">{t('ui.dash.noBookings')}</p>
+              ) : visibleBookings.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">{t('ui.bookings.emptyTab')}</p>
               ) : (
-                <ul className="divide-y divide-border">{bookings.map(bookingRow)}</ul>
+                <ul className="divide-y divide-border">{visibleBookings.map(bookingRow)}</ul>
               )}
             </div>
           )}
@@ -315,7 +434,11 @@ export default function DashboardPage() {
             <div className="bg-card border border-border rounded-xl p-5">
               <h1 className="text-xl font-bold text-foreground mb-1">{t('ui.dash.deals')}</h1>
               <p className="text-sm text-muted-foreground mb-4">{t('ui.dash.dealsHint')}</p>
-              {dealTours.length === 0 ? (
+              {dashboardLoading ? (
+                <div className="h-24 animate-pulse rounded-lg bg-muted" />
+              ) : loadErrors.tours ? (
+                <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground"><AlertCircle size={16} /> {t('analytics.loadError')}</p>
+              ) : dealTours.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">{t('ui.dash.noDeals')}</p>
               ) : (
                 <ul className="divide-y divide-border">
@@ -341,7 +464,8 @@ export default function DashboardPage() {
                 </ul>
               )}
               <button
-                onClick={() => setSection('tours')}
+                type="button"
+                onClick={() => navigateSection('tours')}
                 className="mt-4 text-sm font-semibold text-primary flex items-center gap-1"
               >
                 <Zap size={14} /> {t('dashboard.createDeal')}
@@ -354,7 +478,11 @@ export default function DashboardPage() {
           {section === 'reviews' && (
             <div className="bg-card border border-border rounded-xl p-5">
               <h1 className="text-xl font-bold text-foreground mb-4">{t('tourDetail.reviews')}</h1>
-              {!analytics || analytics.tours.every((x) => x.review_count === 0) ? (
+              {dashboardLoading ? (
+                <div className="h-28 animate-pulse rounded-lg bg-muted" />
+              ) : loadErrors.analytics ? (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground"><AlertCircle size={16} /> {t('analytics.loadError')}</p>
+              ) : !analytics || analytics.tours.every((x) => x.review_count === 0) ? (
                 <p className="text-sm text-muted-foreground">{t('tourDetail.noReviewsYet')}</p>
               ) : (
                 <div className="space-y-5">

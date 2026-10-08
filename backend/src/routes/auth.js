@@ -24,7 +24,7 @@ const JWT_EXPIRES_IN = '7d';
 const avatarUpload = createImageUpload('users');
  
 router.post('/signup', validate(signupSchema), asyncHandler(async (req, res) => {
-  const { name, password } = req.body;
+  const { name, password, account_type } = req.body;
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
  
   if (!name || !email || !password) {
@@ -47,11 +47,11 @@ router.post('/signup', validate(signupSchema), asyncHandler(async (req, res) => 
  
   const passwordHash = await bcrypt.hash(password, 10);
   const result = db
-    .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
-    .run(name.trim(), email, passwordHash);
- 
+    .prepare('INSERT INTO users (name, email, password_hash, account_type) VALUES (?, ?, ?, ?)')
+    .run(name.trim(), email, passwordHash, account_type);
+
   const user = db
-    .prepare('SELECT id, name, email, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, name, email, account_type, created_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
  
@@ -90,7 +90,7 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
  
 // Every column the account settings page reads. Never includes password_hash.
 const ME_FIELDS = `id, name, first_name, last_name, email, id_number, phone, country,
-  preferred_language, photo_url, password_changed_at, created_at`;
+  preferred_language, photo_url, account_type, password_changed_at, created_at`;
 
 // Accounts created before first/last name existed only have `name`; split it
 // on the first space so the form starts filled in rather than blank.

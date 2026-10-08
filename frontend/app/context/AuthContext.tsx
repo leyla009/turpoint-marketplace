@@ -17,6 +17,7 @@ export interface AuthUser {
   country?: string | null;          // ISO 3166-1 alpha-2
   preferred_language?: 'az' | 'en' | 'ru' | null;
   photo_url?: string | null;
+  account_type: 'traveler' | 'operator';
   password_changed_at?: string | null;
   created_at?: string;
 }
@@ -68,29 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((op) => {
         setOperatorProfile(op);
-        // Fixed: a stored 'operator' mode from localStorage was being
-        // applied before this fetch resolved, and never corrected if it
-        // came back null - so a tampered/stale localStorage value could
-        // leave the UI in operator mode with no real profile behind it.
-        if (!op) {
-          localStorage.setItem(MODE_KEY, 'traveler');
-          setModeState('traveler');
-        }
       })
       .catch(() => setOperatorProfile(null));
   }, []);
  
-  // On first load: validate any stored token against the backend (never
-  // trust it blindly), then separately check whether this account has an
-  // operator profile at all — a 404 there just means "traveler only",
-  // not an error.
+  // On first load, validate the stored token and derive the view mode from
+  // the saved account type. The local mode preference never grants operator
+  // privileges to traveler accounts.
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
     const storedMode = localStorage.getItem(MODE_KEY);
  
     if (!stored) {
       // No session at all - can't be in operator mode with nothing to
-      // back it. Correct it here too, not just in fetchOperatorProfile.
+      // back it.
       if (storedMode === 'operator') {
         localStorage.setItem(MODE_KEY, 'traveler');
       }
@@ -98,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
  
-    if (storedMode === 'operator') setModeState('operator');
     fetch(`${API_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${stored}` },
     })
@@ -109,18 +100,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(async (data) => {
         setToken(stored);
         setUser(data.user);
+        const mode: Mode = data.user.account_type === 'operator' && storedMode !== 'traveler' ? 'operator' : 'traveler';
+        localStorage.setItem(MODE_KEY, mode);
+        setModeState(mode);
         await fetchOperatorProfile(stored);
       })
       .catch(() => {
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(MODE_KEY);
+        setModeState('traveler');
       })
       .finally(() => setLoading(false));
   }, [fetchOperatorProfile]);
  
   const login = (newToken: string, newUser: AuthUser) => {
     localStorage.setItem(TOKEN_KEY, newToken);
+    const initialMode: Mode = newUser.account_type === 'operator' ? 'operator' : 'traveler';
+    localStorage.setItem(MODE_KEY, initialMode);
     setToken(newToken);
     setUser(newUser);
+    setOperatorProfile(null);
+    setModeState(initialMode);
     fetchOperatorProfile(newToken);
   };
  
@@ -133,10 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setModeState('traveler');
   };
  
-  // Only meaningful when an operator profile exists — you can't switch
-  // into operator mode without one, no matter what's in localStorage.
+  // Only an operator account can enter operator mode. Its initial profile
+  // setup is also part of that mode, before an operator profile exists.
   const setMode = (newMode: Mode) => {
-    if (newMode === 'operator' && !operatorProfile) return;
+    if (newMode === 'operator' && user?.account_type !== 'operator') return;
     localStorage.setItem(MODE_KEY, newMode);
     setModeState(newMode);
   };

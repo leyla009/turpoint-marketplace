@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   country TEXT,               -- ISO 3166-1 alpha-2
   preferred_language TEXT,    -- az | en | ru
   photo_url TEXT,             -- /uploads/users/...
+  account_type TEXT NOT NULL DEFAULT 'traveler' CHECK (account_type IN ('traveler', 'operator')),
   password_changed_at TEXT,   -- null until the password is changed from account settings
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

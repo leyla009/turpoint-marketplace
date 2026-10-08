@@ -71,6 +71,15 @@ for (const col of ['first_name', 'last_name', 'phone', 'country', 'preferred_lan
   }
 }
 
+// Account type is selected at signup. Existing accounts that already own an
+// operator profile keep operator access; everyone else defaults to traveler.
+if (!userColumns.includes('account_type')) {
+  db.exec("ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'traveler' CHECK (account_type IN ('traveler', 'operator'))");
+  db.exec(`UPDATE users SET account_type = 'operator'
+    WHERE EXISTS (SELECT 1 FROM operators WHERE operators.user_id = users.id)`);
+  console.log('Migration applied: users.account_type added.');
+}
+
 // Operator contact info (phone/Instagram) replacing the vehicle_features
 // profile field - vehicle_features itself stays untouched so the
 // homepage's existing "Nəqliyyat filtrləri" filter keeps working off

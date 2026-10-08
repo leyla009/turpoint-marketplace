@@ -299,9 +299,11 @@ export default function OperatorProfileForm() {
           {isEditing ? t('profile.editProfileTitle') : t('profile.becomeOperatorTitle')}
         </h1>
       </div>
-      <p className="mb-5 ml-[52px] text-sm leading-6 text-muted-foreground">
-        {isEditing ? t('profile.editSubtitle') : t('profile.createSubtitle')}
-      </p>
+      {isEditing && (
+        <p className="mb-5 ml-[52px] text-sm leading-6 text-muted-foreground">
+          {t('profile.editSubtitle')}
+        </p>
+      )}
 
       {isEditing && (
         <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-4 mb-3">
@@ -343,7 +345,6 @@ export default function OperatorProfileForm() {
         className={isEditing ? 'max-w-lg space-y-3 rounded-xl border border-border bg-card p-4' : 'space-y-4'}
       >
         <div className={isEditing ? 'space-y-3' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
-          {!isEditing && <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.sectionBusiness')}</p>}
           <div>
             <label htmlFor="operator-name" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.companyName')}</label>
             <input

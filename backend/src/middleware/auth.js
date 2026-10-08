@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../lib/jwt.js';
+import { db } from '../db/index.js';
  
 // Verifies the Bearer token and attaches the decoded payload as req.user.
 // Mirrors the checks GET /api/auth/me previously did inline — extracted
@@ -16,6 +17,17 @@ export function requireAuth(req, res, next) {
   } catch {
     res.status(401).json({ error: 'invalid or expired token' });
   }
+}
+
+// Operator-only actions are tied to the account type chosen at signup.
+// Having a valid session is not enough to create or manage operator data.
+export function requireOperatorAccount(req, res, next) {
+  const user = db.prepare('SELECT account_type FROM users WHERE id = ?').get(req.user.userId);
+  if (!user) return res.status(401).json({ error: 'user not found' });
+  if (user.account_type !== 'operator') {
+    return res.status(403).json({ error: 'an operator account is required' });
+  }
+  next();
 }
 
 
