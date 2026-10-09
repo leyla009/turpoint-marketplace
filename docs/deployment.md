@@ -9,7 +9,7 @@ Backend on **Railway**, frontend on **Vercel**. Both redeploy automatically on e
 ## 1. Backend → Railway
 
 1. **Create the project:** [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → select this repo.
-2. **Root directory:** set the service's Root Directory to `backend`. Nixpacks detects the Node app and `backend/railway.json` supplies the start command (`node src/server.js`) and the health check (`/api/health`).
+2. **Root directory:** set the service's Root Directory to `/backend` and select `/backend/railway.json` as its config file. This runs the backend package directly. If the service stays at the repository root, the root `railway.json` installs `backend` dependencies and starts the backend for you.
 3. **Persistent volume:** the database is a SQLite file, so without a volume it resets on every redeploy. Service → Settings → Volumes → New Volume, mount path `/data`.
 4. **Environment variables** (Service → Variables):
 

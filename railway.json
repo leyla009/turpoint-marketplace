@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "cd backend && npm ci"
+  },
+  "deploy": {
+    "startCommand": "cd backend && npm start",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 30,
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  }
+}
