@@ -110,6 +110,7 @@ interface OperatorReview {
   created_at?: string;
   tour_title: string;
   tour_title_i18n?: string | null;
+  tour_title_i18n?: string | null;
 }
 
 interface Group {
@@ -203,6 +204,7 @@ export default function TourDetail() {
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
   const [showOperatorModal, setShowOperatorModal] = useState(false);
+  const closeOperatorModal = useCallback(() => setShowOperatorModal(false), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
   const [allTours, setAllTours] = useState<ApiTour[]>([]);
@@ -545,7 +547,8 @@ export default function TourDetail() {
         )}`
       : null;
   const instagramUrl = buildInstagramUrl(operator?.instagram);
-  const operatorTourCount = allTours.filter((x) => x.operator_id === tour.operator_id).length;
+  const operatorTours = allTours.filter((x) => x.operator_id === tour.operator_id);
+  const operatorTourCount = operatorTours.length;
   const isOwnTour = !!operatorProfile && operatorProfile.id === tour.operator_id;
   const isPast = isPastDate(tour.date);
 
@@ -1201,7 +1204,10 @@ export default function TourDetail() {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 mt-4">
+            {operator?.description && (
+              <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-foreground/80">{operator.description}</p>
+            )}
+            {(whatsappUrl || instagramUrl) && <div className="flex flex-wrap gap-2 mt-4">
               {whatsappUrl && (
                 <a
                   href={whatsappUrl}
@@ -1222,8 +1228,7 @@ export default function TourDetail() {
                   <AtSign size={16} /> Instagram
                 </a>
               )}
-              {!whatsappUrl && !instagramUrl && <p className="text-sm text-muted-foreground">{t('tourDetail.noContactYet')}</p>}
-            </div>
+            </div>}
           </section>
         </div>
 
@@ -1385,7 +1390,15 @@ export default function TourDetail() {
         </section>
       )}
 
-      {showOperatorModal && operator && <OperatorProfileModal operator={operator} onClose={() => setShowOperatorModal(false)} />}
+      {showOperatorModal && operator && (
+        <OperatorProfileModal
+          operator={operator}
+          tours={operatorTours.length > 0 ? operatorTours : [tour]}
+          reviews={operatorReviews}
+          currentTourId={tour.id}
+          onClose={closeOperatorModal}
+        />
+      )}
       {lightboxAt !== null && photos.length > 0 && <Lightbox photos={photos} start={lightboxAt} title={title} onClose={() => setLightboxAt(null)} />}
 
       {/* Mobile / tablet booking bar */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart3, Eye, Heart, Star, AlertCircle } from 'lucide-react';
+import { BarChart3, Eye, Heart, Star, AlertCircle, PlusCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { TranslationKey } from '../lib/translations';
@@ -68,7 +68,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
 // The operator dashboard's "Analytics" section: headline numbers, bookings
 // per month, and a per-tour breakdown (fill rate, revenue, views, saves,
 // rating). Pure CSS bars - no chart library needed.
-export default function OperatorAnalytics() {
+export default function OperatorAnalytics({ onAddTour }: { onAddTour: () => void }) {
   const { token } = useAuth();
   const { t, locale } = useLanguage();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -89,8 +89,6 @@ export default function OperatorAnalytics() {
       cancelled = true;
     };
   }, [token]);
-
-  if (state.kind === 'ready' && state.data.summary.total_tours === 0) return null; // nothing to analyze yet
 
   function monthLabel(ym: string) {
   return formatDate(`${ym}-01`, locale, { month: 'short' });
@@ -127,7 +125,25 @@ export default function OperatorAnalytics() {
         </div>
       )}
 
+      {state.kind === 'ready' && state.data.summary.total_tours === 0 && (
+        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BarChart3 size={22} />
+          </span>
+          <h3 className="mt-4 text-lg font-bold text-foreground">{t('analytics.emptyTitle')}</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t('analytics.emptyBody')}</p>
+          <button
+            type="button"
+            onClick={onAddTour}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+          >
+            <PlusCircle size={16} /> {t('dashboard.addTour')} <ArrowRight size={15} />
+          </button>
+        </div>
+      )}
+
       {state.kind === 'ready' &&
+        state.data.summary.total_tours > 0 &&
         (() => {
           const { summary, monthly, tours } = state.data;
           const maxMonthly = Math.max(1, ...monthly.map((m) => m.bookings));

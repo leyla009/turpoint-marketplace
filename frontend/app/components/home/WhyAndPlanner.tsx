@@ -104,7 +104,6 @@ export default function WhyAndPlanner() {
             {t('ui.why.pSubmit')} <ArrowRight size={16} />
           </button>
         </form>
-        <p className="text-xs text-white/60 text-center mt-3">{t('ui.why.pFoot')}</p>
       </div>
     </section>
   );

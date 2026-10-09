@@ -362,6 +362,8 @@ const az = {
   // Operator analytics (dashboard)
   'analytics.title': 'Analitika',
   'analytics.loadError': 'Analitikanı yükləmək mümkün olmadı.',
+  'analytics.emptyTitle': 'Analitika burada görünəcək',
+  'analytics.emptyBody': 'Rezervasiyaları, gəliri, baxışları və rəyləri izləmək üçün ilk turunuzu əlavə edin.',
   'analytics.revenue': 'Gəlir',
   'analytics.pendingRevenue': 'Gözləyən: {amount}',
   'analytics.bookings': 'Rezervasiyalar',
@@ -1081,6 +1083,8 @@ const en: Record<TranslationKey, string> = {
   // Operator analytics (dashboard)
   'analytics.title': 'Analytics',
   'analytics.loadError': "Couldn't load analytics.",
+  'analytics.emptyTitle': 'Your analytics will appear here',
+  'analytics.emptyBody': 'Add your first tour to start tracking bookings, revenue, views, and reviews.',
   'analytics.revenue': 'Revenue',
   'analytics.pendingRevenue': 'Pending: {amount}',
   'analytics.bookings': 'Bookings',
@@ -1787,6 +1791,8 @@ const ru: Record<TranslationKey, string> = {
   // Operator analytics (dashboard)
   'analytics.title': 'Аналитика',
   'analytics.loadError': 'Не удалось загрузить аналитику.',
+  'analytics.emptyTitle': 'Здесь появится аналитика',
+  'analytics.emptyBody': 'Добавьте первый тур, чтобы отслеживать бронирования, доход, просмотры и отзывы.',
   'analytics.revenue': 'Доход',
   'analytics.pendingRevenue': 'Ожидается: {amount}',
   'analytics.bookings': 'Бронирования',

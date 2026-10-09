@@ -12,6 +12,7 @@ import { placeName } from '../../lib/tourContent';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const UNIT_KEY = 'turpoint_temp_unit';
+const FEATURED_CITY_IDS = new Set(['baku', 'sheki', 'guba', 'gabala', 'shamakhi', 'lankaran', 'ganja']);
 
 type Condition = 'clear' | 'clear-night' | 'partly-cloudy' | 'partly-cloudy-night' | 'cloudy' | 'drizzle' | 'rain' | 'snow';
 
@@ -115,10 +116,17 @@ export default function WeatherPanel() {
       .catch(() => setStatus((s) => ({ ...s, [c.id]: 'error' })));
   }
 
-  const city = useMemo(() => data?.cities.find((c) => c.id === selected) ?? data?.cities[0], [data, selected]);
+  const visibleCities = useMemo(
+    () => data?.cities.filter((c) => FEATURED_CITY_IDS.has(c.id)) ?? [],
+    [data]
+  );
+  const city = useMemo(
+    () => visibleCities.find((c) => c.id === selected) ?? visibleCities[0],
+    [visibleCities, selected]
+  );
 
   // Nothing to show until at least one city has a real forecast.
-  if (!data?.configured || !city || !data.cities.some(isLoaded)) return null;
+  if (!data?.configured || !city || !visibleCities.some(isLoaded)) return null;
 
   const deg = (c: number | null) => (c == null ? '—' : `${Math.round(unit === 'F' ? (c * 9) / 5 + 32 : c)}°`);
   const bakuTime = (iso: string) =>
@@ -156,7 +164,7 @@ export default function WeatherPanel() {
 
       {/* City chips */}
       <div className="flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap scrollbar-hide pb-1 mb-4">
-        {data.cities.map((c) => {
+        {visibleCities.map((c) => {
           const Icon = isLoaded(c) ? ICONS[c.current.condition] : MapPin;
           const active = c.id === city.id;
           return (

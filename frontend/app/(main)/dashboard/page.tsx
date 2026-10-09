@@ -473,7 +473,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {section === 'analytics' && <OperatorAnalytics />}
+          {section === 'analytics' && <OperatorAnalytics onAddTour={() => navigateSection('tours')} />}
 
           {section === 'reviews' && (
             <div className="bg-card border border-border rounded-xl p-5">
