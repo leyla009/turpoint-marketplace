@@ -110,7 +110,6 @@ interface OperatorReview {
   created_at?: string;
   tour_title: string;
   tour_title_i18n?: string | null;
-  tour_title_i18n?: string | null;
 }
 
 interface Group {
