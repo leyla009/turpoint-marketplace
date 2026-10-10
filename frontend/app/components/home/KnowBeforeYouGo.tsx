@@ -147,9 +147,9 @@ export default function KnowBeforeYouGo() {
     <section aria-labelledby="kbyg-title">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
         <div>
-          <h2 id="kbyg-title" className="text-2xl sm:text-[28px] font-bold text-navy">
+          <h1 id="kbyg-title" className="text-2xl sm:text-[28px] font-bold text-navy">
             {t('ui.kbyg.title')}
-          </h2>
+          </h1>
         </div>
         <ExtLink href={LINKS.guide} className="text-sm shrink-0">
           {t('ui.kbyg.fullGuide')} <ArrowRight size={14} />

@@ -11,7 +11,6 @@ import HeroSearchBar from '@/app/components/HeroSearchBar';
 import DestinationMosaic from '@/app/components/home/DestinationMosaic';
 import PopularNow from '@/app/components/home/PopularNow';
 import WeatherPanel from '@/app/components/home/WeatherPanel';
-import KnowBeforeYouGo from '@/app/components/home/KnowBeforeYouGo';
 import WhyAndPlanner from '@/app/components/home/WhyAndPlanner';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -170,9 +169,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-
-      {/* Visa checker + entry essentials (rules and sources in lib/entryRules.ts) */}
-      <KnowBeforeYouGo />
 
       {/* Live weather (hidden until the backend has a Stormglass key) */}
       <WeatherPanel />

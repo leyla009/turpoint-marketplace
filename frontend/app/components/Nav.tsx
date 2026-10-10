@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard, ArrowLeftRight,
+  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard, ArrowLeftRight, FileText,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -147,6 +147,17 @@ export default function Nav() {
                 {t(labelKey)}
               </Link>
             ))}
+            <Link
+              href="/know-before-you-go"
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors ${
+                isActive('/know-before-you-go')
+                  ? 'bg-primary-hover text-primary-foreground ring-2 ring-primary/20'
+                  : 'bg-primary text-primary-foreground hover:bg-primary-hover'
+              }`}
+            >
+              <FileText size={15} />
+              {t('tourDetail.knowBeforeYouGo')}
+            </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5">
@@ -234,34 +245,49 @@ export default function Nav() {
       </header>
 
       {/* Mobile top bar - brand, bell and language. */}
-      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-card/95 backdrop-blur border-b border-border">
-        <Logo size="sm" href={mode === 'operator' ? '/dashboard' : '/'} />
-        <div className="flex items-center gap-1">
-          {!loading && user && <NotificationBell size="sm" />}
-          {!loading && user?.account_type === 'operator' && (
-            <button
-              onClick={() => {
-                const nextMode = mode === 'operator' ? 'traveler' : 'operator';
-                setMode(nextMode);
-                router.push(nextMode === 'operator' ? '/dashboard' : '/');
-              }}
-              aria-label={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
-              title={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
-              className="inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-primary hover:bg-primary/5"
-            >
-              <ArrowLeftRight size={14} />
-              {t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
-            </button>
-          )}
-          <LanguageMenu compact />
-          {!loading && !user && (
-            <Link
-              href="/login"
-              className="ml-1 inline-flex items-center h-8 px-3 rounded-lg border border-primary text-primary text-xs font-semibold"
-            >
-              {t('nav.signIn')}
-            </Link>
-          )}
+      <div className="md:hidden sticky top-0 z-40 bg-card/95 backdrop-blur border-b border-border">
+        <div className="flex items-center justify-between px-4 h-14">
+          <Logo size="sm" href={mode === 'operator' ? '/dashboard' : '/'} />
+          <div className="flex items-center gap-1">
+            {!loading && user && <NotificationBell size="sm" />}
+            {!loading && user?.account_type === 'operator' && (
+              <button
+                onClick={() => {
+                  const nextMode = mode === 'operator' ? 'traveler' : 'operator';
+                  setMode(nextMode);
+                  router.push(nextMode === 'operator' ? '/dashboard' : '/');
+                }}
+                aria-label={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+                title={t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+                className="inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-primary hover:bg-primary/5"
+              >
+                <ArrowLeftRight size={14} />
+                {t(mode === 'operator' ? 'nav.traveler' : 'nav.operator')}
+              </button>
+            )}
+            <LanguageMenu compact />
+            {!loading && !user && (
+              <Link
+                href="/login"
+                className="ml-1 inline-flex items-center h-8 px-3 rounded-lg border border-primary text-primary text-xs font-semibold"
+              >
+                {t('nav.signIn')}
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="px-4 pb-2">
+          <Link
+            href="/know-before-you-go"
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 h-8 text-xs font-semibold shadow-sm transition-colors ${
+              isActive('/know-before-you-go')
+                ? 'bg-primary-hover text-primary-foreground ring-2 ring-primary/20'
+                : 'bg-primary text-primary-foreground hover:bg-primary-hover'
+            }`}
+          >
+            <FileText size={14} />
+            {t('tourDetail.knowBeforeYouGo')}
+          </Link>
         </div>
       </div>
 
