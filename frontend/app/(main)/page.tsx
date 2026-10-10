@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronRight, Star, Zap } from 'lucide-react';
-import { type ApiTour } from '@/app/components/TourCard';
+import { CalendarRange, ChevronRight, Star, Zap } from 'lucide-react';
+import { CATEGORY_STYLE, type ApiTour } from '@/app/components/TourCard';
 import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchBar from '@/app/components/HeroSearchBar';
 import DestinationMosaic from '@/app/components/home/DestinationMosaic';
@@ -79,6 +79,14 @@ export default function Home() {
   }, []);
 
   const dealCount = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number').length, [tours]);
+  const categoryCounts = useMemo(
+    () => tours.reduce<Record<string, number>>((counts, tour) => {
+      if (tour.category) counts[tour.category] = (counts[tour.category] ?? 0) + 1;
+      return counts;
+    }, {}),
+    [tours],
+  );
+  const multiDayCount = useMemo(() => tours.filter((tour) => tour.duration_days > 1).length, [tours]);
   const firstName = user?.name?.split(' ')[0];
 
   return (
@@ -160,9 +168,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-
-      {/* Visa checker + entry essentials (rules and sources in lib/entryRules.ts) */}
-      <KnowBeforeYouGo />
 
       {/* Live weather (hidden until the backend has a Stormglass key) */}
       <WeatherPanel />
