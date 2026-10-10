@@ -43,6 +43,13 @@ if (!operatorColumns.includes('user_id')) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_operators_user_id ON operators(user_id)');
   console.log('Migration applied: operators.user_id added.');
 }
+const operatorProfileColumns = db.prepare('PRAGMA table_info(operators)').all().map((c) => c.name);
+for (const [column, type] of [['voen', 'TEXT'], ['business_card_last4', 'TEXT']]) {
+  if (!operatorProfileColumns.includes(column)) {
+    db.exec(`ALTER TABLE operators ADD COLUMN ${column} ${type}`);
+    console.log(`Migration applied: operators.${column} added.`);
+  }
+}
 
 // Homepage feature-tag filter (breakfast/evening tea/guide/road games/
 // hotel stay): same defensive add-if-missing pattern as user_id above.
@@ -143,6 +150,7 @@ if (!tourVehicleColumns.includes('click_count')) {
 // nothing to refund) - see the cancel route.
 const bookingColumns = db.prepare('PRAGMA table_info(bookings)').all().map((c) => c.name);
 const bookingAdds = [
+  ['checked_in_at', 'TEXT'],           // set when an operator validates the ticket QR
   ['payment_status', 'TEXT'],          // authorized | paid | partially_refunded | refunded | voided
   ['paid_amount', 'REAL DEFAULT 0'],   // money actually captured so far
   ['refund_amount', 'REAL DEFAULT 0'],

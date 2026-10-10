@@ -2,20 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, Map as MapIcon, Ticket, Zap, BarChart3, Star, Store, ChevronRight, AlertCircle, PlusCircle, CalendarDays,
+  LayoutDashboard, Map as MapIcon, Ticket, Zap, BarChart3, Star, Store, ChevronRight, AlertCircle, PlusCircle, CalendarDays, ScanLine, WalletCards,
 } from 'lucide-react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import OperatorPanelContent from '@/app/components/OperatorPanelContent';
 import OperatorAnalytics from '@/app/components/OperatorAnalytics';
 import OperatorProfileForm from '@/app/components/OperatorProfileForm';
+import TicketScanner from '@/app/components/TicketScanner';
+import OperatorEarnings from '@/app/components/OperatorEarnings';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
 import { titleFromI18n, placeName } from '@/app/lib/tourContent';
 import type { TranslationKey } from '@/app/lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type Section = 'overview' | 'tours' | 'bookings' | 'deals' | 'analytics' | 'reviews' | 'profile';
+type Section = 'overview' | 'tours' | 'bookings' | 'scan' | 'earnings' | 'deals' | 'analytics' | 'reviews' | 'profile';
 type BookingFilter = 'upcoming' | 'past' | 'cancelled';
 
 interface AnalyticsData {
@@ -34,6 +36,8 @@ const NAV: { id: Section; labelKey: TranslationKey; Icon: typeof LayoutDashboard
   { id: 'overview', labelKey: 'nav.dashboard', Icon: LayoutDashboard },
   { id: 'tours', labelKey: 'ui.dash.myTours', Icon: MapIcon },
   { id: 'bookings', labelKey: 'ui.dash.bookings', Icon: Ticket },
+  { id: 'scan', labelKey: 'ui.dash.scanTicket', Icon: ScanLine },
+  { id: 'earnings', labelKey: 'ui.dash.earnings', Icon: WalletCards },
   { id: 'deals', labelKey: 'ui.dash.deals', Icon: Zap },
   { id: 'analytics', labelKey: 'analytics.title', Icon: BarChart3 },
   { id: 'reviews', labelKey: 'tourDetail.reviews', Icon: Star },
@@ -429,6 +433,10 @@ export default function DashboardPage() {
               )}
             </div>
           )}
+
+          {section === 'scan' && token && <TicketScanner token={token} />}
+
+          {section === 'earnings' && <OperatorEarnings />}
 
           {section === 'deals' && (
             <div className="bg-card border border-border rounded-xl p-5">

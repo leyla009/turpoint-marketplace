@@ -209,6 +209,8 @@ const operatorFields = {
   vehicle_features: optionalText('vehicle_features', 500),
   phone: text('a valid phone number starting with +994 is required').regex(/^\+994\d{9}$/, 'a valid phone number starting with +994 is required'),
   instagram: optionalText('instagram', 100),
+  voen: text('a valid 10-digit VOEN is required').regex(/^\d{10}$/, 'a valid 10-digit VOEN is required'),
+  business_card_last4: text('enter the last 4 digits of the demo business card').regex(/^\d{4}$/, 'enter the last 4 digits of the demo business card'),
 };
 
 export const createOperatorSchema = z.object(operatorFields);

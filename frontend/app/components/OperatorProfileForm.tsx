@@ -39,6 +39,8 @@ export default function OperatorProfileForm() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [voen, setVoen] = useState('');
+  const [businessCardLast4, setBusinessCardLast4] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [instagram, setInstagram] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +65,8 @@ export default function OperatorProfileForm() {
     if (operatorProfile) {
       setName(operatorProfile.name ?? '');
       setDescription(operatorProfile.description ?? '');
+      setVoen(operatorProfile.voen ?? '');
+      setBusinessCardLast4(operatorProfile.business_card_last4 ?? '');
       setPhoneDigits((operatorProfile.phone ?? '').replace(PHONE_PREFIX, ''));
       setInstagram(operatorProfile.instagram ?? '');
     }
@@ -155,6 +159,14 @@ export default function OperatorProfileForm() {
       setError(t('profile.phoneInvalid'));
       return;
     }
+    if (!/^\d{10}$/.test(voen)) {
+      setError(t('profile.voenInvalid'));
+      return;
+    }
+    if (!/^\d{4}$/.test(businessCardLast4)) {
+      setError(t('profile.demoCardInvalid'));
+      return;
+    }
     setSubmitting(true);
     try {
       const url = isEditing ? `${API_URL}/api/operators/${operatorProfile!.id}` : `${API_URL}/api/operators`;
@@ -162,7 +174,7 @@ export default function OperatorProfileForm() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, description, phone: fullPhone, instagram: instagram.trim() || null }),
+        body: JSON.stringify({ name, description, phone: fullPhone, instagram: instagram.trim() || null, voen, business_card_last4: businessCardLast4 }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -367,6 +379,44 @@ export default function OperatorProfileForm() {
               rows={3}
               className="w-full resize-y rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
             />
+          </div>
+        </div>
+
+        <div className={isEditing ? 'space-y-3 rounded-xl border border-border bg-card p-4' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.businessDetails')}</p>
+          <div>
+            <label htmlFor="operator-voen" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.voen')}</label>
+            <input
+              id="operator-voen"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={10}
+              value={voen}
+              onChange={(e) => setVoen(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="1234567890"
+              className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none focus:border-primary"
+            />
+            <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{t('profile.voenHint')}</p>
+          </div>
+          <div>
+            <label htmlFor="operator-demo-card" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.demoCard')}</label>
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="rounded-lg border border-border bg-card px-3.5 py-3 font-mono text-sm text-muted-foreground">•••• •••• ••••</span>
+              <input
+                id="operator-demo-card"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                value={businessCardLast4}
+                onChange={(e) => setBusinessCardLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="1234"
+                aria-label={t('profile.demoCardLast4')}
+                className="w-24 rounded-lg border border-border bg-card px-3.5 py-3 font-mono text-base text-foreground outline-none focus:border-primary"
+              />
+            </div>
+            <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{t('profile.demoCardHint')}</p>
           </div>
         </div>
 

@@ -240,6 +240,48 @@ router.get('/mine', requireAuth, (req, res) => {
  
   res.json(bookings);
 });
+
+// Operator ticket scanner: a QR code is valid only for a confirmed, fully
+// paid booking on one of this operator's tours. Successful scans check the
+// ticket in atomically so it cannot be reused.
+router.post('/scan', requireAuth, (req, res) => {
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  if (!code) return res.status(400).json({ error: 'ticket code is required' });
+
+  const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) return res.status(403).json({ error: 'an operator account is required' });
+
+  const booking = db.prepare(
+    `SELECT b.id, b.ticket_code, b.status, b.payment_status, b.paid_amount,
+            b.total_price, b.seats, b.checked_in_at, b.tour_id,
+            t.title AS tour_title, t.title_i18n AS tour_title_i18n, t.date AS tour_date,
+            u.name AS traveler_name
+     FROM bookings b
+     JOIN tours t ON t.id = b.tour_id
+     JOIN users u ON u.id = b.user_id
+     WHERE b.ticket_code = ? AND t.operator_id = ?`
+  ).get(code, operator.id);
+
+  if (!booking) return res.status(404).json({ valid: false, error: 'ticket not found for your tours' });
+  if (booking.status !== 'confirmed') return res.status(409).json({ valid: false, error: 'booking is not confirmed' });
+  if (booking.payment_status !== 'paid' || Number(booking.paid_amount) < Number(booking.total_price)) {
+    return res.status(409).json({ valid: false, error: 'payment has not been completed' });
+  }
+  if (booking.checked_in_at) {
+    return res.status(409).json({ valid: false, already_checked_in: true, error: 'ticket has already been used', booking });
+  }
+
+  const checkedInAt = new Date().toISOString();
+  const result = db.prepare(
+    'UPDATE bookings SET checked_in_at = ? WHERE id = ? AND checked_in_at IS NULL'
+  ).run(checkedInAt, booking.id);
+  if (result.changes !== 1) {
+    const current = db.prepare('SELECT checked_in_at FROM bookings WHERE id = ?').get(booking.id);
+    return res.status(409).json({ valid: false, already_checked_in: true, error: 'ticket has already been used', checked_in_at: current?.checked_in_at });
+  }
+
+  res.json({ valid: true, checked_in_at: checkedInAt, booking: { ...booking, checked_in_at: checkedInAt } });
+});
  
 // A traveler's own bookings across every tour they've booked. Distinct
 // from GET /mine (which is operator-scoped, bookings ON their tours) —

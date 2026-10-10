@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS operators (
   phone_verification_phone TEXT,         -- the number that code was issued for
   phone_verification_expires_at TEXT,
   instagram TEXT,             -- handle, without the leading @
+  voen TEXT,                  -- operator taxpayer identification number
+  business_card_last4 TEXT,   -- mock demo destination only; never store a full card number
   rating REAL DEFAULT 0,
   completed_tours_count INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -92,6 +94,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   total_price REAL NOT NULL,
   status TEXT DEFAULT 'confirmed', -- pending | confirmed | cancelled (pending = group hasn't reached its minimum yet)
   ticket_code TEXT UNIQUE,
+  checked_in_at TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
  

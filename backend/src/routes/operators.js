@@ -28,6 +28,8 @@ function publicOperator(row) {
     phone_verification_phone,
     phone_verification_expires_at,
     user_id,
+    voen,
+    business_card_last4,
     ...safe
   } = row;
   return safe;
@@ -77,7 +79,7 @@ function requireVerificationProvider(req, res, next) {
 const verifyAttempts = new Map(); // operatorId -> failed attempts for the pending code
 
 router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSchema), (req, res) => {
-  const { name, description, languages, photo_url, phone, instagram } = req.body;
+  const { name, description, languages, photo_url, phone, instagram, voen, business_card_last4 } = req.body;
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
   if (!phone || !isValidPhone(phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
@@ -90,10 +92,10 @@ router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSch
 
   const result = db
     .prepare(
-      `INSERT INTO operators (name, description, languages, photo_url, phone, instagram, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO operators (name, description, languages, photo_url, phone, instagram, voen, business_card_last4, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, normalizeInstagram(instagram), req.user.userId);
+    .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, normalizeInstagram(instagram), voen, business_card_last4, req.user.userId);
 
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(ownOperator(operator));
@@ -116,6 +118,44 @@ router.get('/me/analytics', requireAuth, requireOperatorAccount, (req, res) => {
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
   res.json(buildOperatorAnalytics(db, operator.id));
+});
+
+// Simulated operator wallet. Only successful captured payments increase the
+// balance; refunds subtract from it, while pending authorizations stay held.
+router.get('/me/earnings', requireAuth, requireOperatorAccount, (req, res) => {
+  const operator = db.prepare('SELECT id, business_card_last4 FROM operators WHERE user_id = ?').get(req.user.userId);
+  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+
+  const balance = db.prepare(
+    `SELECT COALESCE(SUM(CASE
+       WHEN p.type IN ('charge', 'capture') THEN p.amount
+       WHEN p.type = 'refund' THEN -p.amount
+       ELSE 0 END), 0) AS amount
+     FROM payments p
+     JOIN bookings b ON b.id = p.booking_id
+     JOIN tours t ON t.id = b.tour_id
+     WHERE t.operator_id = ? AND p.status = 'succeeded'`
+  ).get(operator.id).amount;
+
+  const pending = db.prepare(
+    `SELECT COALESCE(SUM(b.total_price), 0) AS amount
+     FROM bookings b JOIN tours t ON t.id = b.tour_id
+     WHERE t.operator_id = ? AND b.payment_status = 'authorized' AND b.status = 'pending'`
+  ).get(operator.id).amount;
+
+  const transactions = db.prepare(
+    `SELECT p.id, p.type, p.amount, p.created_at, b.ticket_code,
+            t.title AS tour_title, t.title_i18n AS tour_title_i18n, u.name AS traveler_name
+     FROM payments p
+     JOIN bookings b ON b.id = p.booking_id
+     JOIN tours t ON t.id = b.tour_id
+     JOIN users u ON u.id = b.user_id
+     WHERE t.operator_id = ? AND p.status = 'succeeded'
+       AND p.type IN ('charge', 'capture', 'refund') AND p.amount > 0
+     ORDER BY p.id DESC LIMIT 100`
+  ).all(operator.id);
+
+  res.json({ balance: Number(balance) || 0, pending: Number(pending) || 0, demo_card_last4: operator.business_card_last4, transactions });
 });
 
 // Profile photo upload - separate from PUT /:id since that route takes a
@@ -214,7 +254,7 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
   // Only these fields are editable through this route. Merging the whole
   // body let a client overwrite rating, user_id, phone_verified, etc., and
   // `name: null` reached the NOT NULL column and returned a 500.
-  const EDITABLE = ['name', 'description', 'languages', 'photo_url', 'vehicle_features', 'phone', 'instagram'];
+  const EDITABLE = ['name', 'description', 'languages', 'photo_url', 'vehicle_features', 'phone', 'instagram', 'voen', 'business_card_last4'];
   const updated = { ...existing };
   for (const key of EDITABLE) {
     if (req.body?.[key] !== undefined) updated[key] = req.body[key];
@@ -226,13 +266,15 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
   if (!updated.phone || !isValidPhone(updated.phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
+  if (!/^\d{10}$/.test(updated.voen ?? '')) return res.status(400).json({ error: 'a valid 10-digit VOEN is required' });
+  if (!/^\d{4}$/.test(updated.business_card_last4 ?? '')) return res.status(400).json({ error: 'enter the last 4 digits of the demo business card' });
   // Changing the phone number through the regular profile save (rather
   // than the verify-code flow) means it's no longer confirmed - only
   // POST /me/phone/verify-code is allowed to set this back to true.
   const phoneVerified = updated.phone === existing.phone ? existing.phone_verified : 0;
 
   db.prepare(
-    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, phone_verified=?, instagram=? WHERE id=?`
+    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, phone_verified=?, instagram=?, voen=?, business_card_last4=? WHERE id=?`
   ).run(
     updated.name,
     updated.description,
@@ -242,6 +284,8 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
     updated.phone,
     phoneVerified,
     normalizeInstagram(updated.instagram),
+    updated.voen,
+    updated.business_card_last4,
     req.params.id
   );
 
