@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronRight, Star, CalendarRange, Zap } from 'lucide-react';
-import { type ApiTour, CATEGORY_STYLE } from '@/app/components/TourCard';
+import { ChevronRight, Star, Zap } from 'lucide-react';
+import { type ApiTour } from '@/app/components/TourCard';
 import HeroSlideshow from '@/app/components/HeroSlideshow';
 import HeroSearchBar from '@/app/components/HeroSearchBar';
 import DestinationMosaic from '@/app/components/home/DestinationMosaic';
@@ -80,15 +80,6 @@ export default function Home() {
   }, []);
 
   const dealCount = useMemo(() => tours.filter((t) => typeof t.discounted_price === 'number').length, [tours]);
-  const multiDayCount = useMemo(() => tours.filter((t) => t.duration_days > 1).length, [tours]);
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    tours.forEach((t) => {
-      if (t.category) counts[t.category] = (counts[t.category] ?? 0) + 1;
-    });
-    return counts;
-  }, [tours]);
-
   const firstName = user?.name?.split(' ')[0];
 
   return (
@@ -142,34 +133,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      {/* Explore by category */}
-      <section>
-        <SectionHeader title={t('ui.home.exploreByCategory')} />
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            ...Object.entries(CATEGORY_STYLE).map(([key, s]) => ({
-              key,
-              Icon: s.Icon,
-              label: t(s.labelKey),
-              count: categoryCounts[key] ?? 0,
-            })),
-            { key: 'multiday', Icon: CalendarRange, label: t('ui.category.multiday'), count: multiDayCount },
-          ].map(({ key, Icon, label, count }) => (
-            <Link
-              key={key}
-              href={`/tours?category=${key}`}
-              className="group flex flex-col items-center gap-2 bg-card border border-border rounded-xl px-3 py-5 hover:border-primary/40 hover:shadow-card transition-all"
-            >
-              <span className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                <Icon size={20} className="text-primary" />
-              </span>
-              <span className="text-sm font-medium text-foreground text-center">{label}</span>
-              <span className="text-[11px] text-muted-foreground -mt-1.5">{t('ui.home.tourCount', { count })}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
 
       {/* Visa checker + entry essentials (rules and sources in lib/entryRules.ts) */}
       <KnowBeforeYouGo />
