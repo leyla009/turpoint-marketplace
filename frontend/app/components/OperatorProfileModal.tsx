@@ -147,7 +147,7 @@ export default function OperatorProfileModal({
         </header>
 
         <div className="space-y-7 px-5 py-6 sm:px-8 sm:py-7">
-          {(operator.description || languages.length > 0 || areasServed.length > 0 || operator.phone || handle) && (
+          {(operator.description || languages.length > 0 || areasServed.length > 0 || operator.phone || socialLinks.length > 0) && (
             <section className="grid gap-5 sm:grid-cols-[1.3fr_1fr]">
               {operator.description && (
                 <div>
