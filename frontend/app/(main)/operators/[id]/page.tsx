@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   Globe2,
   Heart,
-  AtSign,
+  Link2,
   Languages,
   Loader2,
   MapPin,
@@ -21,7 +21,7 @@ import { useLanguage } from '@/app/context/LanguageContext';
 import { CATEGORY_STYLE, CategoryMotif, dayCount, type ApiTour } from '@/app/components/TourCard';
 import { useFavorites } from '@/app/lib/useFavorites';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
-import { instagramUrl } from '@/app/lib/instagram';
+import { parseSocialLinks, SOCIAL_PLATFORM_LABELS } from '@/app/lib/socialLinks';
 import { photoSrc } from '@/app/lib/photo';
 import { placeName, tourTitle } from '@/app/lib/tourContent';
 
@@ -36,6 +36,7 @@ interface Operator {
   phone?: string | null;
   phone_verified?: number | boolean | null;
   instagram?: string | null;
+  social_links?: string | null;
   rating?: number | null;
   created_at?: string | null;
 }
@@ -62,11 +63,11 @@ function languageList(value: string | null | undefined): string[] {
   if (!value?.trim()) return [];
   try {
     const parsed: unknown = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean);
+    if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean).map((item) => /^[a-z]{2}$/i.test(item) ? item.toUpperCase() : item);
   } catch {
     // Older profiles store this as a comma or slash separated string.
   }
-  return value.split(/[,/|]/).map((item) => item.trim()).filter(Boolean);
+  return value.split(/[,/|]/).map((item) => item.trim()).filter(Boolean).map((item) => /^[a-z]{2}$/i.test(item) ? item.toUpperCase() : item);
 }
 
 function initials(name?: string) {
@@ -158,7 +159,7 @@ export default function OperatorProfilePage() {
   }, [operator?.rating, summary]);
   const profilePhoto = photoSrc(operator?.photo_url);
   const heroPhoto = photoSrc(tours.find((tour) => tour.photo_url)?.photo_url);
-  const profileUrl = instagramUrl(operator?.instagram);
+  const socialLinks = parseSocialLinks(operator?.social_links, operator?.instagram);
   const phone = operator?.phone?.trim();
   const verified = operator?.phone_verified === true || Number(operator?.phone_verified) === 1;
   const displayedReviews = showAllReviews ? summary.reviews : summary.reviews.slice(0, 3);
@@ -324,8 +325,8 @@ export default function OperatorProfilePage() {
           <div><h2 className="text-2xl font-bold">{t('ui.operatorPage.contactTitle')}</h2><p className="mt-2 text-sm text-muted-foreground">{t('ui.operatorPage.contactHint')}</p></div>
           <div className="mt-5 flex flex-wrap gap-3 md:mt-0">
             {phone && <a href={`tel:${phone}`} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90"><Phone size={16} />{phone}</a>}
-            {profileUrl && <a href={profileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold hover:border-primary hover:text-primary"><AtSign size={16} />Instagram</a>}
-            {!phone && !profileUrl && <p className="text-sm text-muted-foreground">{t('ui.operatorPage.noContact')}</p>}
+            {socialLinks.map((link, index) => <a key={`${link.platform}-${index}`} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold hover:border-primary hover:text-primary"><Link2 size={16} />{SOCIAL_PLATFORM_LABELS[link.platform]}</a>)}
+            {!phone && socialLinks.length === 0 && <p className="text-sm text-muted-foreground">{t('ui.operatorPage.noContact')}</p>}
           </div>
         </section>
       </div>

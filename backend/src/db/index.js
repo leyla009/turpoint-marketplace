@@ -97,6 +97,10 @@ if (!operatorContactColumns.includes('phone')) {
   db.exec('ALTER TABLE operators ADD COLUMN instagram TEXT');
   console.log('Migration applied: operators.phone and operators.instagram added.');
 }
+if (!operatorContactColumns.includes('social_links')) {
+  db.exec('ALTER TABLE operators ADD COLUMN social_links TEXT');
+  console.log('Migration applied: operators.social_links added.');
+}
 
 // Vehicle features move from being set once on the operator profile to
 // being set per tour (the add-tour form) - a tour matches the homepage's

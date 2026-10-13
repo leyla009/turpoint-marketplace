@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { X, Star, Phone, AtSign, MapPin, Clock3, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Star, Phone, Link2, MapPin, Clock3, ChevronUp, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { instagramHandle, instagramUrl } from '@/app/lib/instagram';
+import { parseSocialLinks, SOCIAL_PLATFORM_LABELS } from '@/app/lib/socialLinks';
 import { formatAzn, isPastDate } from '@/app/lib/format';
 import { placeName, titleFromI18n } from '@/app/lib/tourContent';
 import { photoSrc } from '@/app/lib/photo';
@@ -21,6 +21,7 @@ interface OperatorProfileModalOperator {
   phone?: string | null;
   phone_verified?: number | null;
   instagram?: string | null;
+  social_links?: string | null;
 }
 
 interface OperatorProfileModalReview {
@@ -74,7 +75,8 @@ export default function OperatorProfileModal({
   const languages = (operator.languages ?? '')
     .split(',')
     .map((language) => language.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((language) => /^[a-z]{2}$/i.test(language) ? language.toUpperCase() : language);
   const sortedTours = useMemo(
     () =>
       [...tours].sort((a, b) => {
@@ -95,7 +97,7 @@ export default function OperatorProfileModal({
   const areasServed = Array.from(new Set(tours.map((tour) => tour.location).filter((location): location is string => Boolean(location))));
   const visibleTours = showAllTours ? sortedTours : sortedTours.slice(0, 3);
   const writtenReviews = reviews.filter((review) => review.comment?.trim()).slice(0, 3);
-  const handle = instagramHandle(operator.instagram);
+  const socialLinks = parseSocialLinks(operator.social_links, operator.instagram);
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-3 sm:p-5" onClick={onClose}>
@@ -179,23 +181,24 @@ export default function OperatorProfileModal({
                     </div>
                   </div>
                 )}
-                {(operator.phone || handle) && (
+                {(operator.phone || socialLinks.length > 0) && (
                   <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3">
                     {operator.phone && (
                       <a href={`tel:${operator.phone}`} className="inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary">
                         <Phone size={15} className="text-primary" /> {operator.phone}
                       </a>
                     )}
-                    {handle && (
+                    {socialLinks.map((link, index) => (
                       <a
-                        href={instagramUrl(operator.instagram) ?? '#'}
+                        key={`${link.platform}-${index}`}
+                        href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
                       >
-                        <AtSign size={15} className="text-primary" /> @{handle}
+                        <Link2 size={15} className="text-primary" /> {SOCIAL_PLATFORM_LABELS[link.platform]}
                       </a>
-                    )}
+                    ))}
                   </div>
                 )}
               </div>

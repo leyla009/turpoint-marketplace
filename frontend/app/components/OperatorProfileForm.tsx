@@ -1,14 +1,42 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Store, Camera, AtSign, Phone, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { Store, Camera, Link2, Phone, CheckCircle2, ArrowUpRight, Check, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { normalizeSocialUrl, parseSocialLinks, SOCIAL_PLATFORMS, SOCIAL_PLATFORM_LABELS, type SocialLink, type SocialPlatform } from '../lib/socialLinks';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const PHONE_PREFIX = '+994';
 const PHONE_DIGIT_COUNT = 9;
+const DESCRIPTION_MAX_LENGTH = 2000;
+const LANGUAGE_OPTIONS = [
+  { code: 'az', label: 'Azərbaycan dili' },
+  { code: 'en', label: 'English' },
+  { code: 'ru', label: 'Русский' },
+  { code: 'tr', label: 'Türkçe' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+];
+
+function parseLanguages(value?: string | null): string[] {
+  if (!value?.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map((language) => String(language).trim().toLowerCase()).filter(Boolean);
+  } catch {
+    // Existing profiles store language codes as comma-separated text.
+  }
+  return value.split(/[,/|]/).map((language) => language.trim().toLowerCase()).filter(Boolean);
+}
+
+function initials(name?: string | null): string {
+  return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
 
 // Live-formats the digits after +994 as 2-3-2-2 (e.g. "50 123 45 67"),
 // matching Azerbaijan's standard 9-digit mobile number layout - purely
@@ -39,10 +67,9 @@ export default function OperatorProfileForm() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [voen, setVoen] = useState('');
-  const [businessCardLast4, setBusinessCardLast4] = useState('');
+  const [languages, setLanguages] = useState<string[]>([]);
   const [phoneDigits, setPhoneDigits] = useState('');
-  const [instagram, setInstagram] = useState('');
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -65,10 +92,9 @@ export default function OperatorProfileForm() {
     if (operatorProfile) {
       setName(operatorProfile.name ?? '');
       setDescription(operatorProfile.description ?? '');
-      setVoen(operatorProfile.voen ?? '');
-      setBusinessCardLast4(operatorProfile.business_card_last4 ?? '');
+      setLanguages(parseLanguages(operatorProfile.languages));
       setPhoneDigits((operatorProfile.phone ?? '').replace(PHONE_PREFIX, ''));
-      setInstagram(operatorProfile.instagram ?? '');
+      setSocialLinks(parseSocialLinks(operatorProfile.social_links, operatorProfile.instagram));
     }
   }, [operatorProfile]);
 
@@ -159,14 +185,6 @@ export default function OperatorProfileForm() {
       setError(t('profile.phoneInvalid'));
       return;
     }
-    if (!/^\d{10}$/.test(voen)) {
-      setError(t('profile.voenInvalid'));
-      return;
-    }
-    if (!/^\d{4}$/.test(businessCardLast4)) {
-      setError(t('profile.demoCardInvalid'));
-      return;
-    }
     setSubmitting(true);
     try {
       const url = isEditing ? `${API_URL}/api/operators/${operatorProfile!.id}` : `${API_URL}/api/operators`;
@@ -174,7 +192,13 @@ export default function OperatorProfileForm() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, description, phone: fullPhone, instagram: instagram.trim() || null, voen, business_card_last4: businessCardLast4 }),
+        body: JSON.stringify({
+          name,
+          description,
+          languages: languages.join(',') || null,
+          phone: fullPhone,
+          social_links: socialLinks.filter((link) => link.url.trim()).map((link) => ({ ...link, url: normalizeSocialUrl(link.url) })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -189,6 +213,22 @@ export default function OperatorProfileForm() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function addSocialLink() {
+    setSocialLinks((current) => {
+      if (current.length >= 10) return current;
+      const firstUnused = SOCIAL_PLATFORMS.find((platform) => !current.some((link) => link.platform === platform));
+      return [...current, { platform: firstUnused ?? 'instagram', url: '' }];
+    });
+  }
+
+  function updateSocialLink(index: number, update: Partial<SocialLink>) {
+    setSocialLinks((current) => current.map((link, row) => row === index ? { ...link, ...update } : link));
+  }
+
+  function removeSocialLink(index: number) {
+    setSocialLinks((current) => current.filter((_, row) => row !== index));
   }
 
   async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -283,18 +323,18 @@ export default function OperatorProfileForm() {
               <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
                 {description.trim() || t('profile.previewDescription')}
               </p>
-              {(phoneDigits || instagram.trim()) && (
+              {(phoneDigits || socialLinks.some((link) => link.url.trim())) && (
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
                   {phoneDigits && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                       <Phone size={12} aria-hidden="true" /> {PHONE_PREFIX} {formatPhoneDigits(phoneDigits)}
                     </span>
                   )}
-                  {instagram.trim() && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                      <AtSign size={12} aria-hidden="true" /> {instagram.trim()}
-                    </span>
-                  )}
+                  {socialLinks.filter((link) => link.url.trim()).map((link, index) => (
+                    <a key={`${link.platform}-${index}`} href={normalizeSocialUrl(link.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-primary">
+                      <Link2 size={12} aria-hidden="true" /> {SOCIAL_PLATFORM_LABELS[link.platform]}
+                    </a>
+                  ))}
                 </div>
               )}
             </div>
@@ -302,41 +342,37 @@ export default function OperatorProfileForm() {
         </aside>
       )}
 
-      <div className={isEditing ? '' : 'min-w-0 bg-card px-5 py-6 sm:px-8 sm:py-9 md:px-8 md:py-10 lg:px-10'}>
-      <div className="flex items-center gap-3 mb-1">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Store size={19} aria-hidden="true" />
-        </span>
-        <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">
-          {isEditing ? t('profile.editProfileTitle') : t('profile.becomeOperatorTitle')}
-        </h1>
+      <div className={isEditing ? 'w-full' : 'min-w-0 bg-card px-5 py-6 sm:px-8 sm:py-9 md:px-8 md:py-10 lg:px-10'}>
+      <div className={`${isEditing ? 'mb-5' : 'mb-1'} flex items-center gap-3`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Store size={19} aria-hidden="true" />
+          </span>
+          <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">
+            {isEditing ? t('profile.editProfileTitle') : t('profile.becomeOperatorTitle')}
+          </h1>
+        </div>
       </div>
       {isEditing && (
-        <p className="mb-5 ml-[52px] text-sm leading-6 text-muted-foreground">
-          {t('profile.editSubtitle')}
-        </p>
-      )}
-
-      {isEditing && (
-        <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-4 mb-3">
-          <div className="w-16 h-16 rounded-full bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+        <div className="mb-5 flex w-full items-center gap-4 border-b border-border pb-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-primary">
             {operatorProfile!.photo_url ? (
               <img
                 src={`${API_URL}${operatorProfile!.photo_url}`}
-                alt={operatorProfile!.name}
+                alt=""
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Camera size={22} className="text-muted-foreground" />
+              <span className="font-display text-xl font-bold">{initials(name || operatorProfile!.name)}</span>
             )}
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground mb-1">{t('profile.photo')}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{t('profile.photo')}</p>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="text-xs font-semibold text-primary disabled:opacity-50"
+              className="mt-1 text-sm font-semibold text-primary disabled:opacity-50"
             >
               {uploading ? t('profile.uploading') : operatorProfile!.photo_url ? t('profile.changePhoto') : t('profile.uploadPhoto')}
             </button>
@@ -354,9 +390,13 @@ export default function OperatorProfileForm() {
 
       <form
         onSubmit={handleSubmit}
-        className={isEditing ? 'max-w-lg space-y-3 rounded-xl border border-border bg-card p-4' : 'space-y-4'}
+        className={isEditing ? 'w-full space-y-5' : 'space-y-4'}
       >
-        <div className={isEditing ? 'space-y-3' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+        <section className={isEditing ? 'w-full space-y-4' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+          <div>
+            <h2 className="text-base font-bold text-foreground">{t('profile.publicProfile')}</h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">{t('profile.publicProfileHint')}</p>
+          </div>
           <div>
             <label htmlFor="operator-name" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.companyName')}</label>
             <input
@@ -376,58 +416,51 @@ export default function OperatorProfileForm() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('profile.descriptionPlaceholder')}
+              maxLength={DESCRIPTION_MAX_LENGTH}
               rows={3}
               className="w-full resize-y rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
             />
-          </div>
-        </div>
-
-        <div className={isEditing ? 'space-y-3 rounded-xl border border-border bg-card p-4' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.businessDetails')}</p>
-          <div>
-            <label htmlFor="operator-voen" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.voen')}</label>
-            <input
-              id="operator-voen"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={10}
-              value={voen}
-              onChange={(e) => setVoen(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="1234567890"
-              className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none focus:border-primary"
-            />
-            <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{t('profile.voenHint')}</p>
-          </div>
-          <div>
-            <label htmlFor="operator-demo-card" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.demoCard')}</label>
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className="rounded-lg border border-border bg-card px-3.5 py-3 font-mono text-sm text-muted-foreground">•••• •••• ••••</span>
-              <input
-                id="operator-demo-card"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={4}
-                value={businessCardLast4}
-                onChange={(e) => setBusinessCardLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="1234"
-                aria-label={t('profile.demoCardLast4')}
-                className="w-24 rounded-lg border border-border bg-card px-3.5 py-3 font-mono text-base text-foreground outline-none focus:border-primary"
-              />
+            <div className="mt-1 flex items-start justify-between gap-3">
+              <p className="text-xs leading-5 text-muted-foreground">{t('profile.descriptionPublicHint')}</p>
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                {t('profile.descriptionCount', { count: description.length })}
+              </span>
             </div>
-            <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{t('profile.demoCardHint')}</p>
           </div>
-        </div>
+          <div>
+            <p className="mb-2 block text-sm font-semibold text-foreground">{t('profile.languages')}</p>
+            <p className="mb-3 text-xs leading-5 text-muted-foreground">{t('profile.languagesHint')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('profile.languages')}>
+              {LANGUAGE_OPTIONS.map(({ code, label }) => {
+                const selected = languages.includes(code);
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setLanguages((current) => selected ? current.filter((item) => item !== code) : [...current, code])}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
+                  >
+                    {selected && <Check size={14} aria-hidden="true" />}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-        <div className={isEditing ? 'space-y-3' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
-          {!isEditing && <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t('profile.sectionContact')}</p>}
+        <section className={isEditing ? 'w-full space-y-4 border-t border-border pt-5' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
+          <div>
+            <h2 className="text-base font-bold text-foreground">{t('profile.sectionContact')}</h2>
+          </div>
           <div>
             <label htmlFor="operator-phone" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
               {t('profile.phone')}
-              {isPhoneVerified && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent">
-                  <CheckCircle2 size={11} /> {t('profile.verified')}
+              {verificationEnabled && isEditing && (
+                <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${isPhoneVerified ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                  {isPhoneVerified && <CheckCircle2 size={11} />}
+                  {isPhoneVerified ? t('profile.verified') : t('profile.phoneNotVerified')}
                 </span>
               )}
             </label>
@@ -489,23 +522,51 @@ export default function OperatorProfileForm() {
               </div>
             )}
           </div>
+        </section>
+
+        <section className={isEditing ? 'w-full space-y-4 border-t border-border pt-5' : 'space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5'}>
           <div>
-            <label htmlFor="operator-instagram" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.instagram')}</label>
-            <div className="flex items-center gap-2">
-              <span className="flex shrink-0 items-center justify-center rounded-lg border border-border bg-card px-3.5 py-3 text-sm font-semibold text-muted-foreground">
-                <AtSign size={16} aria-hidden="true" />
-              </span>
-              <input
-                id="operator-instagram"
-                type="text"
-                value={instagram}
-                onChange={(e) => setInstagram(e.target.value.replace(/^@+/, ''))}
-                placeholder={t('profile.instagramPlaceholder')}
-                className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
-              />
-            </div>
+            <h2 className="text-base font-bold text-foreground">{t('profile.socialMedia')}</h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">{t('profile.socialMediaHint')}</p>
           </div>
-        </div>
+          {socialLinks.length > 0 && <div className="space-y-3">
+            {socialLinks.map((link, index) => (
+              <div key={index} className="grid gap-2 sm:grid-cols-[minmax(150px,0.35fr)_minmax(0,1fr)_44px]">
+                <label className="sr-only" htmlFor={`operator-social-platform-${index}`}>{t('profile.socialPlatform')}</label>
+                <select
+                  id={`operator-social-platform-${index}`}
+                  value={link.platform}
+                  onChange={(event) => updateSocialLink(index, { platform: event.target.value as SocialPlatform })}
+                  className="min-h-11 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary"
+                >
+                  {SOCIAL_PLATFORMS.map((platform) => <option key={platform} value={platform}>{SOCIAL_PLATFORM_LABELS[platform]}</option>)}
+                </select>
+                <label className="sr-only" htmlFor={`operator-social-url-${index}`}>{t('profile.socialLink')}</label>
+                <input
+                  id={`operator-social-url-${index}`}
+                  type="text"
+                  inputMode="url"
+                  value={link.url}
+                  onChange={(event) => updateSocialLink(index, { url: event.target.value })}
+                  placeholder={t('profile.socialLinkPlaceholder')}
+                  autoComplete="url"
+                  className="min-h-11 w-full rounded-lg border border-border bg-card px-3.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSocialLink(index)}
+                  aria-label={t('profile.removeSocialLink')}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-danger/40 hover:text-danger"
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>}
+          {socialLinks.length < 10 && <button type="button" onClick={addSocialLink} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3.5 text-sm font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-primary/5">
+            <Plus size={16} aria-hidden="true" /> {t('profile.addSocialLink')}
+          </button>}
+        </section>
 
         {!isEditing && (
           <p className="flex items-start gap-2 rounded-xl bg-muted px-3.5 py-3 text-xs leading-5 text-muted-foreground">
@@ -516,15 +577,25 @@ export default function OperatorProfileForm() {
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
         {success && <p className="text-sm font-semibold text-accent">{t('profile.saved')}</p>}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className={isEditing
-            ? 'w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50'
-            : 'w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50'}
-        >
-          {submitting ? t('profile.saving') : isEditing ? t('profile.saveChanges') : t('profile.createProfile')}
-        </button>
+        <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          {isEditing && operatorProfile ? (
+            <Link
+              href={`/operators/${operatorProfile.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              {t('profile.previewPublicProfile')} <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+          ) : <span />}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50 sm:min-w-48"
+          >
+            {submitting ? t('profile.saving') : isEditing ? t('profile.saveChanges') : t('profile.createProfile')}
+          </button>
+        </div>
       </form>
 
       {!isEditing && (

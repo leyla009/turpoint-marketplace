@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, Map as MapIcon, Ticket, Zap, BarChart3, Star, Store, ChevronRight, AlertCircle, PlusCircle, CalendarDays, ScanLine, WalletCards,
+  LayoutDashboard, Map as MapIcon, Ticket, Star, Store, ChevronRight, AlertCircle, PlusCircle, ScanLine, WalletCards,
 } from 'lucide-react';
 import { useAuth, useRequireAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -17,7 +17,7 @@ import type { TranslationKey } from '@/app/lib/translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type Section = 'overview' | 'tours' | 'bookings' | 'scan' | 'earnings' | 'deals' | 'analytics' | 'reviews' | 'profile';
+type Section = 'overview' | 'tours' | 'bookings' | 'earnings' | 'reviews' | 'profile';
 type BookingFilter = 'upcoming' | 'past' | 'cancelled';
 
 interface AnalyticsData {
@@ -36,10 +36,7 @@ const NAV: { id: Section; labelKey: TranslationKey; Icon: typeof LayoutDashboard
   { id: 'overview', labelKey: 'nav.dashboard', Icon: LayoutDashboard },
   { id: 'tours', labelKey: 'ui.dash.myTours', Icon: MapIcon },
   { id: 'bookings', labelKey: 'ui.dash.bookings', Icon: Ticket },
-  { id: 'scan', labelKey: 'ui.dash.scanTicket', Icon: ScanLine },
   { id: 'earnings', labelKey: 'ui.dash.earnings', Icon: WalletCards },
-  { id: 'deals', labelKey: 'ui.dash.deals', Icon: Zap },
-  { id: 'analytics', labelKey: 'analytics.title', Icon: BarChart3 },
   { id: 'reviews', labelKey: 'tourDetail.reviews', Icon: Star },
   { id: 'profile', labelKey: 'dashboard.profileButton', Icon: Store },
 ];
@@ -70,92 +67,13 @@ function Kpi({ label, value, onClick }: { label: string; value: string; onClick?
   );
 }
 
-// Bookings per month as a single-series line: 2px brand line, faint area,
-// recessive grid, crosshair + tooltip on hover. One series, so the card
-// title names it and there is no legend; a visually-hidden table carries
-// the same numbers for screen readers.
-function ActivityChart({ data }: { data: { month: string; bookings: number }[] }) {
-  const { t, locale } = useLanguage();
-  const [hover, setHover] = useState<number | null>(null);
-  const W = 900;
-  const H = 260;
-  const pad = { l: 28, r: 12, t: 12, b: 26 };
-  const max = Math.max(4, ...data.map((d) => d.bookings));
-  const niceMax = Math.ceil(max / 4) * 4;
-  const x = (i: number) => pad.l + (data.length <= 1 ? 0 : (i * (W - pad.l - pad.r)) / (data.length - 1));
-  const y = (v: number) => pad.t + (H - pad.t - pad.b) * (1 - v / niceMax);
-  const line = data.map((d, i) => `${i ? 'L' : 'M'}${x(i)},${y(d.bookings)}`).join(' ');
-  const area = `${line} L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z`;
-  const label = (m: string) => formatDate(`${m}-01`, locale, { month: 'short' });
-
-  return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={t('ui.dash.bookingActivity')}>
-        {[0, 0.25, 0.5, 0.75, 1].map((f) => {
-          const v = Math.round(niceMax * f);
-          return (
-            <g key={f}>
-              <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeWidth={1} />
-              <text x={pad.l - 6} y={y(v) + 3} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">
-                {v}
-              </text>
-            </g>
-          );
-        })}
-        {data.map((d, i) => (
-          <text key={d.month} x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
-            {label(d.month)}
-          </text>
-        ))}
-        <path d={area} fill="var(--primary)" opacity={0.08} />
-        <path d={line} fill="none" stroke="var(--primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {hover !== null && (
-          <>
-            <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={y(0)} stroke="var(--muted-foreground)" strokeWidth={1} strokeDasharray="3 3" />
-            <circle cx={x(hover)} cy={y(data[hover].bookings)} r={5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />
-          </>
-        )}
-        {data.map((d, i) => (
-          <rect
-            key={d.month}
-            x={x(i) - (W - pad.l - pad.r) / Math.max(1, data.length - 1) / 2}
-            y={0}
-            width={(W - pad.l - pad.r) / Math.max(1, data.length - 1)}
-            height={H}
-            fill="transparent"
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(null)}
-          />
-        ))}
-      </svg>
-      {hover !== null && (
-        <div
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full bg-navy text-white text-xs rounded-md px-2.5 py-1.5 shadow-lift whitespace-nowrap"
-          style={{ left: `${(x(hover) / W) * 100}%`, top: `${(y(data[hover].bookings) / H) * 100}%`, marginTop: -10 }}
-        >
-          <span className="font-semibold">{label(data[hover].month)}</span>: {t('ui.dash.bookingsCount', { count: data[hover].bookings })}
-        </div>
-      )}
-      <table className="sr-only">
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.month}>
-              <th>{label(d.month)}</th>
-              <td>{d.bookings}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const { loading: authLoading } = useRequireAuth();
   const { token, user, operatorProfile } = useAuth();
   const { t, locale } = useLanguage();
   const [section, setSection] = useState<Section>('overview');
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>('upcoming');
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
@@ -167,7 +85,9 @@ export default function DashboardPage() {
   useEffect(() => {
     const readSection = () => {
       const value = new URLSearchParams(window.location.search).get('section');
-      setSection(NAV.some((item) => item.id === value) ? (value as Section) : 'overview');
+      const oldSection: Record<string, Section> = { scan: 'bookings', deals: 'tours', analytics: 'overview' };
+      setScannerOpen(value === 'scan');
+      setSection(NAV.some((item) => item.id === value) ? (value as Section) : oldSection[value ?? ''] ?? 'overview');
     };
     readSection();
     window.addEventListener('popstate', readSection);
@@ -235,8 +155,6 @@ export default function DashboardPage() {
   }, [bookings]);
   const upcoming = bookingGroups.upcoming;
   const visibleBookings = bookingGroups[bookingFilter];
-  const dealTours = useMemo(() => tours.filter((x) => x.active_deal), [tours]);
-  const hasBookingActivity = analytics?.monthly.some((item) => item.bookings > 0) ?? false;
 
   if (authLoading) return <div className="max-w-7xl mx-auto p-6 text-sm text-muted-foreground">{t('dashboard.loading')}</div>;
 
@@ -324,7 +242,7 @@ export default function DashboardPage() {
                   <PlusCircle size={16} /> {t('dashboard.addTour')}
                 </button>
               </div>
-              {Object.values(loadErrors).some(Boolean) && (
+              {(loadErrors.bookings || loadErrors.tours) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle size={16} /> {t('analytics.loadError')}
                 </p>
@@ -332,7 +250,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 <Kpi label={t('ui.dash.tours')} value={dashboardLoading ? '—' : String(analytics?.summary.total_tours ?? tours.length)} onClick={() => navigateSection('tours')} />
                 <Kpi label={t('ui.dash.bookings')} value={dashboardLoading ? '—' : String(analytics?.summary.total_bookings ?? bookings.length)} onClick={() => navigateSection('bookings')} />
-                <Kpi label={t('ui.dash.bookingValue')} value={analytics ? formatAzn(analytics.summary.revenue) : '—'} onClick={() => navigateSection('analytics')} />
+                <Kpi label={t('ui.dash.bookingValue')} value={analytics ? formatAzn(analytics.summary.revenue) : '—'} onClick={() => navigateSection('earnings')} />
                 <Kpi
                   label={t('dashboard.rating')}
                   value={analytics?.summary.avg_rating ? analytics.summary.avg_rating.toFixed(1) : '—'}
@@ -340,36 +258,7 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="bg-card border border-border rounded-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-bold text-foreground">{t('ui.dash.bookingActivity')}</h2>
-                  <span className="text-xs text-muted-foreground border border-border rounded-md px-2 py-1">
-                    {t('ui.dash.last6Months')}
-                  </span>
-                </div>
-                {dashboardLoading && !analytics && <div className="h-48 animate-pulse rounded-lg bg-muted" />}
-                {analytics && hasBookingActivity && <ActivityChart data={analytics.monthly} />}
-                {analytics && !hasBookingActivity && (
-                  <div className="flex min-h-44 flex-col items-center justify-center rounded-lg bg-muted/50 px-5 py-7 text-center">
-                    <CalendarDays size={22} className="mb-2 text-primary" />
-                    <p className="max-w-md text-sm text-muted-foreground">
-                      {analytics.summary.total_tours === 0 ? t('ui.dash.noToursActivity') : t('ui.dash.noBookingActivity')}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => navigateSection('tours')}
-                      className="mt-3 text-sm font-semibold text-primary hover:underline"
-                    >
-                      {analytics.summary.total_tours === 0 ? t('dashboard.addFirstTour') : t('ui.dash.viewTours')}
-                    </button>
-                  </div>
-                )}
-                {!analytics && !dashboardLoading && (
-                  <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-                    <AlertCircle size={16} /> {t('analytics.loadError')}
-                  </p>
-                )}
-              </div>
+              <OperatorAnalytics onAddTour={() => navigateSection('tours')} />
 
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="flex items-center justify-between mb-1">
@@ -402,10 +291,21 @@ export default function DashboardPage() {
                   <h1 className="text-xl font-bold text-foreground">{t('ui.dash.bookings')}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">{t('ui.dash.bookingsSubtitle')}</p>
                 </div>
-                <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
-                  {t('ui.dash.pendingCount', { count: dashboardLoading ? '—' : bookings.filter((booking) => booking.status === 'pending').length })}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+                    {t('ui.dash.pendingCount', { count: dashboardLoading ? '—' : bookings.filter((booking) => booking.status === 'pending').length })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setScannerOpen((open) => !open)}
+                    aria-expanded={scannerOpen}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:border-primary/40"
+                  >
+                    <ScanLine size={16} /> {t(scannerOpen ? 'ui.scan.hideScanner' : 'ui.scan.title')}
+                  </button>
+                </div>
               </div>
+              {scannerOpen && token && <div className="mb-5"><TicketScanner token={token} /></div>}
               <div className="mb-4 flex gap-2 overflow-x-auto border-b border-border">
                 {(['upcoming', 'past', 'cancelled'] as BookingFilter[]).map((filter) => (
                   <button
@@ -434,54 +334,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {section === 'scan' && token && <TicketScanner token={token} />}
-
           {section === 'earnings' && <OperatorEarnings />}
-
-          {section === 'deals' && (
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h1 className="text-xl font-bold text-foreground mb-1">{t('ui.dash.deals')}</h1>
-              <p className="text-sm text-muted-foreground mb-4">{t('ui.dash.dealsHint')}</p>
-              {dashboardLoading ? (
-                <div className="h-24 animate-pulse rounded-lg bg-muted" />
-              ) : loadErrors.tours ? (
-                <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground"><AlertCircle size={16} /> {t('analytics.loadError')}</p>
-              ) : dealTours.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">{t('ui.dash.noDeals')}</p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {dealTours.map((x) => (
-                    <li key={x.id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{titleFromI18n(x.title, x.title_i18n, locale)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t('ui.dash.expires', { date: formatDate(x.active_deal.expires_at, locale) })}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-bold text-white bg-warning rounded-md px-2 py-0.5">
-                          −{x.active_deal.discount_percent}%
-                        </span>
-                        <p className="text-sm font-semibold text-foreground mt-1">
-                          <span className="text-xs text-muted-foreground line-through mr-1">{formatAzn(x.price)}</span>
-                          {formatAzn(x.discounted_price)}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <button
-                type="button"
-                onClick={() => navigateSection('tours')}
-                className="mt-4 text-sm font-semibold text-primary flex items-center gap-1"
-              >
-                <Zap size={14} /> {t('dashboard.createDeal')}
-              </button>
-            </div>
-          )}
-
-          {section === 'analytics' && <OperatorAnalytics onAddTour={() => navigateSection('tours')} />}
 
           {section === 'reviews' && (
             <div className="bg-card border border-border rounded-xl p-5">

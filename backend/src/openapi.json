@@ -140,7 +140,7 @@
     },
     "/operators": {
       "post": {
-        "summary": "Create an operator profile - requires login; one profile per account. phone is required and must start with +994. The instagram field is normalised to a bare handle (\"@name\", \"instagram.com/name\" and full URLs are all accepted).",
+        "summary": "Create an operator profile - requires login; one profile per account. phone is required and must start with +994. social_links accepts up to 10 secure profile URLs for supported social platforms.",
         "security": [
           {
             "bearerAuth": []
@@ -154,7 +154,10 @@
                 "description": "Dag turlari",
                 "languages": "az,en",
                 "phone": "+994501234567",
-                "instagram": "qafqaztours"
+                "social_links": [
+                  { "platform": "instagram", "url": "https://instagram.com/qafqaztours" },
+                  { "platform": "youtube", "url": "https://youtube.com/@qafqaztours" }
+                ]
               }
             }
           }
@@ -353,7 +356,10 @@
                 "description": "Dag turlari",
                 "languages": "az,en",
                 "phone": "+994501234567",
-                "instagram": "qafqaztours"
+                "social_links": [
+                  { "platform": "instagram", "url": "https://instagram.com/qafqaztours" },
+                  { "platform": "youtube", "url": "https://youtube.com/@qafqaztours" }
+                ]
               }
             }
           }

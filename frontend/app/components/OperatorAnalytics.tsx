@@ -65,9 +65,8 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
   );
 }
 
-// The operator dashboard's "Analytics" section: headline numbers, bookings
-// per month, and a per-tour breakdown (fill rate, revenue, views, saves,
-// rating). Pure CSS bars - no chart library needed.
+// Compact performance detail embedded in the operator dashboard overview.
+// Pure CSS bars - no chart library needed.
 export default function OperatorAnalytics({ onAddTour }: { onAddTour: () => void }) {
   const { token } = useAuth();
   const { t, locale } = useLanguage();
@@ -95,25 +94,12 @@ export default function OperatorAnalytics({ onAddTour }: { onAddTour: () => void
 }
 
   return (
-    <section className="mb-6">
-      {/* The heading used to be dark text (text-foreground) sitting directly
-          on the dark forest photo, so it was effectively invisible - only
-          the icon showed. It now sits on its own card surface, same
-          treatment as the "Turlarınız" tab below. */}
-      <div className="inline-flex items-center gap-2 bg-card rounded-full pl-1.5 pr-4 py-1.5 mb-3 border border-border">
-        <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-          <BarChart3 size={14} className="text-primary" />
-        </span>
-        <h2
-          className="text-base sm:text-lg font-bold text-foreground leading-tight"
-        >
-          {t('analytics.title')}
-        </h2>
-      </div>
+    <section>
+      <h2 className="mb-3 text-lg font-bold text-foreground">{t('analytics.title')}</h2>
 
       {state.kind === 'loading' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
             <div key={i} className="h-[74px] rounded-xl bg-card border border-border animate-pulse" />
           ))}
         </div>
@@ -152,23 +138,8 @@ export default function OperatorAnalytics({ onAddTour }: { onAddTour: () => void
 
           return (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                <Kpi
-                  label={t('analytics.revenue')}
-                  value={formatAzn(summary.revenue)}
-                  sub={summary.pending_revenue > 0 ? t('analytics.pendingRevenue', { amount: formatAzn(summary.pending_revenue) }) : undefined}
-                />
-                <Kpi
-                  label={t('analytics.bookings')}
-                  value={String(summary.total_bookings)}
-                  sub={t('analytics.bookingsSub', { confirmed: summary.confirmed_bookings })}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <Kpi label={t('analytics.fillRate')} value={pct(summary.fill_rate_upcoming)} />
-                <Kpi
-                  label={t('analytics.rating')}
-                  value={summary.avg_rating === null ? '—' : summary.avg_rating.toFixed(1)}
-                  sub={t('analytics.ratingSub', { count: summary.review_count })}
-                />
                 <Kpi
                   label={t('analytics.views')}
                   value={String(summary.total_views)}

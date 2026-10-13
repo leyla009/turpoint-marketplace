@@ -209,8 +209,31 @@ const operatorFields = {
   vehicle_features: optionalText('vehicle_features', 500),
   phone: text('a valid phone number starting with +994 is required').regex(/^\+994\d{9}$/, 'a valid phone number starting with +994 is required'),
   instagram: optionalText('instagram', 100),
-  voen: text('a valid 10-digit VOEN is required').regex(/^\d{10}$/, 'a valid 10-digit VOEN is required'),
-  business_card_last4: text('enter the last 4 digits of the demo business card').regex(/^\d{4}$/, 'enter the last 4 digits of the demo business card'),
+  social_links: z.array(z.object({
+    platform: z.enum(['instagram', 'facebook', 'tiktok', 'youtube', 'whatsapp', 'telegram', 'x', 'linkedin', 'pinterest']),
+    url: z.string().trim().max(500, 'social link is too long').url('social links must be valid HTTPS URLs'),
+  }).refine(({ platform, url }) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:') return false;
+      const hosts = {
+        instagram: ['instagram.com'],
+        facebook: ['facebook.com', 'fb.watch'],
+        tiktok: ['tiktok.com'],
+        youtube: ['youtube.com', 'youtu.be'],
+        whatsapp: ['wa.me', 'whatsapp.com'],
+        telegram: ['t.me', 'telegram.me'],
+        x: ['x.com', 'twitter.com'],
+        linkedin: ['linkedin.com'],
+        pinterest: ['pinterest.com'],
+      };
+      return hosts[platform].some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
+    } catch {
+      return false;
+    }
+  }, 'social link must use its selected platform and HTTPS')).max(10, 'you can add up to 10 social media links').nullish(),
+  voen: z.string().regex(/^\d{10}$/, 'a valid 10-digit VOEN is required').nullish(),
+  business_card_last4: z.string().regex(/^\d{4}$/, 'enter the last 4 digits of the demo business card').nullish(),
 };
 
 export const createOperatorSchema = z.object(operatorFields);

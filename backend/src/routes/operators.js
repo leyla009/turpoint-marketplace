@@ -79,7 +79,7 @@ function requireVerificationProvider(req, res, next) {
 const verifyAttempts = new Map(); // operatorId -> failed attempts for the pending code
 
 router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSchema), (req, res) => {
-  const { name, description, languages, photo_url, phone, instagram, voen, business_card_last4 } = req.body;
+  const { name, description, languages, photo_url, phone, instagram, social_links, voen, business_card_last4 } = req.body;
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
   if (!phone || !isValidPhone(phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
@@ -92,10 +92,21 @@ router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSch
 
   const result = db
     .prepare(
-      `INSERT INTO operators (name, description, languages, photo_url, phone, instagram, voen, business_card_last4, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO operators (name, description, languages, photo_url, phone, instagram, social_links, voen, business_card_last4, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, description ?? null, languages ?? null, photo_url ?? null, phone, normalizeInstagram(instagram), voen, business_card_last4, req.user.userId);
+    .run(
+      name,
+      description ?? null,
+      languages ?? null,
+      photo_url ?? null,
+      phone,
+      normalizeInstagram(social_links?.find((link) => link.platform === 'instagram')?.url ?? instagram),
+      JSON.stringify(social_links ?? []),
+      voen ?? null,
+      business_card_last4 ?? null,
+      req.user.userId
+    );
 
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(ownOperator(operator));
@@ -254,7 +265,7 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
   // Only these fields are editable through this route. Merging the whole
   // body let a client overwrite rating, user_id, phone_verified, etc., and
   // `name: null` reached the NOT NULL column and returned a 500.
-  const EDITABLE = ['name', 'description', 'languages', 'photo_url', 'vehicle_features', 'phone', 'instagram', 'voen', 'business_card_last4'];
+  const EDITABLE = ['name', 'description', 'languages', 'photo_url', 'vehicle_features', 'phone', 'instagram', 'social_links', 'voen', 'business_card_last4'];
   const updated = { ...existing };
   for (const key of EDITABLE) {
     if (req.body?.[key] !== undefined) updated[key] = req.body[key];
@@ -263,18 +274,23 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
     return res.status(400).json({ error: 'name cannot be empty' });
   }
   updated.name = updated.name.trim();
+  if (req.body?.social_links !== undefined) {
+    const socialLinks = req.body.social_links ?? [];
+    updated.social_links = JSON.stringify(socialLinks);
+    updated.instagram = normalizeInstagram(socialLinks.find((link) => link.platform === 'instagram')?.url ?? null);
+  }
   if (!updated.phone || !isValidPhone(updated.phone)) {
     return res.status(400).json({ error: 'a valid phone number starting with +994 is required' });
   }
-  if (!/^\d{10}$/.test(updated.voen ?? '')) return res.status(400).json({ error: 'a valid 10-digit VOEN is required' });
-  if (!/^\d{4}$/.test(updated.business_card_last4 ?? '')) return res.status(400).json({ error: 'enter the last 4 digits of the demo business card' });
+  if (updated.voen != null && !/^\d{10}$/.test(updated.voen)) return res.status(400).json({ error: 'a valid 10-digit VOEN is required' });
+  if (updated.business_card_last4 != null && !/^\d{4}$/.test(updated.business_card_last4)) return res.status(400).json({ error: 'enter the last 4 digits of the demo business card' });
   // Changing the phone number through the regular profile save (rather
   // than the verify-code flow) means it's no longer confirmed - only
   // POST /me/phone/verify-code is allowed to set this back to true.
   const phoneVerified = updated.phone === existing.phone ? existing.phone_verified : 0;
 
   db.prepare(
-    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, phone_verified=?, instagram=?, voen=?, business_card_last4=? WHERE id=?`
+    `UPDATE operators SET name=?, description=?, languages=?, photo_url=?, vehicle_features=?, phone=?, phone_verified=?, instagram=?, social_links=?, voen=?, business_card_last4=? WHERE id=?`
   ).run(
     updated.name,
     updated.description,
@@ -284,6 +300,7 @@ router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorS
     updated.phone,
     phoneVerified,
     normalizeInstagram(updated.instagram),
+    updated.social_links ?? null,
     updated.voen,
     updated.business_card_last4,
     req.params.id

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS operators (
   phone_verification_phone TEXT,         -- the number that code was issued for
   phone_verification_expires_at TEXT,
   instagram TEXT,             -- handle, without the leading @
+  social_links TEXT,          -- JSON array of validated public social profile links
   voen TEXT,                  -- operator taxpayer identification number
   business_card_last4 TEXT,   -- mock demo destination only; never store a full card number
   rating REAL DEFAULT 0,

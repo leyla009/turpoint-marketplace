@@ -33,6 +33,7 @@ export interface OperatorProfile {
   phone?: string | null;
   phone_verified?: number | null;
   instagram?: string | null;
+  social_links?: string | null;
   voen?: string | null;
   business_card_last4?: string | null;
   rating?: number | null;

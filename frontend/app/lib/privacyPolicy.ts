@@ -143,7 +143,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
         blocks: [
           {
             type: 'p',
-            text: 'If you register as an Operator, we also collect your business or trading name, description, languages spoken, profile and tour photos, vehicle details, phone number (including verification of that number), Instagram handle, and the tours, prices and offers you publish. Your Operator profile and tours are public.',
+            text: 'If you register as an Operator, we also collect your business or trading name, description, languages spoken, profile and tour photos, vehicle details, phone number (including verification of that number), social media profile links, and the tours, prices and offers you publish. Your Operator profile and tours are public.',
           },
         ],
       },
