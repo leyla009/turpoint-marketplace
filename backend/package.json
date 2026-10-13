@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "node src/db/seed.js",
     "seed:tours": "node src/db/seedRealTours.js",
+    "seed:showcase": "node src/db/seedShowcase.js",
     "seed:photos": "node src/db/seedPhotos.js",
     "seed:analytics": "node src/db/seedAnalyticsDemo.js",
     "check:groq": "node src/checkGroq.js",

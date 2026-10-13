@@ -203,7 +203,6 @@ export default function OperatorProfilePage() {
                 <h1 className="text-3xl font-bold leading-tight md:text-4xl">{operator.name}</h1>
                 <p className="mt-1 max-w-2xl text-sm text-white/85 md:text-base">{operator.description?.trim() || t('ui.operatorPage.aboutFallback')}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/90">
-                  {areas.length > 0 && <span className="inline-flex items-center gap-1.5"><MapPin size={15} />{areas.slice(0, 2).join(', ')}</span>}
                   <span>{t('ui.td.tourCount', { count: tours.length })}</span>
                   {rating > 0 && <span className="inline-flex items-center gap-1.5"><Star size={15} className="fill-rating text-rating" />{rating.toFixed(1)} <span className="text-white/70">({summary.total})</span></span>}
                 </div>
@@ -232,8 +231,7 @@ export default function OperatorProfilePage() {
           <div>
             <h2 className="text-2xl font-bold">{t('ui.operatorPage.aboutTitle', { name: operator.name })}</h2>
             <p className="mt-4 max-w-3xl whitespace-pre-line text-[15px] leading-7 text-foreground/75">{operator.description?.trim() || t('ui.operatorPage.aboutFallback')}</p>
-            <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Feature icon={<MapPin size={20} />} title={t('ui.operatorProfile.areasServed')} text={areas.length ? areas.slice(0, 2).join(', ') : t('ui.operatorPage.noAreas')} />
+            <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <Feature icon={<Languages size={20} />} title={t('ui.operatorProfile.languages')} text={languages.length ? languages.join(', ') : '—'} />
               <Feature icon={<ShieldCheck size={20} />} title={t('ui.operatorPage.phoneStatus')} text={verified ? t('ui.td.phoneVerified') : t('ui.operatorPage.notVerified')} />
               <Feature icon={<Heart size={20} />} title={t('ui.operatorPage.toursTab')} text={t('ui.td.tourCount', { count: tours.length })} />
