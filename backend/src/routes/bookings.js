@@ -224,7 +224,7 @@ router.post('/', requireAuth, validate(createBookingSchema), (req, res) => {
 // "mine" as a booking id.
 router.get('/mine', requireAuth, (req, res) => {
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(403).json({ error: 'you need an operator profile first' });
+  if (!operator) return res.status(403).json({ error: 'you need a tour operator profile first' });
  
   const bookings = db
     .prepare(
@@ -249,7 +249,7 @@ router.post('/scan', requireAuth, (req, res) => {
   if (!code) return res.status(400).json({ error: 'ticket code is required' });
 
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(403).json({ error: 'an operator account is required' });
+  if (!operator) return res.status(403).json({ error: 'a tour operator account is required' });
 
   const booking = db.prepare(
     `SELECT b.id, b.ticket_code, b.status, b.payment_status, b.paid_amount,

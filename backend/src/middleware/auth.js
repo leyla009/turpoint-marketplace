@@ -25,7 +25,7 @@ export function requireOperatorAccount(req, res, next) {
   const user = db.prepare('SELECT account_type FROM users WHERE id = ?').get(req.user.userId);
   if (!user) return res.status(401).json({ error: 'user not found' });
   if (user.account_type !== 'operator') {
-    return res.status(403).json({ error: 'an operator account is required' });
+    return res.status(403).json({ error: 'a tour operator account is required' });
   }
   next();
 }

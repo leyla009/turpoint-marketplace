@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
   Minus,
   Plus,
   ExternalLink,
@@ -38,7 +39,6 @@ import { useToast } from '@/app/context/ToastContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import type { TranslationKey } from '@/app/lib/translations';
 import { TOUR_FEATURES, parseFeatures } from '@/app/lib/tourFeatures';
-import OperatorProfileModal from '@/app/components/OperatorProfileModal';
 import GroupInviteCard from '@/app/components/GroupInviteCard';
 import WeatherForecast from '@/app/components/WeatherForecast';
 import { formatAzn, formatDate, isPastDate } from '@/app/lib/format';
@@ -49,7 +49,6 @@ import { tourTitle, tourSummary, tourDetails, tourFacts, placeName, titleFromI18
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const NEW_FOR_DAYS = 30;
 const MAX_DATE_CHIPS = 5;
-const FEW_SEATS = 3;
 // Browsers often lack Azerbaijani weekday names (they fall back to English).
 const AZ_WEEKDAYS_SHORT = ['B.', 'B.E.', 'Ç.A.', 'Ç.', 'C.A.', 'C.', 'Ş.'];
 
@@ -202,8 +201,6 @@ export default function TourDetail() {
 
   const [tour, setTour] = useState<Tour | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
-  const [showOperatorModal, setShowOperatorModal] = useState(false);
-  const closeOperatorModal = useCallback(() => setShowOperatorModal(false), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
   const [allTours, setAllTours] = useState<ApiTour[]>([]);
@@ -422,12 +419,20 @@ export default function TourDetail() {
 
   // Current group for this tour - drives seats left and the group box.
   const [group, setGroup] = useState<Group | null>(null);
+  const [groupLoading, setGroupLoading] = useState(true);
   useEffect(() => {
     if (!id) return;
-    fetch(`${API_URL}/api/group-formations?tour_id=${id}`)
+    const controller = new AbortController();
+    setGroup(null);
+    setGroupLoading(true);
+    fetch(`${API_URL}/api/group-formations?tour_id=${id}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then(setGroup)
-      .catch(() => setGroup(null));
+      .catch((error) => {
+        if (error.name !== 'AbortError') setGroup(null);
+      })
+      .finally(() => !controller.signal.aborted && setGroupLoading(false));
+    return () => controller.abort();
   }, [id]);
 
   // Other departures of the same tour: same operator, same title, still ahead.
@@ -445,6 +450,7 @@ export default function TourDetail() {
       const self = departures.find((x) => x.id === tour.id);
       if (self) list[list.length - 1] = self;
     }
+    if (!list.length) return [tour];
     return list.sort((a, b) => a.date.localeCompare(b.date));
   }, [departures, tour]);
 
@@ -566,15 +572,21 @@ export default function TourDetail() {
     return locale === 'az' ? AZ_WEEKDAYS_SHORT[new Date(y, m - 1, d).getDay()] : formatDate(iso, locale, { weekday: 'short' });
   };
 
-  const dateStatus = (d: ApiTour): { text: string; tone: string } => {
+  const dateStatus = (d: ApiTour): { text: string; tone: string; available: boolean } => {
+    if (isPastDate(d.date)) return { text: t('tourDetail.tourEnded'), tone: 'text-muted-foreground', available: false };
+    const checking = d.id === tour.id ? groupLoading : !(d.id in dateGroups);
+    if (checking) return { text: t('ui.td.checkingAvailability'), tone: 'text-muted-foreground', available: false };
     const g = d.id === tour.id ? group : dateGroups[d.id];
     const taken = g && g.status !== 'cancelled' ? g.current_participants : 0;
-    const left = d.max_participants - taken;
-    if (left <= 0) return { text: t('ui.td.full'), tone: 'text-muted-foreground' };
-    if (left <= FEW_SEATS) return { text: t('ui.td.left', { count: left }), tone: 'text-danger' };
-    if (taken > 0) return { text: t('ui.td.joined', { count: taken }), tone: '' };
-    return { text: t('ui.td.open'), tone: '' };
+    const left = Math.max(0, d.max_participants - taken);
+    if (left <= 0) return { text: t('ui.td.full'), tone: 'text-muted-foreground', available: false };
+    return {
+      text: t('ui.td.spotsAvailable', { count: left }),
+      tone: left <= 3 ? 'text-danger' : 'text-success',
+      available: true,
+    };
   };
+  const currentDateStatus = dateStatus(tour);
 
   const routeStops =
     tour.route
@@ -691,9 +703,9 @@ export default function TourDetail() {
                 <span aria-hidden>·</span>
                 <span>
                   {t('ui.td.by')}{' '}
-                  <button onClick={() => setShowOperatorModal(true)} className="font-semibold text-primary hover:underline">
+                  <Link href={`/operators/${operator.id}`} className="font-semibold text-primary hover:underline">
                     {operator.name}
-                  </button>
+                  </Link>
                 </span>
               </>
             )}
@@ -1198,9 +1210,9 @@ export default function TourDetail() {
                 </p>
               </div>
               {operator && (
-                <button onClick={() => setShowOperatorModal(true)} className="shrink-0 text-sm font-semibold text-primary hover:underline">
+                <Link href={`/operators/${operator.id}`} className="shrink-0 text-sm font-semibold text-primary hover:underline">
                   {t('ui.td.viewProfile')} →
-                </button>
+                </Link>
               )}
             </div>
             {operator?.description && (
@@ -1240,37 +1252,55 @@ export default function TourDetail() {
               <span className="text-sm text-muted-foreground">{t('ui.card.perPerson')}</span>
             </p>
 
-            <p className="text-sm font-bold text-navy mt-5 mb-2">{t('ui.td.chooseDate')}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {shownDepartures.map((d) => {
-                const selected = d.id === tour.id;
-                const status = dateStatus(d);
-                return (
-                  <button
-                    key={d.id}
-                    onClick={() => !selected && router.push(`/tours/${d.id}`)}
-                    aria-current={selected ? 'true' : undefined}
-                    className={`rounded-xl border px-2 py-2 text-center transition-colors ${
-                      selected ? 'bg-navy border-navy text-white' : 'bg-card border-border hover:border-primary/40'
-                    }`}
+            <p className="text-sm font-bold text-navy mt-5 mb-2">
+              {shownDepartures.length > 1 ? t('ui.td.chooseTourDate') : t('ui.td.tourDate')}
+            </p>
+            {shownDepartures.length === 1 ? (
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <CalendarDays size={19} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('ui.td.selectedTourDate')}</p>
+                  <p className="mt-0.5 text-sm font-bold text-navy">{weekday(tour.date)}, {formatDate(tour.date, locale, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                </div>
+                <span className={`shrink-0 text-right text-xs font-semibold ${currentDateStatus.tone}`}>{currentDateStatus.text}</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {shownDepartures.map((d) => {
+                  const selected = d.id === tour.id;
+                  const status = dateStatus(d);
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => !selected && status.available && router.push(`/tours/${d.id}`)}
+                      disabled={selected || !status.available}
+                      aria-pressed={selected}
+                      aria-label={`${weekday(d.date)}, ${formatDate(d.date, locale, { day: 'numeric', month: 'long', year: 'numeric' })}: ${status.text}`}
+                      className={`rounded-xl border px-2.5 py-2.5 text-center transition-colors disabled:cursor-default ${
+                        selected ? 'border-navy bg-navy text-white' : status.available ? 'border-border bg-card hover:border-primary/50 hover:bg-primary/5' : 'border-border bg-muted/50 opacity-60'
+                      }`}
+                    >
+                      <span className={`block text-[11px] ${selected ? 'text-white/70' : 'text-muted-foreground'}`}>
+                        {weekday(d.date)}
+                      </span>
+                      <span className="block text-sm font-bold">{formatDate(d.date, locale, { day: 'numeric', month: 'short' })}</span>
+                      <span className={`mt-0.5 block text-[11px] font-medium ${selected ? 'text-white/80' : status.tone}`}>{status.text}</span>
+                    </button>
+                  );
+                })}
+                {departures.length > MAX_DATE_CHIPS && (
+                  <Link
+                    href={`/tours?q=${encodeURIComponent(tour.title)}`}
+                    className="rounded-xl border border-border flex items-center justify-center text-xs font-semibold text-primary hover:border-primary/40"
                   >
-                    <span className={`block text-[11px] ${selected ? 'text-white/70' : 'text-muted-foreground'}`}>
-                      {weekday(d.date)}
-                    </span>
-                    <span className="block text-sm font-bold">{formatDate(d.date, locale, { day: 'numeric', month: 'short' })}</span>
-                    <span className={`block text-[11px] font-medium ${selected ? 'text-white/80' : status.tone || 'text-muted-foreground'}`}>{status.text}</span>
-                  </button>
-                );
-              })}
-              {departures.length > MAX_DATE_CHIPS && (
-                <Link
-                  href={`/tours?q=${encodeURIComponent(tour.title)}`}
-                  className="rounded-xl border border-border flex items-center justify-center text-xs font-semibold text-primary hover:border-primary/40"
-                >
-                  {t('ui.td.moreDates')}
-                </Link>
-              )}
-            </div>
+                    {t('ui.td.moreDates')}
+                  </Link>
+                )}
+              </div>
+            )}
 
             {canBook && (
               <div className="flex items-center justify-between mt-5">
@@ -1389,22 +1419,14 @@ export default function TourDetail() {
         </section>
       )}
 
-      {showOperatorModal && operator && (
-        <OperatorProfileModal
-          operator={operator}
-          tours={operatorTours.length > 0 ? operatorTours : [tour]}
-          reviews={operatorReviews}
-          currentTourId={tour.id}
-          onClose={closeOperatorModal}
-        />
-      )}
       {lightboxAt !== null && photos.length > 0 && <Lightbox photos={photos} start={lightboxAt} title={title} onClose={() => setLightboxAt(null)} />}
 
       {/* Mobile / tablet booking bar */}
       <div className="fixed bottom-16 md:bottom-0 lg:hidden inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-muted-foreground">{weekday(tour.date)}, {formatDate(tour.date, locale, { day: 'numeric', month: 'short' })}</p>
+            <p className="text-[11px] text-muted-foreground">{t('ui.td.tourDate')}: {weekday(tour.date)}, {formatDate(tour.date, locale, { day: 'numeric', month: 'short' })}</p>
+            <p className={`text-[11px] font-semibold ${currentDateStatus.tone}`}>{currentDateStatus.text}</p>
             <p className="text-lg font-bold text-navy">
               {formatAzn(price)} <span className="text-xs font-normal text-muted-foreground">{t('ui.card.perPerson')}</span>
             </p>

@@ -87,7 +87,7 @@ router.post('/', requireAuth, requireOperatorAccount, validate(createOperatorSch
 
   const existing = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (existing) {
-    return res.status(409).json({ error: 'you already have an operator profile — use PUT to update it' });
+    return res.status(409).json({ error: 'you already have a tour operator profile — use PUT to update it' });
   }
 
   const result = db
@@ -116,7 +116,7 @@ router.get('/me', requireAuth, (req, res) => {
 // Must be declared before GET /:id, or Express would match "me" as :id.
 router.get('/me/analytics', requireAuth, requireOperatorAccount, (req, res) => {
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  if (!operator) return res.status(404).json({ error: 'create your tour operator profile first' });
   res.json(buildOperatorAnalytics(db, operator.id));
 });
 
@@ -124,7 +124,7 @@ router.get('/me/analytics', requireAuth, requireOperatorAccount, (req, res) => {
 // balance; refunds subtract from it, while pending authorizations stay held.
 router.get('/me/earnings', requireAuth, requireOperatorAccount, (req, res) => {
   const operator = db.prepare('SELECT id, business_card_last4 FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  if (!operator) return res.status(404).json({ error: 'create your tour operator profile first' });
 
   const balance = db.prepare(
     `SELECT COALESCE(SUM(CASE
@@ -163,7 +163,7 @@ router.get('/me/earnings', requireAuth, requireOperatorAccount, (req, res) => {
 // already exists (create it first via POST /, then add a photo).
 router.post('/me/photo', requireAuth, requireOperatorAccount, upload.single('photo'), (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  if (!operator) return res.status(404).json({ error: 'create your tour operator profile first' });
   if (!req.file) return res.status(400).json({ error: 'a valid image file is required' });
 
   const photoUrl = `/uploads/operators/${req.file.filename}`;
@@ -176,7 +176,7 @@ router.post('/me/photo', requireAuth, requireOperatorAccount, upload.single('pho
 // so the number can be confirmed before it's committed to the profile.
 router.post('/me/phone/send-code', requireAuth, requireOperatorAccount, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  if (!operator) return res.status(404).json({ error: 'create your tour operator profile first' });
 
   const { phone } = req.body;
   if (!phone || !isValidPhone(phone)) {
@@ -206,7 +206,7 @@ router.post('/me/phone/send-code', requireAuth, requireOperatorAccount, requireV
 // this is the only place phone_verified is ever set to true.
 router.post('/me/phone/verify-code', requireAuth, requireOperatorAccount, requireVerificationProvider, (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(404).json({ error: 'create your operator profile first' });
+  if (!operator) return res.status(404).json({ error: 'create your tour operator profile first' });
 
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'a code is required' });
@@ -240,15 +240,15 @@ router.get('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const operator = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id);
-  if (!operator) return res.status(404).json({ error: 'operator not found' });
+  if (!operator) return res.status(404).json({ error: 'tour operator not found' });
   res.json(publicOperator(operator));
 });
 
 router.put('/:id', requireAuth, requireOperatorAccount, validate(updateOperatorSchema), (req, res) => {
   const existing = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'operator not found' });
+  if (!existing) return res.status(404).json({ error: 'tour operator not found' });
   if (existing.user_id !== req.user.userId) {
-    return res.status(403).json({ error: 'you can only edit your own operator profile' });
+    return res.status(403).json({ error: 'you can only edit your own tour operator profile' });
   }
 
   // Only these fields are editable through this route. Merging the whole

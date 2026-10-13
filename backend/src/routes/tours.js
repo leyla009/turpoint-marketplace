@@ -133,7 +133,7 @@ router.post('/', requireAuth, requireOperatorAccount, validate(createTourSchema)
 
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) {
-    return res.status(403).json({ error: 'you need an operator profile before creating tours' });
+    return res.status(403).json({ error: 'you need a tour operator profile before creating tours' });
   }
  
   const result = db

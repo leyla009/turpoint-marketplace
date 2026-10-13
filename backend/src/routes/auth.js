@@ -221,7 +221,7 @@ router.delete('/me', requireAuth, validate(deleteAccountSchema), asyncHandler(as
   }
 
   if (db.prepare('SELECT 1 FROM operators WHERE user_id = ?').get(current.id)) {
-    return res.status(409).json({ error: 'operator accounts cannot be deleted here', code: 'operator_profile' });
+    return res.status(409).json({ error: 'tour operator accounts cannot be deleted here', code: 'operator_profile' });
   }
   const upcoming = db
     .prepare(

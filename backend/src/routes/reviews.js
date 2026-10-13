@@ -203,6 +203,52 @@ router.get('/recent', (req, res) => {
   res.json(reviews);
 });
 
+// GET /api/reviews/operator/:id/summary - public profile rating breakdown
+// and the latest written reviews. Reviewer emails and other private fields
+// are never returned.
+router.get('/operator/:id/summary', (req, res) => {
+  const operator = db.prepare('SELECT id FROM operators WHERE id = ?').get(req.params.id);
+  if (!operator) return res.status(404).json({ error: 'tour operator not found' });
+
+  const distribution = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END) AS five,
+              SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END) AS four,
+              SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END) AS three,
+              SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END) AS two,
+              SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END) AS one
+       FROM reviews r JOIN tours t ON t.id = r.tour_id
+       WHERE t.operator_id = ?`
+    )
+    .get(req.params.id);
+  const reviews = db
+    .prepare(
+      `SELECT r.id, r.tour_id, r.rating, r.comment, r.created_at,
+              u.name AS reviewer_name, t.title AS tour_title,
+              t.title_i18n AS tour_title_i18n, t.photo_url AS tour_photo
+       FROM reviews r
+       JOIN users u ON u.id = r.user_id
+       JOIN tours t ON t.id = r.tour_id
+       WHERE t.operator_id = ? AND r.comment IS NOT NULL AND TRIM(r.comment) != ''
+       ORDER BY r.created_at DESC, r.id DESC
+       LIMIT 6`
+    )
+    .all(req.params.id);
+
+  res.json({
+    total: Number(distribution.total ?? 0),
+    ratingCounts: {
+      5: Number(distribution.five ?? 0),
+      4: Number(distribution.four ?? 0),
+      3: Number(distribution.three ?? 0),
+      2: Number(distribution.two ?? 0),
+      1: Number(distribution.one ?? 0),
+    },
+    reviews,
+  });
+});
+
 // GET /api/reviews?tour_id=5
 // GET /api/reviews?tour_id=5 - one tour's reviews.
 // GET /api/reviews?operator_id=3 - every review across that operator's tours
