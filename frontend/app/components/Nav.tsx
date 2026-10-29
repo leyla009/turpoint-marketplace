@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard, ArrowLeftRight, FileText,
+  Home, User, Compass, Sparkles, Ticket, Heart, Globe, ChevronDown, Check, LayoutDashboard, ArrowLeftRight, FileText, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -147,6 +147,11 @@ export default function Nav() {
                 {t(labelKey)}
               </Link>
             ))}
+            {!loading && user?.is_admin && (
+              <Link href="/admin" className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/admin') ? 'text-primary bg-primary/5' : 'text-foreground/75 hover:text-primary'}`}>
+                <ShieldCheck size={15} /> Admin
+              </Link>
+            )}
             <Link
               href="/know-before-you-go"
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors ${
@@ -249,6 +254,7 @@ export default function Nav() {
         <div className="flex items-center justify-between px-4 h-14">
           <Logo size="sm" href={mode === 'operator' ? '/dashboard' : '/'} />
           <div className="flex items-center gap-1">
+            {!loading && user?.is_admin && <Link href="/admin" className="inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-primary hover:bg-primary/5"><ShieldCheck size={14}/>Admin</Link>}
             {!loading && user && <NotificationBell size="sm" />}
             {!loading && user?.account_type === 'operator' && (
               <button

@@ -18,6 +18,7 @@ export interface AuthUser {
   preferred_language?: 'az' | 'en' | 'ru' | null;
   photo_url?: string | null;
   account_type: 'traveler' | 'operator';
+  is_admin?: boolean;
   password_changed_at?: string | null;
   created_at?: string;
 }

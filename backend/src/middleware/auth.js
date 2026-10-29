@@ -30,6 +30,20 @@ export function requireOperatorAccount(req, res, next) {
   next();
 }
 
+// Admin access is granted only to explicitly configured existing accounts.
+// Never trust a role or email supplied in the request body or JWT payload.
+export function isAdminEmail(email) {
+  const admins = (process.env.ADMIN_EMAILS || '').split(',').map((value) => value.trim().toLowerCase()).filter(Boolean);
+  return admins.includes(String(email || '').toLowerCase());
+}
+
+export function requireAdmin(req, res, next) {
+  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user.userId);
+  if (!user) return res.status(401).json({ error: 'user not found' });
+  if (!isAdminEmail(user.email)) return res.status(403).json({ error: 'admin access required' });
+  next();
+}
+
 
 // Like requireAuth, but never rejects: if a valid Bearer token is present
 // req.user is set, otherwise the request just continues anonymously. Used

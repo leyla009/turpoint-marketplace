@@ -25,6 +25,7 @@ import favoritesRouter from './routes/favorites.js';
 import { UPLOADS_ROOT } from './lib/uploads.js';
 import notificationsRouter from './routes/notifications.js';
 import weatherRouter from './routes/weather.js';
+import adminRouter from './routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const openapiSpec = JSON.parse(readFileSync(path.join(__dirname, 'openapi.json'), 'utf-8'));
@@ -136,6 +137,7 @@ app.use('/api/planner', plannerRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/weather', weatherRouter);
+app.use('/api/admin', adminRouter);
 
 // Mərhələ 4: frontend-only work from here - no more backend routers to mount.
 

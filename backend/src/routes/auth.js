@@ -13,7 +13,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';
 import { JWT_SECRET } from '../lib/jwt.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, isAdminEmail } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createImageUpload, UPLOADS_ROOT } from '../lib/uploads.js';
 import fs from 'node:fs';
@@ -53,6 +53,7 @@ router.post('/signup', validate(signupSchema), asyncHandler(async (req, res) => 
   const user = db
     .prepare('SELECT id, name, email, account_type, created_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
+  user.is_admin = isAdminEmail(user.email);
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
  
   res.status(201).json({ user, token });
@@ -84,6 +85,7 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
  
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   const { password_hash, ...safeUser } = user;
+  safeUser.is_admin = isAdminEmail(safeUser.email);
  
   res.json({ user: safeUser, token });
 }));
@@ -96,6 +98,7 @@ const ME_FIELDS = `id, name, first_name, last_name, email, id_number, phone, cou
 // on the first space so the form starts filled in rather than blank.
 function selectMe(id) {
   const user = db.prepare(`SELECT ${ME_FIELDS} FROM users WHERE id = ?`).get(id);
+  if (user) user.is_admin = isAdminEmail(user.email);
   if (user && !user.first_name && !user.last_name) {
     const [first, ...rest] = (user.name ?? '').trim().split(/\s+/);
     user.first_name = first ?? '';

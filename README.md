@@ -25,6 +25,9 @@ Local tourism in Azerbaijan is scattered across Instagram pages, Facebook groups
 - Operator profile (photo, languages, vehicle features, phone, Instagram).
 - Dashboard: create, edit and delete tours with photos, run last-minute deals, see and cancel incoming bookings, and view analytics (views, bookings, favorites, reviews).
 
+**Administrators**
+- `/admin` provides platform totals and searchable user, tour and booking lists. It is restricted by the backend `ADMIN_EMAILS` allowlist; regular signup cannot grant admin access.
+
 **Under the hood**
 - JWT auth with bcrypt; identity always comes from the verified token, never the request body.
 - Zod validation on every JSON route; rate limits on the API, login, booking and planner endpoints; helmet; CORS allowlist; uploads accepted only by real file signature.
@@ -78,6 +81,8 @@ GROQ_API_KEY=            # optional, enables the AI planner (free key: console.g
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 The full list of backend variables is documented in `backend/.env.example`.
+
+**Enter the admin workspace:** create or use a normal TurPoint account, then add that account's email to `ADMIN_EMAILS` in `backend/.env` (comma-separated for multiple admins). Restart the backend and sign in at `http://localhost:3000/login?next=%2Fadmin`; after login it opens `/admin`. In production, set the same variable in the backend hosting environment and use your deployed frontend's `/login?next=%2Fadmin` URL. There is no default admin password. Admin authorization is checked against the account email on every admin API request.
 
 **Create the database and demo data** (the schema is applied automatically on boot):
 ```bash
