@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Camera, CheckCircle2, LoaderCircle, ScanLine, XCircle } from 'lucide-react';
+import jsQR from 'jsqr';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { formatDate } from '@/app/lib/format';
 import { titleFromI18n } from '@/app/lib/tourContent';
@@ -24,12 +25,10 @@ type ScanResult = {
   };
 };
 
-type BarcodeDetectorLike = { detect: (source: HTMLVideoElement) => Promise<{ rawValue: string }[]> };
-type BarcodeDetectorConstructor = new (options: { formats: string[] }) => BarcodeDetectorLike;
-
 export default function TicketScanner({ token }: { token: string }) {
   const { t, locale } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const checkingRef = useRef(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [ticketCode, setTicketCode] = useState('');
@@ -37,11 +36,14 @@ export default function TicketScanner({ token }: { token: string }) {
   const [checking, setChecking] = useState(false);
 
   async function checkTicket(code: string) {
-    const cleaned = code.trim();
-    if (!cleaned || checking) return;
+    // Accept pasted codes with lowercase letters or accidental spaces/dashes.
+    const displayCode = code.trim().toUpperCase();
+    const cleaned = displayCode.replace(/[\s-]/g, '');
+    if (!cleaned || checkingRef.current) return;
+    checkingRef.current = true;
     setChecking(true);
     setResult(null);
-    setTicketCode(cleaned);
+    setTicketCode(displayCode);
     try {
       const response = await fetch(`${API_URL}/api/bookings/scan`, {
         method: 'POST',
@@ -53,6 +55,7 @@ export default function TicketScanner({ token }: { token: string }) {
     } catch {
       setResult({ error: t('ui.scan.connectionError') });
     } finally {
+      checkingRef.current = false;
       setChecking(false);
     }
   }
@@ -74,10 +77,15 @@ export default function TicketScanner({ token }: { token: string }) {
 
     const startCamera = async () => {
       try {
-        const detectorCtor = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
-        if (!detectorCtor) throw new Error(t('ui.scan.unsupported'));
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error(t('ui.scan.cameraUnavailable'));
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        if (!navigator.mediaDevices?.getUserMedia) {
+          const error = new Error(window.isSecureContext ? t('ui.scan.cameraUnavailable') : t('ui.scan.httpsRequired'));
+          error.name = 'ScannerError';
+          throw error;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
         if (stopped) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -86,15 +94,33 @@ export default function TicketScanner({ token }: { token: string }) {
         if (!video) return;
         video.srcObject = stream;
         await video.play();
-        const detector = new detectorCtor({ formats: ['qr_code'] });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) {
+          const error = new Error(t('ui.scan.cameraUnavailable'));
+          error.name = 'ScannerError';
+          throw error;
+        }
+        let lastScanAt = 0;
 
         const scanFrame = async () => {
           if (stopped || submitted) return;
-          if (!detecting && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          const now = performance.now();
+          if (!detecting && now - lastScanAt >= 180 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
             detecting = true;
+            lastScanAt = now;
             try {
-              const codes = await detector.detect(video);
-              const value = codes[0]?.rawValue;
+              // jsQR works in Safari, Firefox and Chromium without relying on
+              // the optional BarcodeDetector browser API.
+              const width = Math.min(video.videoWidth, 720);
+              const height = Math.round(video.videoHeight * width / video.videoWidth);
+              if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+              }
+              context.drawImage(video, 0, 0, width, height);
+              const image = context.getImageData(0, 0, width, height);
+              const value = jsQR(image.data, width, height, { inversionAttempts: 'attemptBoth' })?.data;
               if (value && !submitted) {
                 submitted = true;
                 setCameraOpen(false);
@@ -110,7 +136,16 @@ export default function TicketScanner({ token }: { token: string }) {
         };
         frame = requestAnimationFrame(scanFrame);
       } catch (error) {
-        setCameraError(error instanceof Error ? error.message : t('ui.scan.cameraUnavailable'));
+        if (stopped) return;
+        const name = error instanceof Error ? error.name : '';
+        const message = name === 'ScannerError'
+          ? (error as Error).message
+          : name === 'NotAllowedError' || name === 'SecurityError'
+          ? t('ui.scan.cameraPermissionDenied')
+          : name === 'NotFoundError' || name === 'DevicesNotFoundError'
+            ? t('ui.scan.cameraNotFound')
+            : t('ui.scan.cameraUnavailable');
+        setCameraError(message);
         setCameraOpen(false);
       }
     };

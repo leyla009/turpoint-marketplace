@@ -247,6 +247,9 @@ router.get('/mine', requireAuth, (req, res) => {
 router.post('/scan', requireAuth, (req, res) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   if (!code) return res.status(400).json({ error: 'ticket code is required' });
+  // Ticket codes are printed for people to read, so accept lowercase input
+  // and harmless spaces or hyphens without changing the stored code.
+  const normalizedCode = code.toUpperCase().replace(/[\s-]/g, '');
 
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(403).json({ error: 'a tour operator account is required' });
@@ -259,8 +262,9 @@ router.post('/scan', requireAuth, (req, res) => {
      FROM bookings b
      JOIN tours t ON t.id = b.tour_id
      JOIN users u ON u.id = b.user_id
-     WHERE b.ticket_code = ? AND t.operator_id = ?`
-  ).get(code, operator.id);
+     WHERE UPPER(REPLACE(REPLACE(b.ticket_code, '-', ''), ' ', '')) = ?
+       AND t.operator_id IN (SELECT id FROM operators WHERE user_id = ?)`
+  ).get(normalizedCode, req.user.userId);
 
   if (!booking) return res.status(404).json({ valid: false, error: 'ticket not found for your tours' });
   if (booking.status !== 'confirmed') return res.status(409).json({ valid: false, error: 'booking is not confirmed' });
