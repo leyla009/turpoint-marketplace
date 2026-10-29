@@ -8,6 +8,16 @@ import { expirePastDueGroups } from './lib/expireGroups.js';
 import { pruneOldNotifications } from './lib/notify.js';
 import { checkGroqKey } from './lib/groq.js';
 import { stormglassConfigured } from './lib/stormglass.js';
+import { bootstrapDemo } from './db/demoBootstrap.js';
+
+// Free hosting without a disk starts from an empty database after every
+// deploy, restart or sleep; rebuild the showcase data before serving. A
+// failure here is logged and the server still starts.
+try {
+  bootstrapDemo();
+} catch (err) {
+  console.error('[demo] automatic demo setup failed', err);
+}
 
 // Expire unfilled groups whose tour date has passed, without needing an
 // external cron. Runs at boot and then hourly; the manual
