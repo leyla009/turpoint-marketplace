@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, ArrowRight, Banknote, CalendarDays, FileText, MapPin, PlaneLanding, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { AlertCircle, ArrowRight, Banknote, CalendarDays, FileText, PlaneLanding, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDate } from '../../lib/format';
@@ -186,18 +186,29 @@ export default function KnowBeforeYouGo() {
         {/* Visitor information */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="bg-navy px-5 py-5">
-            <label htmlFor="kbyg-visitor-type" className="block text-sm font-semibold text-white mb-2.5">
+            <p id="kbyg-visitor-type" className="text-sm font-semibold text-white mb-2.5">
               {t('ui.kbyg.visitorType')}
-            </label>
-            <select
-              id="kbyg-visitor-type"
-              value={visitorType}
-              onChange={(e) => chooseVisitorType(e.target.value as VisitorType)}
-              className="w-full h-11 px-3 text-sm text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/40"
-            >
-              <option value="local">{t('ui.kbyg.localTourist')}</option>
-              <option value="foreign">{t('ui.kbyg.foreignTourist')}</option>
-            </select>
+            </p>
+            {/* Two choices, so a toggle rather than a dropdown. */}
+            <div role="radiogroup" aria-labelledby="kbyg-visitor-type" className="grid grid-cols-2 gap-1 rounded-xl bg-white/10 p-1">
+              {(['local', 'foreign'] as const).map((type) => {
+                const active = visitorType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => chooseVisitorType(type)}
+                    className={`h-10 rounded-lg text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                      active ? 'bg-white text-navy shadow-sm' : 'text-white/75 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {t(type === 'local' ? 'ui.kbyg.localTourist' : 'ui.kbyg.foreignTourist')}
+                  </button>
+                );
+              })}
+            </div>
             {visitorType === 'foreign' ? (
               <div className="mt-4">
                 <label htmlFor="kbyg-country" className="block text-sm font-semibold text-white mb-2.5">
@@ -301,7 +312,7 @@ export default function KnowBeforeYouGo() {
         {/* Essentials */}
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {visitorType === 'foreign' ? (
+            {visitorType === 'foreign' && (
               <InfoCard
                 Icon={PlaneLanding}
                 iconTone="bg-danger/10 text-danger"
@@ -311,17 +322,8 @@ export default function KnowBeforeYouGo() {
                 text={t(bordersStillClosed ? 'ui.kbyg.arriveText' : 'ui.kbyg.arriveTextPast', { date: date(LAND_BORDERS_CLOSED_UNTIL) })}
                 link={{ href: LINKS.borders, label: t('ui.kbyg.arriveLink') }}
               />
-            ) : (
-              <InfoCard
-                Icon={MapPin}
-                iconTone="bg-primary/10 text-primary"
-                badge={t('ui.kbyg.essentials')}
-                badgeTone="bg-primary/10 text-primary"
-                title={t('ui.kbyg.localExploreTitle')}
-                text={t('ui.kbyg.localExploreText')}
-                link={{ href: '/tours', label: t('ui.kbyg.localBrowseTours') }}
-              />
             )}
+            {/* Shared by both visitor types. */}
             <InfoCard
               Icon={ShieldCheck}
               iconTone="bg-warning/15 text-[#B45309]"
@@ -332,15 +334,26 @@ export default function KnowBeforeYouGo() {
               link={{ href: LINKS.karabakh, label: 'yolumuzqarabaga.az' }}
             />
             {visitorType === 'foreign' ? (
-              <InfoCard
-                Icon={FileText}
-                iconTone="bg-primary/10 text-primary"
-                badge={t('ui.kbyg.longStays')}
-                badgeTone="bg-primary/10 text-primary"
-                title={t('ui.kbyg.registerTitle', { days: rule.registerAfterDays })}
-                text={t('ui.kbyg.registerText')}
-                link={{ href: LINKS.migration, label: t('ui.kbyg.registerLink') }}
-              />
+              <>
+                <InfoCard
+                  Icon={FileText}
+                  iconTone="bg-primary/10 text-primary"
+                  badge={t('ui.kbyg.longStays')}
+                  badgeTone="bg-primary/10 text-primary"
+                  title={t('ui.kbyg.registerTitle', { days: rule.registerAfterDays })}
+                  text={t('ui.kbyg.registerText')}
+                  link={{ href: LINKS.migration, label: t('ui.kbyg.registerLink') }}
+                />
+                <InfoCard
+                  Icon={Banknote}
+                  iconTone="bg-success/10 text-success"
+                  badge={t('ui.kbyg.essentials')}
+                  badgeTone="bg-muted text-foreground/70"
+                  title={t('ui.kbyg.moneyTitle')}
+                  text={t('ui.kbyg.moneyText')}
+                  link={{ href: LINKS.rates, label: t('ui.kbyg.moneyLink') }}
+                />
+              </>
             ) : (
               <InfoCard
                 Icon={CalendarDays}
@@ -352,15 +365,6 @@ export default function KnowBeforeYouGo() {
                 link={{ href: '/tours', label: t('ui.kbyg.localBrowseTours') }}
               />
             )}
-            <InfoCard
-              Icon={Banknote}
-              iconTone="bg-success/10 text-success"
-              badge={t('ui.kbyg.essentials')}
-              badgeTone="bg-muted text-foreground/70"
-              title={t('ui.kbyg.moneyTitle')}
-              text={t('ui.kbyg.moneyText')}
-              link={{ href: LINKS.rates, label: t('ui.kbyg.moneyLink') }}
-            />
           </div>
 
           {visitorType === 'foreign' && (
