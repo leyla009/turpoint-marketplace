@@ -32,14 +32,15 @@
     },
     "/auth/signup": {
       "post": {
-        "summary": "Create a new account",
+        "summary": "Create a new account. account_type is 'traveler' (default) or 'operator' and is fixed at signup - only operator accounts can create an operator profile and manage tours.",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
                 "name": "Aysel Mammadova",
                 "email": "aysel@example.com",
-                "password": "secret123"
+                "password": "secret123",
+                "account_type": "traveler"
               }
             }
           }
@@ -792,7 +793,43 @@
             "description": "Array of bookings, each with tour_title, tour_date, traveler_name, traveler_email"
           },
           "403": {
-            "description": "This account has no operator profile"
+            "description": "Not an operator account, or this account has no operator profile yet"
+          }
+        }
+      }
+    },
+    "/bookings/scan": {
+      "post": {
+        "summary": "Operator ticket scanner - checks in a confirmed, fully paid booking on one of the caller's tours. A ticket can only be checked in once.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "code": "TP-1A2B3C4D"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket valid and now checked in - { valid: true, checked_in_at, booking }"
+          },
+          "400": {
+            "description": "ticket code is required"
+          },
+          "403": {
+            "description": "Not an operator account, or this account has no operator profile yet"
+          },
+          "404": {
+            "description": "No booking with this code on the caller's tours"
+          },
+          "409": {
+            "description": "Booking not confirmed, not fully paid, or ticket already used"
           }
         }
       }

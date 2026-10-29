@@ -12,7 +12,7 @@ import { validate } from '../middleware/validate.js';
 import { createBookingSchema } from '../lib/schemas.js';
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireOperatorAccount } from '../middleware/auth.js';
 import { attachActiveDeals } from './tours.js';
 import { notify, operatorUserId } from '../lib/notify.js';
 import { validateCard, authorize, recordInitialPayment, captureHold, voidHold, refundPayment } from '../lib/payments.js';
@@ -222,7 +222,7 @@ router.post('/', requireAuth, validate(createBookingSchema), (req, res) => {
 // Task 20: an operator's bookings across ALL of their tours, for the
 // dashboard. Must come before GET /:id or Express would try to parse
 // "mine" as a booking id.
-router.get('/mine', requireAuth, (req, res) => {
+router.get('/mine', requireAuth, requireOperatorAccount, (req, res) => {
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
   if (!operator) return res.status(403).json({ error: 'you need a tour operator profile first' });
  
@@ -244,7 +244,7 @@ router.get('/mine', requireAuth, (req, res) => {
 // Operator ticket scanner: a QR code is valid only for a confirmed, fully
 // paid booking on one of this operator's tours. Successful scans check the
 // ticket in atomically so it cannot be reused.
-router.post('/scan', requireAuth, (req, res) => {
+router.post('/scan', requireAuth, requireOperatorAccount, (req, res) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   if (!code) return res.status(400).json({ error: 'ticket code is required' });
   // Ticket codes are printed for people to read, so accept lowercase input
@@ -252,7 +252,7 @@ router.post('/scan', requireAuth, (req, res) => {
   const normalizedCode = code.toUpperCase().replace(/[\s-]/g, '');
 
   const operator = db.prepare('SELECT id FROM operators WHERE user_id = ?').get(req.user.userId);
-  if (!operator) return res.status(403).json({ error: 'a tour operator account is required' });
+  if (!operator) return res.status(403).json({ error: 'you need a tour operator profile first' });
 
   const booking = db.prepare(
     `SELECT b.id, b.ticket_code, b.status, b.payment_status, b.paid_amount,

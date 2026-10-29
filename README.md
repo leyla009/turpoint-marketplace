@@ -21,7 +21,7 @@ Local tourism in Azerbaijan is scattered across Instagram pages, Facebook groups
 - **In-app notifications** and a language switcher (AZ / EN / RU).
 
 **Operators**
-- One account can be traveler and operator, with a mode toggle in the UI.
+- The account type (traveler or operator) is chosen at signup. Operator accounts can also book as travelers, with a mode toggle in the UI; traveler accounts cannot manage tours.
 - Operator profile (photo, languages, vehicle features, phone, Instagram).
 - Dashboard: create, edit and delete tours with photos, run last-minute deals, see and cancel incoming bookings, and view analytics (views, bookings, favorites, reviews).
 
@@ -43,7 +43,7 @@ Local tourism in Azerbaijan is scattered across Instagram pages, Facebook groups
 | :--- | :--- |
 | Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Leaflet, lucide-react, qrcode.react |
 | Backend | Node.js 20, Express 4, better-sqlite3 (WAL), Zod, jsonwebtoken + bcryptjs, helmet, express-rate-limit, multer, pdfkit + qrcode |
-| External services | Groq API (planner), Open-Meteo (weather, no key needed) |
+| External services | Groq API (planner), Open-Meteo (tour-date weather, no key needed), Stormglass (optional homepage weather panel, `STORMGLASS_API_KEY`) |
 | API docs | swagger-ui-express (`/api-docs`) |
 | Tests / CI | node:test + supertest, GitHub Actions (backend tests + frontend build) |
 | Hosting | Vercel (frontend), Railway with a persistent volume (backend + SQLite) |
@@ -121,9 +121,10 @@ backend/
   src/app.js         Express app (exported, so tests can import it)
   src/server.js      Entry point: starts the server and the hourly expiry job
   src/routes/        auth, operators, tours, bookings, group-formations, reviews,
-                     deals, planner, favorites, notifications
+                     deals, planner, favorites, notifications, weather, admin
   src/lib/           payments (simulated), refundPolicy, expireGroups, notify,
-                     schemas (Zod), uploads, groq, ticketPdf, analytics
+                     schemas (Zod), uploads, groq, ticketPdf, analytics,
+                     stormglass, instagram, jwt
   src/db/            schema.sql, boot-time migrations, seed scripts
   src/openapi.json   API documentation
   test/              API tests

@@ -33,7 +33,7 @@ describe('tours', () => {
     assert.equal(res.status, 401);
   });
 
-  it('POST /api/tours is refused for a traveler with no operator profile', async () => {
+  it('POST /api/tours is refused for a traveler account', async () => {
     const { token } = await signup(request, app);
     const res = await request(app)
       .post('/api/tours')
@@ -41,7 +41,18 @@ describe('tours', () => {
       .send({ title: 'Quba day trip', price: 50, date: '2030-06-01' });
 
     assert.equal(res.status, 403);
-    assert.equal(res.body.error, 'you need an operator profile before creating tours');
+    assert.equal(res.body.error, 'a tour operator account is required');
+  });
+
+  it('POST /api/tours is refused for an operator account with no operator profile yet', async () => {
+    const { token } = await signup(request, app, { account_type: 'operator' });
+    const res = await request(app)
+      .post('/api/tours')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Quba day trip', price: 50, date: '2030-06-01' });
+
+    assert.equal(res.status, 403);
+    assert.equal(res.body.error, 'you need a tour operator profile before creating tours');
   });
 
   it('GET /api/tours/compare needs 2 or 3 ids', async () => {
@@ -76,8 +87,10 @@ describe('tour gallery photos', () => {
   const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
 
   it('only the owning operator can add/remove photos, and they come back on GET /api/tours/:id', async () => {
-    const owner = await signup(request, app);
-    const stranger = await signup(request, app);
+    // Both are operator accounts, so the 403 for the stranger comes from the
+    // ownership check, not from requireOperatorAccount.
+    const owner = await signup(request, app, { account_type: 'operator' });
+    const stranger = await signup(request, app, { account_type: 'operator' });
     const operatorId = db
       .prepare('INSERT INTO operators (name, user_id) VALUES (?, ?)')
       .run('Gallery Tours', owner.user.id).lastInsertRowid;
