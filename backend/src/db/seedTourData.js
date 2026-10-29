@@ -24,6 +24,7 @@
 import { BAKU_TOURS } from './seedToursBaku.js';
 import { REGIONS_A_TOURS } from './seedToursRegionsA.js';
 import { REGIONS_B_TOURS } from './seedToursRegionsB.js';
+import { SEED_ROUTES } from './seedRoutes.js';
 
 export const LOCALES = ['az', 'en', 'ru'];
 
@@ -55,7 +56,7 @@ const ORDER = [
 
 const LIST_FIELDS = ['highlights', 'description', 'includes', 'excludes', 'notSuitable', 'bring', 'notAllowed', 'know'];
 const TEXT_FIELDS = ['title', 'summary', 'meeting'];
-const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
+const CATEGORIES = ['nature', 'history', 'wellness', 'entertainment', 'food'];
 
 const byKey = new Map([...BAKU_TOURS, ...REGIONS_A_TOURS, ...REGIONS_B_TOURS].map((t) => [t.key, t]));
 
@@ -136,10 +137,12 @@ export function buildTourRow(tour, { operatorId, date }) {
   const interestScore = {};
   for (const c of CATEGORIES) interestScore[c] = c === tour.category ? 0.9 : 0.1;
 
-  // The e-ticket / calendar file read the first line of `route` as
-  // "HH:MM - place". Only tours with a fixed start time need one; the rest
-  // fall back to the tour's location there.
+  // The tour page draws `route` as an itinerary (stops split on "→"), and the
+  // e-ticket / calendar file read an optional leading "HH:MM - " as the start
+  // time. A full stop list wins (SEED_ROUTES, or a route that already has
+  // "→"); otherwise keep the old "HH:MM - location" fallback.
   const time = /^(\d{1,2}:\d{2})/.exec(tour.route ?? '')?.[1];
+  const route = SEED_ROUTES[tour.key] ?? (tour.route?.includes('→') ? tour.route : time ? `${time} - ${tour.location}` : null);
 
   return {
     operator_id: operatorId,
@@ -151,7 +154,7 @@ export function buildTourRow(tour, { operatorId, date }) {
     facts: JSON.stringify(tour.facts ?? {}),
     location: tour.location,
     category: tour.category,
-    route: time ? `${time} - ${tour.location}` : null,
+    route,
     price: tour.price,
     date,
     duration_days: tour.duration_days,

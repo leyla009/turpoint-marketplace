@@ -151,7 +151,7 @@ const az = {
   'category.history': 'Tarix və mədəniyyət',
   'category.entertainment': 'Əyləncə və asudə vaxt',
   'category.food': 'Qastronomiya və şərab',
-  'category.wellness': 'Sağlamlıq və relaksasiya',
+  'category.wellness': 'Sağlamlıq və istirahət',
 
   // Tour feature/inclusion tags (search chips + tour create/edit forms)
   'feature.breakfast': 'Səhər yeməyi',

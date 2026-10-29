@@ -1,5 +1,5 @@
 // Populate an empty LOCAL database with one demo traveler, one demo operator,
-// and 30 richly described, translated sample tour listings. Passwords are
+// and 36 richly described, translated sample tour listings. Passwords are
 // generated at run time, stored only as bcrypt hashes, and printed once for
 // the developer. This script refuses to run if users/operators/tours exist.
 
@@ -11,10 +11,11 @@ import bcrypt from 'bcryptjs';
 import { db } from './index.js';
 import { SEED_TOURS, buildTourRow, seedDates, LOCALES } from './seedTourData.js';
 import { ADDITIONAL_SHOWCASE_TOURS } from './seedToursShowcase.js';
+import { EXTRA_TOURS } from './seedToursExtra.js';
 
-const tours = [...SEED_TOURS, ...ADDITIONAL_SHOWCASE_TOURS];
-if (tours.length !== 30 || new Set(tours.map((tour) => tour.key)).size !== 30) {
-  throw new Error(`Expected 30 unique showcase tours; found ${tours.length}.`);
+const tours = [...SEED_TOURS, ...ADDITIONAL_SHOWCASE_TOURS, ...EXTRA_TOURS];
+if (new Set(tours.map((tour) => tour.key)).size !== tours.length) {
+  throw new Error('Showcase tour keys must be unique.');
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -101,7 +102,7 @@ db.transaction(() => {
   });
 })();
 
-console.log(`Created 30 sample tours, 1 Tour Operator profile, and 2 accounts. Existing weather and other data were left untouched.`);
+console.log(`Created ${tours.length} sample tours, 1 Tour Operator profile, and 2 accounts. Existing weather and other data were left untouched.`);
 console.log(`Traveler username: ${credentials.traveler.username}`);
 console.log(`Traveler email: ${credentials.traveler.email}`);
 console.log(`Traveler password: ${credentials.traveler.password}`);

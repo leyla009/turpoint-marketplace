@@ -7,7 +7,7 @@
  
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
-import { createTourSchema, updateTourSchema } from '../lib/schemas.js';
+import { createTourSchema, updateTourSchema, CATEGORIES } from '../lib/schemas.js';
 import { db } from '../db/index.js';
 import { requireAuth, requireOperatorAccount, optionalAuth } from '../middleware/auth.js';
 import { createImageUpload, UPLOADS_ROOT } from '../lib/uploads.js';
@@ -17,7 +17,6 @@ import path from 'node:path';
 const router = Router();
 const upload = createImageUpload('tours');
 
-const CATEGORIES = ['nature', 'history', 'entertainment', 'food'];
 
 // Mirrors the frontend's buildInterestScore (new-tour/page.tsx): the tour's
 // own category gets a strong match weight, everything else a weak one. Used

@@ -23,6 +23,7 @@ Backend on **Railway**, frontend on **Vercel**. Both redeploy automatically on e
    | `GROQ_API_KEY` | Optional. Enables the AI planner. Without it the planner answers "AI unavailable". |
    | `CRON_SECRET` | Optional. Required only if you call `POST /api/group-formations/expire-past-due` yourself; the server already expires groups hourly. |
    | `ALLOW_MOCK_PHONE_VERIFICATION` | Leave unset. `true` lets anyone verify any number (demos only). |
+   | `ADMIN_EMAILS` | Comma-separated emails of accounts allowed into `/admin`. Sign the account up on the live site **first**, then add its email here, so nobody else can register that address before you. Railway restarts the service when a variable changes. |
 
    `PORT` is set by Railway; don't override it. All backend variables are documented in `backend/.env.example`.
 5. **Deploy.** The schema and migrations are applied automatically on every boot, so there is no manual migration step.

@@ -210,7 +210,7 @@ export const REGIONS_A_TOURS = [
       az: {
         title: 'Şirvan Eko-Turu: Ceyranlar, Quş Müşahidəsi və Kənd Naharı',
         summary: 'Bakıdan bir günlük eko-turla Şirvan Milli Parkına: vəhşi ceyranları bir neçə metrdən görün, quş müşahidəsi edin və kənddə təzə meyvə yığımı ilə ev yeməyi naharı edin.',
-        highlights: ['Şirvan Milli Parkında 100% görmə zəmanəti ilə vəhşi ceyranları görün', 'Qorunan bataqlıq ərazisində dürbünlə quş müşahidəsi', 'İpək Yolu dövrünün abidəsi Səngəçal karvansarasını ziyarət edin', 'Yerli evdə üzvi Azərbaycan yeməkləri ilə nahar edin', 'Davamlı turizmlə kənd icmalarını və təbiəti mühafizə səylərini dəstəkləyin'],
+        highlights: ['Şirvan Milli Parkında 100% görmə zəmanəti ilə vəhşi ceyranları görün', 'Qorunan bataqlıq ərazisində dürbünlə quş müşahidəsi', 'İpək Yolu dövrünün abidəsi Səngəçal karvansarasını ziyarət edin', 'Yerli evdə üzvi Azərbaycan yeməkləri ilə nahar edin', 'Davamlı turizmlə rayon icmalarını və təbiəti mühafizə səylərini dəstəkləyin'],
         description: [
           'Bakıdan Qafqazda ən çox ceyran populyasiyasına malik Şirvan Milli Parkına bu eko-turda təbiətin qoynuna daxil olun. Kür-Araz ovalığına rahat səyahət edin, yolda tarixi Səngəçal karvansarasında qısa mədəni dayanacaq olacaq.',
           'Parkın yarımsəhra mənzərələri və bataqlıqları boyunca bələdçili safari üçün tezdən çatın. Vəhşi ceyranları cəmi 5–10 metrdən izləyin və dürbünlə quş müşahidəsindən zövq alın. Parkın florası, faunası və WWF və IDEA tərəfindən dəstəklənən mühafizə işləri haqqında öyrənin.',
@@ -293,9 +293,9 @@ export const REGIONS_A_TOURS = [
       az: {
         title: 'Şəki Köhnə Şəhər və Xan Sarayı Turu',
         summary: 'Azərbaycanın ən gözəl şəhərlərindən biri olan Şəkinin cazibəsini kəşf edin: möhtəşəm Xan Sarayı, qədim karvansara və atmosferik köhnə şəhər.',
-        highlights: ['Bələdçi ilə regionun tarixini kəşf edin', 'Bakıdan Azərbaycan kəndləri boyunca mənzərəli yol', 'Şamaxıda ənənəvi səhər yeməyi dayanacağı', 'Tarixi Şəki Xan Sarayını ziyarət edin', 'Şəki karvansarasını və yerli sənətkar mağazalarını gəzin'],
+        highlights: ['Bələdçi ilə regionun tarixini kəşf edin', 'Bakıdan Azərbaycan rayonları boyunca mənzərəli yol', 'Şamaxıda ənənəvi səhər yeməyi dayanacağı', 'Tarixi Şəki Xan Sarayını ziyarət edin', 'Şəki karvansarasını və yerli sənətkar mağazalarını gəzin'],
         description: [
-          'Bakıdan tarixi və füsunkar Şəki şəhərinə bir günlük macəraya çıxın. Səhər tezdən Azərbaycan kəndləri boyunca dağlara doğru səyahət edin. Şamaxıda dağ balı, Şamaxı pendiri və təzə omletlə ənənəvi səhər yeməyi edin, sonra İsmayıllı meşələrində ucaboylu ağaclar arasında çay fasiləsi verin.',
+          'Bakıdan tarixi və füsunkar Şəki şəhərinə bir günlük macəraya çıxın. Səhər tezdən Azərbaycan rayonları boyunca dağlara doğru səyahət edin. Şamaxıda dağ balı, Şamaxı pendiri və təzə omletlə ənənəvi səhər yeməyi edin, sonra İsmayıllı meşələrində ucaboylu ağaclar arasında çay fasiləsi verin.',
           'Şəkidə ilk əsas dayanacağınız 18-ci əsr Azərbaycan memarlığının şah əsəri və UNESCO tərəfindən tanınan Şəki Xan Sarayıdır: mürəkkəb şəbəkə pəncərələri, bəzəkli oymalar və freskalar. Eləcə də əvvəllər İpək Yolu səyyahlarının dincəlmə məntəqəsi olan tarixi Şəki karvansarasını ziyarət edirsiniz; burada yerli sənət əsərləri, ipək, zərgərlik və məşhur Şəki halvası satan ənənəvi dükanlar var. 18-ci əsrə aid dükanları gəzin, Şəkinin məşhur şirniyyatlarından dadın və şəhərin və dağların mənzərəsi üçün Şəki Panoram Parkına qalxın.',
           'Kiş kəndində nahar edin və özünəməxsus gil qabda verilən zəngin quzu yeməyi olan Şəki pitisini dadın. Sonra Kişdəki ən qədim yerli abidələrdən biri olan Qafqaz Albaniyası məbədini ziyarət edin, ardınca Bakıya mənzərəli yol.',
         ],
@@ -433,7 +433,7 @@ export const REGIONS_A_TOURS = [
         summary: 'Mənzərəli şəxsi bir günlük turla Şəkinin gözəlliyini kəşf edin: füsunkar dağ şəhərində möhtəşəm Şəki Xan Sarayı, tarixi karvansaralar və yerli şirniyyatlar.',
         highlights: ['Şəki Xan Sarayı: Ümumdünya İrsi', 'İpək Yolu: zaman maşını', 'Ənənəvi yemək və Şəki halvası dadı', 'Karvansara: zaman maşını'],
         description: [
-          'Tarix, mədəniyyət və dağ mənzərələri ilə dolu unudulmaz bir günlük səyahətdə Şəkinin sehrini kəşf edin. Bakıdan şimal-qərbə doğru gedərkən mənzərənin dalğalı yaşıl təpələrə, sakit dağ kəndlərinə və qıvrım yollara çevrilməsini izləyin.',
+          'Tarix, mədəniyyət və dağ mənzərələri ilə dolu unudulmaz bir günlük səyahətdə Şəkinin sehrini kəşf edin. Bakıdan şimal-qərbə doğru gedərkən mənzərənin dalğalı yaşıl təpələrə, sakit dağ rayonlarına və qıvrım yollara çevrilməsini izləyin.',
           'Macəranız parlaq şəbəkə pəncərələri, oyma taxta qapıları və rəngarəng freskaları ilə şah əsəri olan Şəki Xan Sarayından başlayır. Daş tağları və gizli həyətləri ilə İpək Yolu taciriləri üçün şən dayanacaq olmuş qədim karvansaranı gəzin.',
           'Şəkinin ənənəvi bazarında yerli ritmi hiss edin, məşhur Şəki halvasını dadın və dağ mənzərəli yerli restoranda isti Azərbaycan naharı edin. Günortadan sonra Cümə Məscidini və ustaların hələ də əsrlik üsullarla ipək və saxsı hazırladığı yaxınlıqdakı sənətkar emalatxanalarını ziyarət edin, geri dönməzdən əvvəl Şəkinin sakit küçələrinə və taxta eyvanlarına son dəfə baxın.',
         ],
