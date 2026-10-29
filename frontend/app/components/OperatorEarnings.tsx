@@ -113,15 +113,15 @@ function BusinessDetailsForm() {
   const { token, operatorProfile, refreshOperatorProfile } = useAuth();
   const { t } = useLanguage();
   const [voen, setVoen] = useState('');
-  const [cardLast4, setCardLast4] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setVoen(operatorProfile?.voen ?? '');
-    setCardLast4(operatorProfile?.business_card_last4 ?? '');
-  }, [operatorProfile?.voen, operatorProfile?.business_card_last4]);
+  }, [operatorProfile?.voen]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,8 +131,12 @@ function BusinessDetailsForm() {
       setError(t('profile.voenInvalid'));
       return;
     }
-    if (!/^\d{4}$/.test(cardLast4)) {
-      setError(t('profile.demoCardInvalid'));
+    if (!/^\d{16}$/.test(cardNumber)) {
+      setError(t('profile.demoCardNumberInvalid'));
+      return;
+    }
+    if (!/^\d{3}$/.test(cardCvc)) {
+      setError(t('profile.demoCardCvcInvalid'));
       return;
     }
     if (!token || !operatorProfile) return;
@@ -142,7 +146,9 @@ function BusinessDetailsForm() {
       const response = await fetch(`${API_URL}/api/operators/${operatorProfile.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ voen, business_card_last4: cardLast4 }),
+        // Only the last four digits are sent to the API. The full number and
+        // CVC stay transient in this form and are never stored.
+        body: JSON.stringify({ voen, business_card_last4: cardNumber.slice(-4) }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -150,6 +156,8 @@ function BusinessDetailsForm() {
         return;
       }
       await refreshOperatorProfile();
+      setCardNumber('');
+      setCardCvc('');
       setSaved(true);
     } catch {
       setError(t('profile.couldntReachBackend'));
@@ -181,19 +189,36 @@ function BusinessDetailsForm() {
       </div>
       <div>
         <label htmlFor="operator-demo-card" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.demoCard')}</label>
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="rounded-lg border border-border bg-background px-3.5 py-3 font-mono text-sm text-muted-foreground">•••• •••• ••••</span>
+        <input
+          id="operator-demo-card"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={16}
+          value={cardNumber}
+          onChange={(event) => setCardNumber(event.target.value.replace(/\D/g, '').slice(0, 16))}
+          placeholder="1234567890123456"
+          aria-label={t('profile.demoCardNumber')}
+          className="w-full rounded-lg border border-border bg-background px-3.5 py-3 font-mono text-base text-foreground outline-none focus:border-primary"
+        />
+        {operatorProfile?.business_card_last4 && (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {t('profile.demoCardSaved', { digits: operatorProfile.business_card_last4 })}
+          </p>
+        )}
+        <div className="mt-3 max-w-40">
+          <label htmlFor="operator-demo-card-cvc" className="mb-1.5 block text-sm font-semibold text-foreground">{t('profile.demoCardCvc')}</label>
           <input
-            id="operator-demo-card"
+            id="operator-demo-card-cvc"
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            maxLength={4}
-            value={cardLast4}
-            onChange={(event) => setCardLast4(event.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="1234"
-            aria-label={t('profile.demoCardLast4')}
-            className="w-24 rounded-lg border border-border bg-background px-3.5 py-3 font-mono text-base text-foreground outline-none focus:border-primary"
+            maxLength={3}
+            value={cardCvc}
+            onChange={(event) => setCardCvc(event.target.value.replace(/\D/g, '').slice(0, 3))}
+            placeholder="123"
+            aria-label={t('profile.demoCardCvc')}
+            className="w-full rounded-lg border border-border bg-background px-3.5 py-3 font-mono text-base text-foreground outline-none focus:border-primary"
           />
         </div>
         <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{t('profile.demoCardHint')}</p>

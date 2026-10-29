@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, ArrowRight, Banknote, FileText, PlaneLanding, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, Banknote, CalendarDays, FileText, MapPin, PlaneLanding, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDate } from '../../lib/format';
@@ -9,13 +9,16 @@ import { COUNTRY_CODES, countryOptions } from '../../lib/countries';
 import { browserCountry, entryRuleFor, ENTRY_RULES_CHECKED, LAND_BORDERS_CLOSED_UNTIL, LINKS } from '../../lib/entryRules';
 
 const STORAGE_KEY = 'turpoint_passport_country';
+const VISITOR_STORAGE_KEY = 'turpoint_visitor_type';
 const FALLBACK_COUNTRY = 'DE';
 const isCountry = (c: string | null | undefined): c is string => !!c && c !== 'AZ' && (COUNTRY_CODES as readonly string[]).includes(c);
+type VisitorType = 'local' | 'foreign';
 
-// External links open in a new tab - every one points at an official source.
+// External links open in a new tab; internal links stay in this tab.
 function ExtLink({ href, children, className = '' }: { href: string; children: ReactNode; className?: string }) {
+  const external = /^https?:\/\//.test(href);
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1 font-semibold text-navy hover:text-primary transition-colors ${className}`}>
+    <a href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className={`inline-flex items-center gap-1 font-semibold text-navy hover:text-primary transition-colors ${className}`}>
       {children}
     </a>
   );
@@ -30,7 +33,7 @@ function InfoCard({
   text,
   link,
 }: {
-  Icon: typeof FileText;
+  Icon: LucideIcon;
   iconTone: string;
   badge: string;
   badgeTone: string;
@@ -62,11 +65,20 @@ export default function KnowBeforeYouGo() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const [country, setCountry] = useState<string>(FALLBACK_COUNTRY);
+  const [visitorType, setVisitorType] = useState<VisitorType>('foreign');
   // Country names (Intl.DisplayNames) and dates can differ between Node's and
   // the browser's ICU data, so this renders on the client only - it sits far
   // below the fold, and avoids a hydration mismatch.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    try {
+      const savedType = localStorage.getItem(VISITOR_STORAGE_KEY);
+      if (savedType === 'local' || savedType === 'foreign') setVisitorType(savedType);
+    } catch {
+      /* visitor preference is optional */
+    }
+    setMounted(true);
+  }, []);
 
   // Picked country > the account's country of residence > browser region.
   useEffect(() => {
@@ -89,6 +101,15 @@ export default function KnowBeforeYouGo() {
     }
   };
 
+  const chooseVisitorType = (type: VisitorType) => {
+    setVisitorType(type);
+    try {
+      localStorage.setItem(VISITOR_STORAGE_KEY, type);
+    } catch {
+      /* visitor preference is optional */
+    }
+  };
+
   const countries = useMemo(() => countryOptions(locale).filter((c) => c.code !== 'AZ'), [locale]);
   const rule = entryRuleFor(country);
   const date = (iso: string) => formatDate(iso, locale, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -101,6 +122,11 @@ export default function KnowBeforeYouGo() {
     [t('ui.kbyg.rowPassport'), t(free ? 'ui.kbyg.passportFree' : 'ui.kbyg.passportVisa')],
     [t('ui.kbyg.rowRegister'), t('ui.kbyg.registerDays', { days: rule.registerAfterDays })],
     [t('ui.kbyg.rowArrive'), t('ui.kbyg.byAir')],
+  ];
+  const localRows: [string, string][] = [
+    [t('ui.kbyg.localDateLabel'), t('ui.kbyg.localDateValue')],
+    [t('ui.kbyg.localMeetingLabel'), t('ui.kbyg.localMeetingValue')],
+    [t('ui.kbyg.localRouteLabel'), t('ui.kbyg.localRouteValue')],
   ];
 
   const headline = free
@@ -157,32 +183,51 @@ export default function KnowBeforeYouGo() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] gap-4 items-start">
-        {/* Visa checker */}
+        {/* Visitor information */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="bg-navy px-5 py-5">
-            <label htmlFor="kbyg-country" className="block text-sm font-semibold text-white mb-2.5">
-              {t('ui.kbyg.from')}
+            <label htmlFor="kbyg-visitor-type" className="block text-sm font-semibold text-white mb-2.5">
+              {t('ui.kbyg.visitorType')}
             </label>
             <select
-              id="kbyg-country"
-              value={country}
-              onChange={(e) => choose(e.target.value)}
-              aria-describedby="kbyg-country-hint"
+              id="kbyg-visitor-type"
+              value={visitorType}
+              onChange={(e) => chooseVisitorType(e.target.value as VisitorType)}
               className="w-full h-11 px-3 text-sm text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/40"
             >
-              {countries.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
+              <option value="local">{t('ui.kbyg.localTourist')}</option>
+              <option value="foreign">{t('ui.kbyg.foreignTourist')}</option>
             </select>
-            <p id="kbyg-country-hint" className="text-[11px] text-white/65 mt-1.5">
-              {t('ui.kbyg.fromHint')}
-            </p>
+            {visitorType === 'foreign' ? (
+              <div className="mt-4">
+                <label htmlFor="kbyg-country" className="block text-sm font-semibold text-white mb-2.5">
+                  {t('ui.kbyg.from')}
+                </label>
+                <select
+                  id="kbyg-country"
+                  value={country}
+                  onChange={(e) => choose(e.target.value)}
+                  aria-describedby="kbyg-country-hint"
+                  className="w-full h-11 px-3 text-sm text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p id="kbyg-country-hint" className="text-[11px] text-white/65 mt-1.5">
+                  {t('ui.kbyg.fromHint')}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-white/65 mt-1.5">{t('ui.kbyg.localHint')}</p>
+            )}
           </div>
 
-          <div className="p-5">
-            <span className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${badge.tone}`}>{badge.text}</span>
+          {visitorType === 'foreign' ? (
+            <div className="p-5">
+              <span className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${badge.tone}`}>{badge.text}</span>
 
             <div className={`flex items-center gap-4 rounded-xl p-4 mt-3 ${free ? 'bg-success/[0.07]' : 'bg-primary/[0.07]'}`} aria-live="polite">
               {rule.days !== null && (
@@ -227,21 +272,56 @@ export default function KnowBeforeYouGo() {
                 yolumuzqarabaga.az
               </a>
             </p>
-          </div>
+            </div>
+          ) : (
+            <div className="p-5">
+              <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                {t('ui.kbyg.localBadge')}
+              </span>
+              <div className="rounded-xl p-4 mt-3 bg-primary/[0.05]" aria-live="polite">
+                <p className="text-base font-bold text-navy">{t('ui.kbyg.localTitle')}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t('ui.kbyg.localText')}</p>
+              </div>
+              <p className="text-sm font-bold text-navy mt-4 mb-2">{t('ui.kbyg.localChecklistTitle')}</p>
+              <dl className="divide-y divide-border">
+                {localRows.map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="font-semibold text-navy text-right">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <ExtLink href="/tours" className="text-sm mt-4">
+                {t('ui.kbyg.localBrowseTours')} <ArrowRight size={14} />
+              </ExtLink>
+            </div>
+          )}
         </div>
 
         {/* Essentials */}
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InfoCard
-              Icon={PlaneLanding}
-              iconTone="bg-danger/10 text-danger"
-              badge={t('ui.kbyg.important')}
-              badgeTone="bg-danger/10 text-danger"
-              title={t('ui.kbyg.arriveTitle')}
-              text={t(bordersStillClosed ? 'ui.kbyg.arriveText' : 'ui.kbyg.arriveTextPast', { date: date(LAND_BORDERS_CLOSED_UNTIL) })}
-              link={{ href: LINKS.borders, label: t('ui.kbyg.arriveLink') }}
-            />
+            {visitorType === 'foreign' ? (
+              <InfoCard
+                Icon={PlaneLanding}
+                iconTone="bg-danger/10 text-danger"
+                badge={t('ui.kbyg.important')}
+                badgeTone="bg-danger/10 text-danger"
+                title={t('ui.kbyg.arriveTitle')}
+                text={t(bordersStillClosed ? 'ui.kbyg.arriveText' : 'ui.kbyg.arriveTextPast', { date: date(LAND_BORDERS_CLOSED_UNTIL) })}
+                link={{ href: LINKS.borders, label: t('ui.kbyg.arriveLink') }}
+              />
+            ) : (
+              <InfoCard
+                Icon={MapPin}
+                iconTone="bg-primary/10 text-primary"
+                badge={t('ui.kbyg.essentials')}
+                badgeTone="bg-primary/10 text-primary"
+                title={t('ui.kbyg.localExploreTitle')}
+                text={t('ui.kbyg.localExploreText')}
+                link={{ href: '/tours', label: t('ui.kbyg.localBrowseTours') }}
+              />
+            )}
             <InfoCard
               Icon={ShieldCheck}
               iconTone="bg-warning/15 text-[#B45309]"
@@ -251,15 +331,27 @@ export default function KnowBeforeYouGo() {
               text={t('ui.kbyg.karabakhText')}
               link={{ href: LINKS.karabakh, label: 'yolumuzqarabaga.az' }}
             />
-            <InfoCard
-              Icon={FileText}
-              iconTone="bg-primary/10 text-primary"
-              badge={t('ui.kbyg.longStays')}
-              badgeTone="bg-primary/10 text-primary"
-              title={t('ui.kbyg.registerTitle', { days: rule.registerAfterDays })}
-              text={t('ui.kbyg.registerText')}
-              link={{ href: LINKS.migration, label: t('ui.kbyg.registerLink') }}
-            />
+            {visitorType === 'foreign' ? (
+              <InfoCard
+                Icon={FileText}
+                iconTone="bg-primary/10 text-primary"
+                badge={t('ui.kbyg.longStays')}
+                badgeTone="bg-primary/10 text-primary"
+                title={t('ui.kbyg.registerTitle', { days: rule.registerAfterDays })}
+                text={t('ui.kbyg.registerText')}
+                link={{ href: LINKS.migration, label: t('ui.kbyg.registerLink') }}
+              />
+            ) : (
+              <InfoCard
+                Icon={CalendarDays}
+                iconTone="bg-primary/10 text-primary"
+                badge={t('ui.kbyg.essentials')}
+                badgeTone="bg-muted text-foreground/70"
+                title={t('ui.kbyg.localPlanTitle')}
+                text={t('ui.kbyg.localPlanText')}
+                link={{ href: '/tours', label: t('ui.kbyg.localBrowseTours') }}
+              />
+            )}
             <InfoCard
               Icon={Banknote}
               iconTone="bg-success/10 text-success"
@@ -271,12 +363,14 @@ export default function KnowBeforeYouGo() {
             />
           </div>
 
-          <p className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/[0.07] px-4 py-3 text-sm text-foreground/80">
-            <AlertCircle size={16} className="text-warning shrink-0 mt-0.5" />
-            <span>
-              {t('ui.kbyg.disclaimer')} {t('ui.kbyg.checked', { date: date(ENTRY_RULES_CHECKED) })}
-            </span>
-          </p>
+          {visitorType === 'foreign' && (
+            <p className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/[0.07] px-4 py-3 text-sm text-foreground/80">
+              <AlertCircle size={16} className="text-warning shrink-0 mt-0.5" />
+              <span>
+                {t('ui.kbyg.disclaimer')} {t('ui.kbyg.checked', { date: date(ENTRY_RULES_CHECKED) })}
+              </span>
+            </p>
+          )}
         </div>
       </div>
     </section>
