@@ -10,6 +10,8 @@
     "seed:tours": "node src/db/seedRealTours.js",
     "seed:showcase": "node src/db/seedShowcase.js",
     "seed:extra": "node src/db/seedExtra.js",
+    "seed:demo-operator": "node src/db/seedDemoOperator.js",
+    "db:summary": "node src/db/dbSummary.js",
     "seed:photos": "node src/db/seedPhotos.js",
     "seed:analytics": "node src/db/seedAnalyticsDemo.js",
     "check:groq": "node src/checkGroq.js",
